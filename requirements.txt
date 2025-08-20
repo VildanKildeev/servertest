@@ -2,7 +2,7 @@ fastapi
 uvicorn
 python-multipart
 sqlalchemy
-databases
-databases[postgresql]
+databases[sqlite]
+aiosqlite
 python-dotenv
 pydantic
