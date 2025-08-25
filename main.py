@@ -1,8 +1,15 @@
+Конечно. Вот ваш файл main.py с внесенными изменениями, чтобы исправить ошибку 404 Not Found.
+
+Я добавил APIRouter с префиксом /api и перенес все ваши маршруты на него. Это сделает ваш код более организованным и решит проблему несоответствия маршрутов.
+
+Просто скопируйте и замените им текущее содержимое вашего файла main.py.
+Python
+
 import json
 import uvicorn
 import databases
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -16,6 +23,9 @@ database = databases.Database(DATABASE_URL)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI(title="СМЗ.РФ API")
+
+# Создаем роутер с префиксом /api
+api_router = APIRouter(prefix="/api")
 
 # Разрешаем CORS
 app.add_middleware(
@@ -118,7 +128,7 @@ async def get_cities():
 
 
 # Регистрация
-@app.post("/register", status_code=status.HTTP_201_CREATED)
+@api_router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate):
     query = users.select().where(users.c.username == user.username)
     existing = await database.fetch_one(query)
@@ -136,7 +146,7 @@ async def register(user: UserCreate):
 
 
 # Вход
-@app.post("/login")
+@api_router.post("/login")
 async def login(data: LoginData):
     query = users.select().where(users.c.username == data.username)
     user = await database.fetch_one(query)
@@ -154,7 +164,7 @@ async def login(data: LoginData):
 
 
 # Профиль пользователя
-@app.get("/users/{user_id}")
+@api_router.get("/users/{user_id}")
 async def get_user(user_id: int, authorization: str = None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Необходима авторизация")
@@ -176,7 +186,7 @@ async def get_user(user_id: int, authorization: str = None):
 
 
 # === Нанять мастера ===
-@app.post("/work-requests", status_code=status.HTTP_201_CREATED)
+@api_router.post("/work-requests", status_code=status.HTTP_201_CREATED)
 async def create_work_request(request: WorkRequestCreate, authorization: str = None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Требуется авторизация")
@@ -195,7 +205,7 @@ async def create_work_request(request: WorkRequestCreate, authorization: str = N
     return {**request.dict(), "id": request_id, "timestamp": datetime.utcnow().isoformat()}
 
 
-@app.get("/work-requests")
+@api_router.get("/work-requests")
 async def get_work_requests(city_id: int = None):
     query = work_requests.select()
     if city_id:
@@ -216,7 +226,7 @@ async def get_work_requests(city_id: int = None):
 
 
 # === Аренда спецтехники ===
-@app.post("/machinery-requests", status_code=status.HTTP_201_CREATED)
+@api_router.post("/machinery-requests", status_code=status.HTTP_201_CREATED)
 async def create_machinery_request(request: MachineryRequestCreate, authorization: str = None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Требуется авторизация")
@@ -236,7 +246,7 @@ async def create_machinery_request(request: MachineryRequestCreate, authorizatio
     return {**request.dict(), "id": request_id, "timestamp": datetime.utcnow().isoformat()}
 
 
-@app.get("/machinery-requests")
+@api_router.get("/machinery-requests")
 async def get_machinery_requests(city_id: int = None):
     query = machinery_requests.select()
     if city_id:
@@ -258,7 +268,7 @@ async def get_machinery_requests(city_id: int = None):
 
 
 # === Продать материалы ===
-@app.post("/material-ads", status_code=status.HTTP_201_CREATED)
+@api_router.post("/material-ads", status_code=status.HTTP_201_CREATED)
 async def create_material_ad(ad: MaterialAdCreate, authorization: str = None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Требуется авторизация")
@@ -278,7 +288,7 @@ async def create_material_ad(ad: MaterialAdCreate, authorization: str = None):
     return {**ad.dict(), "id": ad_id, "timestamp": datetime.utcnow().isoformat()}
 
 
-@app.get("/material-ads")
+@api_router.get("/material-ads")
 async def get_material_ads(city_id: int = None):
     query = material_ads.select()
     if city_id:
@@ -300,7 +310,7 @@ async def get_material_ads(city_id: int = None):
 
 
 # === Аренда инструмента ===
-@app.post("/tool-rentals", status_code=status.HTTP_201_CREATED)
+@api_router.post("/tool-rentals", status_code=status.HTTP_201_CREATED)
 async def create_tool_rental(tool: ToolRentalCreate, authorization: str = None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Требуется авторизация")
@@ -320,7 +330,7 @@ async def create_tool_rental(tool: ToolRentalCreate, authorization: str = None):
     return {**tool.dict(), "id": tool_id, "timestamp": datetime.utcnow().isoformat()}
 
 
-@app.get("/tool-rentals")
+@api_router.get("/tool-rentals")
 async def get_tool_rentals(city_id: int = None):
     query = tool_requests.select()
     if city_id:
@@ -342,7 +352,7 @@ async def get_tool_rentals(city_id: int = None):
 
 
 # === Взять заказ (Take Order) ===
-@app.post("/work-requests/{request_id}/take")
+@api_router.post("/work-requests/{request_id}/take")
 async def take_work_request(request_id: int, data: dict, authorization: str = None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Требуется авторизация")
@@ -358,7 +368,7 @@ async def take_work_request(request_id: int, data: dict, authorization: str = No
     return {"message": f"Вы взяли заказ на работу №{request_id}"}
 
 
-@app.post("/machinery-requests/{request_id}/take")
+@api_router.post("/machinery-requests/{request_id}/take")
 async def take_machinery_request(request_id: int, data: dict, authorization: str = None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Требуется авторизация")
@@ -372,6 +382,8 @@ async def take_machinery_request(request_id: int, data: dict, authorization: str
 
     return {"message": f"Вы взяли заказ на спецтехнику №{request_id}"}
 
+# Подключаем роутер к основному приложению
+app.include_router(api_router)
 
 # Запуск
 if __name__ == "__main__":
