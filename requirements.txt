@@ -2,7 +2,9 @@ fastapi
 uvicorn
 python-multipart
 sqlalchemy
-databases[postgresql] # Заменяем 'sqlite' на 'postgresql'
-asyncpg # Добавляем драйвер для PostgreSQL
+databases[postgresql]
+asyncpg
 python-dotenv
 pydantic
+passlib
+bcrypt

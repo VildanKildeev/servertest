@@ -1,10 +1,15 @@
 import sqlalchemy
 from sqlalchemy.schema import MetaData
 from sqlalchemy.engine import create_engine
+import os
 
-# DATABASE_URL будет браться из переменных окружения Render
-# Ее не нужно явно указывать здесь
-DATABASE_URL = "postgresql+asyncpg://<username>:<password>@<hostname>:<port>/<db_name>" # Пример
+# Получаем DATABASE_URL из переменных окружения.
+# Это позволяет нам использовать разные БД (локальную и на Render)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Проверяем, что переменная установлена, иначе приложение не запустится
+if not DATABASE_URL:
+    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
 
 metadata = MetaData()
 
@@ -80,4 +85,5 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
+# Создаем движок SQLAlchemy с использованием DATABASE_URL
 engine = create_engine(DATABASE_URL)
