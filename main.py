@@ -120,7 +120,7 @@ async def get_current_user(authorization: str = None):
 # === Эндпоинты ===
 
 # Список городов
-@app.get("/cities")
+@api_router.get("/cities")
 async def get_cities():
     return [
         {"id": 1, "name": "Москва"},
