@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # Импортируем базу данных
 from database import users, work_requests, machinery_requests, tool_requests, material_ads, metadata, engine, DATABASE_URL
@@ -69,7 +71,6 @@ class WorkRequestCreate(BaseModel):
     contact_info: str
     city_id: int
     user_id: Optional[int] = None
-    # specialization: Optional[str] = None # Временно убрано, т.к. нет в БД
 
 class MachineryRequestCreate(BaseModel):
     machinery_type: str
@@ -128,10 +129,9 @@ async def get_cities():
         {"id": 5, "name": "Казань"},
     ]
     
-# Список специализаций (Добавлен для соответствия фронтенду)
+# Список специализаций
 @app.get("/specializations")
 async def get_specializations():
-    # Реальный список должен быть взят из БД, но для демо используем хардкод
     return [
         {"id": 1, "name": "Электрик"},
         {"id": 2, "name": "Сантехник"},
@@ -376,6 +376,14 @@ async def take_machinery_request(request_id: int, user: dict = Depends(get_curre
 
 # Подключаем роутер к основному приложению
 app.include_router(api_router)
+
+# Обслуживание HTML-файла
+@app.get("/")
+async def serve_html():
+    return FileResponse("рабочая версия2.html", media_type="text/html")
+
+# Обслуживание статических файлов
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Запуск
 if __name__ == "__main__":
