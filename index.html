@@ -267,7 +267,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const url = 'https://api-smz-app-dd265c697858.herokuapp.com'; // Ваш URL бэкенда
+        const url = 'https://servertest2-0.onrender.com'; // Ваш URL бэкенда
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityName');
         const buttonContainer = document.getElementById('buttonContainer');
@@ -834,7 +834,12 @@
                 specializationGroup.style.display = 'none';
             }
         });
-        document.getElementById('switchToRegister').addEventListener('click', (e) => { e.preventDefault(); showPage('registerModal'); });
+        document.getElementById('switchToRegister').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await fetchCities();
+    await fetchSpecializations();
+    showPage('registerModal');
+});
         document.getElementById('switchToLogin').addEventListener('click', (e) => { e.preventDefault(); showPage('authModal'); });
         document.getElementById('profileButton').addEventListener('click', () => { showPage('profilePage'); });
         document.getElementById('logoutButton').addEventListener('click', () => {
