@@ -382,9 +382,6 @@ app.include_router(api_router)
 async def serve_html():
     return FileResponse("рабочая версия2.html", media_type="text/html")
 
-# Обслуживание статических файлов
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # Запуск
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
