@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 import os
 from dotenv import load_dotenv
@@ -33,6 +33,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
+    # Создаем таблицы, если их нет
     metadata.create_all(engine)
     await database.connect()
 
@@ -48,19 +49,25 @@ class UserCreate(BaseModel):
     city_id: int
     specialization: Optional[str] = None
 
-class UserInDB(UserCreate):
+class UserInDB(BaseModel):
     id: int
+    username: str
+    user_name: str
+    user_type: str
+    city_id: int
+    specialization: Optional[str] = None
 
 class WorkRequestCreate(BaseModel):
     description: str
-    budget: float
     contact_info: str
     city_id: int
     specialization: str
-    user_id: int
+    budget: Optional[float] = None # Бюджет сделал необязательным
+    photos: Optional[List[str]] = []
 
 class WorkRequestInDB(WorkRequestCreate):
     id: int
+    user_id: int
     created_at: datetime
 
 class MachineryRequestCreate(BaseModel):
@@ -69,10 +76,13 @@ class MachineryRequestCreate(BaseModel):
     rental_price: float
     contact_info: str
     city_id: int
-    user_id: int
+    is_preorder: bool
+    preorder_date: Optional[datetime] = None
+    photos: Optional[List[str]] = []
 
 class MachineryRequestInDB(MachineryRequestCreate):
     id: int
+    user_id: int
     created_at: datetime
 
 class ToolRequestCreate(BaseModel):
@@ -81,10 +91,15 @@ class ToolRequestCreate(BaseModel):
     rental_price: float
     contact_info: str
     city_id: int
-    user_id: int
+    start_date: datetime
+    end_date: datetime
+    delivery_needed: bool
+    delivery_address: Optional[str] = None
+    photos: Optional[List[str]] = []
 
 class ToolRequestInDB(ToolRequestCreate):
     id: int
+    user_id: int
     created_at: datetime
 
 class MaterialAdCreate(BaseModel):
@@ -93,11 +108,16 @@ class MaterialAdCreate(BaseModel):
     price: float
     contact_info: str
     city_id: int
-    user_id: int
+    photos: Optional[List[str]] = []
 
 class MaterialAdInDB(MaterialAdCreate):
     id: int
+    user_id: int
     created_at: datetime
+
+class UserAuth(BaseModel):
+    username: str
+    password: str
 
 def get_password_hash(password):
     return pwd_context.hash(password)
@@ -130,18 +150,18 @@ async def register_user(user: UserCreate):
         specialization=user.specialization
     )
     last_record_id = await database.execute(query)
-    return {**user.model_dump(), "id": last_record_id, "password_hash": hashed_password}
+    return {**user.model_dump(), "id": last_record_id}
 
 @api_router.post("/login")
-async def login_user(username: str, password: str):
-    query = users.select().where(users.c.username == username)
+async def login_user(user_auth: UserAuth):
+    query = users.select().where(users.c.username == user_auth.username)
     user_record = await database.fetch_one(query)
-    if not user_record or not verify_password(password, user_record["password_hash"]):
+    if not user_record or not verify_password(user_auth.password, user_record["password_hash"]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
     fake_token = f"fake_token_{user_record['id']}"
     return {"token": fake_token, "user": dict(user_record)}
 
-@api_router.get("/user/me")
+@api_router.get("/user/me", response_model=UserInDB)
 async def read_current_user(user_id: int = Depends(fake_auth)):
     query = users.select().where(users.c.id == user_id)
     user_record = await database.fetch_one(query)
@@ -149,7 +169,7 @@ async def read_current_user(user_id: int = Depends(fake_auth)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
     return dict(user_record)
 
-@api_router.post("/work-requests", response_model=WorkRequestInDB, status_code=status.HTTP_201_CREATED)
+@api_router.post("/work-requests", status_code=status.HTTP_201_CREATED)
 async def create_work_request(request: WorkRequestCreate, user_id: int = Depends(fake_auth)):
     query = work_requests.insert().values(
         description=request.description,
@@ -160,17 +180,25 @@ async def create_work_request(request: WorkRequestCreate, user_id: int = Depends
         user_id=user_id
     )
     last_record_id = await database.execute(query)
-    return {**request.model_dump(), "id": last_record_id, "user_id": user_id, "created_at": datetime.now()}
+    return {"message": "Заявка успешно создана!", "id": last_record_id}
 
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
-async def read_work_requests(city_id: Optional[int] = None):
+async def read_work_requests(city_id: Optional[int] = None, specialization: Optional[str] = None):
     query = work_requests.select()
     if city_id is not None:
         query = query.where(work_requests.c.city_id == city_id)
+    if specialization is not None:
+        query = query.where(work_requests.c.specialization == specialization)
     requests = await database.fetch_all(query)
     return requests
 
-@api_router.post("/machinery-requests", response_model=MachineryRequestInDB, status_code=status.HTTP_201_CREATED)
+@api_router.get("/my-work-requests", response_model=List[WorkRequestInDB])
+async def read_my_work_requests(user_id: int = Depends(fake_auth)):
+    query = work_requests.select().where(work_requests.c.user_id == user_id)
+    requests = await database.fetch_all(query)
+    return requests
+
+@api_router.post("/machinery-requests", status_code=status.HTTP_201_CREATED)
 async def create_machinery_request(request: MachineryRequestCreate, user_id: int = Depends(fake_auth)):
     query = machinery_requests.insert().values(
         machine_type=request.machine_type,
@@ -178,20 +206,14 @@ async def create_machinery_request(request: MachineryRequestCreate, user_id: int
         rental_price=request.rental_price,
         contact_info=request.contact_info,
         city_id=request.city_id,
-        user_id=user_id
+        user_id=user_id,
+        is_preorder=request.is_preorder,
+        preorder_date=request.preorder_date
     )
     last_record_id = await database.execute(query)
-    return {**request.model_dump(), "id": last_record_id, "user_id": user_id, "created_at": datetime.now()}
+    return {"message": "Заявка успешно создана!", "id": last_record_id}
 
-@api_router.get("/machinery-requests", response_model=List[MachineryRequestInDB])
-async def read_machinery_requests(city_id: Optional[int] = None):
-    query = machinery_requests.select()
-    if city_id is not None:
-        query = query.where(machinery_requests.c.city_id == city_id)
-    requests = await database.fetch_all(query)
-    return requests
-
-@api_router.post("/tool-requests", response_model=ToolRequestInDB, status_code=status.HTTP_201_CREATED)
+@api_router.post("/tool-requests", status_code=status.HTTP_201_CREATED)
 async def create_tool_request(request: ToolRequestCreate, user_id: int = Depends(fake_auth)):
     query = tool_requests.insert().values(
         tool_name=request.tool_name,
@@ -199,20 +221,16 @@ async def create_tool_request(request: ToolRequestCreate, user_id: int = Depends
         rental_price=request.rental_price,
         contact_info=request.contact_info,
         city_id=request.city_id,
-        user_id=user_id
+        user_id=user_id,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        delivery_needed=request.delivery_needed,
+        delivery_address=request.delivery_address
     )
     last_record_id = await database.execute(query)
-    return {**request.model_dump(), "id": last_record_id, "user_id": user_id, "created_at": datetime.now()}
+    return {"message": "Заявка успешно создана!", "id": last_record_id}
 
-@api_router.get("/tool-requests", response_model=List[ToolRequestInDB])
-async def read_tool_requests(city_id: Optional[int] = None):
-    query = tool_requests.select()
-    if city_id is not None:
-        query = query.where(tool_requests.c.city_id == city_id)
-    requests = await database.fetch_all(query)
-    return requests
-
-@api_router.post("/material-ads", response_model=MaterialAdInDB, status_code=status.HTTP_201_CREATED)
+@api_router.post("/material-ads", status_code=status.HTTP_201_CREATED)
 async def create_material_ad(ad: MaterialAdCreate, user_id: int = Depends(fake_auth)):
     query = material_ads.insert().values(
         material_type=ad.material_type,
@@ -223,7 +241,7 @@ async def create_material_ad(ad: MaterialAdCreate, user_id: int = Depends(fake_a
         user_id=user_id
     )
     last_record_id = await database.execute(query)
-    return {**ad.model_dump(), "id": last_record_id, "user_id": user_id, "created_at": datetime.now()}
+    return {"message": "Объявление успешно создано!", "id": last_record_id}
 
 @api_router.get("/material-ads", response_model=List[MaterialAdInDB])
 async def read_material_ads(city_id: Optional[int] = None):
@@ -247,17 +265,18 @@ async def get_cities():
 @api_router.get("/specializations")
 async def get_specializations():
     specializations = [
-        "Отделочник", "Сантехник", "Электрик", "Плотник",
-        "Сварщик", "Каменщик", "Маляр", "Кровельщик",
-        "Разнорабочий", "Другое"
+        "Отделочник", "Сантехник", "Электрик", "Плотник", "Мастер на час", "Сварщик", "Кровельщик",
+        "Маляр", "Грузчик", "Строитель", "Водитель спецтехники"
     ]
     return specializations
 
+# Добавляем маршрутизатор API к основному приложению
 app.include_router(api_router)
 
-# Статические файлы (должен быть в конце, после API маршрутов)
-# Теперь ищет index.html в корневом каталоге, который вы должны создать.
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
+# Обслуживание статических файлов из директории "static"
+app.mount("/static", StaticFiles(directory="."), name="static")
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Роут для отдачи index.html для любого пути, чтобы работал одностраничный режим
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+async def serve_index(full_path: str):
+    return HTMLResponse(open("index.html").read())
