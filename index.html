@@ -317,22 +317,35 @@
             }
         }
 
-        function renderCities() {
-            const cityButtonsContainer = document.getElementById('cityButtons');
-            cityButtonsContainer.innerHTML = '';
-            availableCities.forEach(city => {
-                const button = document.createElement('button');
-                button.className = 'modal-button';
-                button.textContent = city.name;
-                button.onclick = () => {
-                    localStorage.setItem('selectedCity', JSON.stringify(city));
-                    cityNameEl.textContent = city.name;
-                    closeAllModals();
-                    checkAuthentication();
-                };
-                cityButtonsContainer.appendChild(button);
-            });
-        }
+ function renderCities() {
+    const cityButtonsContainer = document.getElementById('cityButtons');
+    const regUserCitySelect = document.getElementById('regUserCity'); // Новый элемент для заполнения
+
+    cityButtonsContainer.innerHTML = '';
+    
+    // Очищаем и добавляем дефолтный элемент для формы регистрации
+    regUserCitySelect.innerHTML = '<option value="">Выберите ваш город...</option>'; 
+
+    availableCities.forEach(city => {
+        // Логика для кнопок в модальном окне выбора города
+        const button = document.createElement('button');
+        button.className = 'modal-button';
+        button.textContent = city.name;
+        button.onclick = () => {
+            localStorage.setItem('selectedCity', JSON.stringify(city));
+            cityNameEl.textContent = city.name;
+            closeAllModals();
+            checkAuthentication();
+        };
+        cityButtonsContainer.appendChild(button);
+
+        // Логика для списка в форме регистрации
+        const option = document.createElement('option');
+        option.value = city.id; // Важно: используем ID для отправки на бэкенд
+        option.textContent = city.name;
+        regUserCitySelect.appendChild(option);
+    });
+}
 
         async function fetchSpecializations() {
             try {
