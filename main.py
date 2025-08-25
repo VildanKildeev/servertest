@@ -32,6 +32,7 @@ app.add_middleware(
 # Подключение к БД
 @app.on_event("startup")
 async def startup():
+    # Создание таблиц, если они не существуют
     metadata.create_all(engine)
     await database.connect()
 
@@ -48,15 +49,18 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 
-# === Pydantic модели (важно: имена полей должны совпадать с фронтендом) ===
+# === Pydantic модели ===
 
 class UserCreate(BaseModel):
-    username: str
+    username: str # Номер телефона
     password: str
     city_id: int
+    user_name: str
+    user_type: str
+    specialization: Optional[str] = None
 
 class LoginData(BaseModel):
-    username: str
+    username: str # Номер телефона
     password: str
 
 class WorkRequestCreate(BaseModel):
@@ -65,6 +69,7 @@ class WorkRequestCreate(BaseModel):
     contact_info: str
     city_id: int
     user_id: Optional[int] = None
+    # specialization: Optional[str] = None # Временно убрано, т.к. нет в БД
 
 class MachineryRequestCreate(BaseModel):
     machinery_type: str
@@ -92,9 +97,13 @@ class ToolRentalCreate(BaseModel):
 
 
 # === Аутентификация ===
-async def get_current_user(token: str = None):
+async def get_current_user(authorization: str = None):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Требуется авторизация (Bearer Token)")
+    token = authorization.split(" ")[1]
+    
     if not token or not token.startswith("fake_token_"):
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
+        raise HTTPException(status_code=401, detail="Неверный формат токена")
     try:
         user_id = int(token.split("_")[-1])
         query = users.select().where(users.c.id == user_id)
@@ -118,7 +127,20 @@ async def get_cities():
         {"id": 4, "name": "Екатеринбург"},
         {"id": 5, "name": "Казань"},
     ]
-
+    
+# Список специализаций (Добавлен для соответствия фронтенду)
+@app.get("/specializations")
+async def get_specializations():
+    # Реальный список должен быть взят из БД, но для демо используем хардкод
+    return [
+        {"id": 1, "name": "Электрик"},
+        {"id": 2, "name": "Сантехник"},
+        {"id": 3, "name": "Маляр-штукатур"},
+        {"id": 4, "name": "Плотник"},
+        {"id": 5, "name": "Кровельщик"},
+        {"id": 6, "name": "Сварщик"},
+        {"id": 7, "name": "Универсальный мастер"}
+    ]
 
 # Регистрация
 @api_router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -126,13 +148,16 @@ async def register(user: UserCreate):
     query = users.select().where(users.c.username == user.username)
     existing = await database.fetch_one(query)
     if existing:
-        raise HTTPException(status_code=409, detail="Пользователь с таким именем уже существует.")
+        raise HTTPException(status_code=409, detail="Пользователь с таким номером уже существует.")
 
     hashed_password = get_password_hash(user.password)
     insert_query = users.insert().values(
         username=user.username,
         password_hash=hashed_password,
-        city_id=user.city_id
+        city_id=user.city_id,
+        user_name=user.user_name,
+        user_type=user.user_type,
+        specialization=user.specialization
     )
     user_id = await database.execute(insert_query)
     return {"message": "Пользователь успешно зарегистрирован.", "user_id": user_id}
@@ -144,7 +169,7 @@ async def login(data: LoginData):
     query = users.select().where(users.c.username == data.username)
     user = await database.fetch_one(query)
     if not user or not verify_password(data.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Неверное имя пользователя или пароль")
+        raise HTTPException(status_code=401, detail="Неверный номер пользователя или пароль")
 
     token = f"fake_token_{user['id']}"
 
@@ -152,27 +177,28 @@ async def login(data: LoginData):
         "access_token": token,
         "user_id": user["id"],
         "username": user["username"],
+        "user_name": user["user_name"],
+        "user_type": user["user_type"],
+        "specialization": user.get("specialization"),
         "city_id": user["city_id"]
     }
 
 
 # Профиль пользователя
 @api_router.get("/users/{user_id}")
-async def get_user(user_id: int, authorization: str = None):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Необходима авторизация")
-    token = authorization.split(" ")[1]
-    user = await get_current_user(token)
+async def get_user(user_id: int, user: dict = Depends(get_current_user)):
     if user["id"] != user_id:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
 
-    # Получаем город
     cities = await get_cities()
     city_name = next((c["name"] for c in cities if c["id"] == user["city_id"]), "Неизвестен")
 
     return {
         "id": user["id"],
         "username": user["username"],
+        "user_name": user["user_name"],
+        "user_type": user["user_type"],
+        "specialization": user.get("specialization"),
         "city_id": user["city_id"],
         "city_name": city_name
     }
@@ -180,12 +206,7 @@ async def get_user(user_id: int, authorization: str = None):
 
 # === Нанять мастера ===
 @api_router.post("/work-requests", status_code=status.HTTP_201_CREATED)
-async def create_work_request(request: WorkRequestCreate, authorization: str = None):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    token = authorization.split(" ")[1]
-    user = await get_current_user(token)
-
+async def create_work_request(request: WorkRequestCreate, user: dict = Depends(get_current_user)):
     insert_query = work_requests.insert().values(
         description=request.description,
         budget=request.budget,
@@ -203,6 +224,7 @@ async def get_work_requests(city_id: int = None):
     query = work_requests.select()
     if city_id:
         query = query.where(work_requests.c.city_id == city_id)
+    query = query.order_by(work_requests.c.created_at.desc()) 
     rows = await database.fetch_all(query)
     return [
         {
@@ -220,12 +242,7 @@ async def get_work_requests(city_id: int = None):
 
 # === Аренда спецтехники ===
 @api_router.post("/machinery-requests", status_code=status.HTTP_201_CREATED)
-async def create_machinery_request(request: MachineryRequestCreate, authorization: str = None):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    token = authorization.split(" ")[1]
-    user = await get_current_user(token)
-
+async def create_machinery_request(request: MachineryRequestCreate, user: dict = Depends(get_current_user)):
     insert_query = machinery_requests.insert().values(
         machinery_type=request.machinery_type,
         description=request.description,
@@ -244,6 +261,7 @@ async def get_machinery_requests(city_id: int = None):
     query = machinery_requests.select()
     if city_id:
         query = query.where(machinery_requests.c.city_id == city_id)
+    query = query.order_by(machinery_requests.c.created_at.desc()) 
     rows = await database.fetch_all(query)
     return [
         {
@@ -262,12 +280,7 @@ async def get_machinery_requests(city_id: int = None):
 
 # === Продать материалы ===
 @api_router.post("/material-ads", status_code=status.HTTP_201_CREATED)
-async def create_material_ad(ad: MaterialAdCreate, authorization: str = None):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    token = authorization.split(" ")[1]
-    user = await get_current_user(token)
-
+async def create_material_ad(ad: MaterialAdCreate, user: dict = Depends(get_current_user)):
     insert_query = material_ads.insert().values(
         material_type=ad.material_type,
         description=ad.description,
@@ -286,6 +299,7 @@ async def get_material_ads(city_id: int = None):
     query = material_ads.select()
     if city_id:
         query = query.where(material_ads.c.city_id == city_id)
+    query = query.order_by(material_ads.c.created_at.desc())
     rows = await database.fetch_all(query)
     return [
         {
@@ -304,12 +318,7 @@ async def get_material_ads(city_id: int = None):
 
 # === Аренда инструмента ===
 @api_router.post("/tool-rentals", status_code=status.HTTP_201_CREATED)
-async def create_tool_rental(tool: ToolRentalCreate, authorization: str = None):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    token = authorization.split(" ")[1]
-    user = await get_current_user(token)
-
+async def create_tool_rental(tool: ToolRentalCreate, user: dict = Depends(get_current_user)):
     insert_query = tool_requests.insert().values(
         tool_name=tool.tool_name,
         description=tool.description,
@@ -328,6 +337,7 @@ async def get_tool_rentals(city_id: int = None):
     query = tool_requests.select()
     if city_id:
         query = query.where(tool_requests.c.city_id == city_id)
+    query = query.order_by(tool_requests.c.created_at.desc())
     rows = await database.fetch_all(query)
     return [
         {
@@ -344,30 +354,19 @@ async def get_tool_rentals(city_id: int = None):
     ]
 
 
-# === Взять заказ (Take Order) ===
+# === Взять заказ (Take Order) - заглушки ===
 @api_router.post("/work-requests/{request_id}/take")
-async def take_work_request(request_id: int, data: dict, authorization: str = None):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    token = authorization.split(" ")[1]
-    user = await get_current_user(token)
-
+async def take_work_request(request_id: int, user: dict = Depends(get_current_user)):
     query = work_requests.select().where(work_requests.c.id == request_id)
     request = await database.fetch_one(query)
     if not request:
         raise HTTPException(status_code=404, detail="Запрос не найден")
 
-    # Здесь можно обновить статус, добавить исполнителя и т.д.
     return {"message": f"Вы взяли заказ на работу №{request_id}"}
 
 
 @api_router.post("/machinery-requests/{request_id}/take")
-async def take_machinery_request(request_id: int, data: dict, authorization: str = None):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    token = authorization.split(" ")[1]
-    user = await get_current_user(token)
-
+async def take_machinery_request(request_id: int, user: dict = Depends(get_current_user)):
     query = machinery_requests.select().where(machinery_requests.c.id == request_id)
     request = await database.fetch_one(query)
     if not request:
