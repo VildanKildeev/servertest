@@ -1,3 +1,8 @@
+Конечно, вот полный код файла main.py, включающий все исправления для корректной работы вашего сервера и устранения ошибки FileNotFoundError.
+
+Я добавил использование модуля os для правильного определения пути к файлам, чтобы приложение работало на любой платформе.
+Python
+
 import json
 import uvicorn
 import databases
@@ -8,13 +13,17 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
 from database import users, work_requests, machinery_requests, tool_requests, material_ads, metadata, engine, DATABASE_URL
+
+# Определяем базовую директорию (папка, где находится main.py)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 database = databases.Database(DATABASE_URL)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -62,7 +71,7 @@ class WorkRequestCreate(BaseModel):
     contact_info: str
     city_id: int
     specialization: str
-    budget: Optional[float] = None # Бюджет сделал необязательным
+    budget: Optional[float] = None
     photos: Optional[List[str]] = []
 
 class WorkRequestInDB(WorkRequestCreate):
@@ -273,10 +282,19 @@ async def get_specializations():
 # Добавляем маршрутизатор API к основному приложению
 app.include_router(api_router)
 
-# Обслуживание статических файлов из директории "static"
-app.mount("/static", StaticFiles(directory="."), name="static")
+# Обслуживание статических файлов
+app.mount("/static", StaticFiles(directory=BASE_DIR), name="static")
+
+# Роут для главной страницы
+@app.get("/")
+async def serve_root():
+    index_path = os.path.join(BASE_DIR, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read())
 
 # Роут для отдачи index.html для любого пути, чтобы работал одностраничный режим
-@app.get("/{full_path:path}", response_class=HTMLResponse)
+@app.get("/{full_path:path}")
 async def serve_index(full_path: str):
-    return HTMLResponse(open("index.html").read())
+    index_path = os.path.join(BASE_DIR, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read())
