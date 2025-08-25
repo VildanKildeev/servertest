@@ -34,7 +34,8 @@ app.add_middleware(
 # Подключение к БД
 @app.on_event("startup")
 async def startup():
-    # Создание таблиц, если они не существуют
+    # Удаляем и создаем таблицы, чтобы синхронизировать схему БД с кодом
+    metadata.drop_all(engine)
     metadata.create_all(engine)
     await database.connect()
 
