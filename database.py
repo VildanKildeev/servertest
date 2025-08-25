@@ -1,7 +1,10 @@
 import sqlalchemy
 from sqlalchemy.schema import MetaData
+from sqlalchemy.engine import create_engine
 
-DATABASE_URL = "sqlite:///./app_data.db" # Создаст файл app_data.db в вашей папке
+# DATABASE_URL будет браться из переменных окружения Render
+# Ее не нужно явно указывать здесь
+DATABASE_URL = "postgresql+asyncpg://<username>:<password>@<hostname>:<port>/<db_name>" # Пример
 
 metadata = MetaData()
 
@@ -77,5 +80,4 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-engine = sqlalchemy.create_engine(DATABASE_URL)
-metadata.create_all(engine)
+engine = create_engine(DATABASE_URL)
