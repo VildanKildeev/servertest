@@ -516,82 +516,82 @@ async function fetchUserProfile() {
         }
     }
 
-    async function fetchMyRequests() {
-        try {
-            const token = localStorage.getItem('access_token');
-            if (!token) return;
-
-            const response = await fetch(`${url}/api/users/my-requests`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch user requests');
-            
-            const requests = await response.json();
-            const requestsList = document.getElementById('userRequestsList');
-            requestsList.innerHTML = '';
-
-            if (requests.length === 0) {
-                requestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
-            } else {
-                requests.forEach(req => {
-                    const card = document.createElement('div');
-                    card.className = 'request-card';
-                    card.innerHTML = `
-                        <strong>Заявка #${req.id}</strong>
-                        <div><small>Тип:</small> ${req.request_type}</div>
-                        <div><small>Описание:</small> ${req.description}</div>
-                        <div><small>Дата:</small> ${new Date(req.created_at).toLocaleDateString()}</div>
-                    `;
-                    requestsList.appendChild(card);
-                });
-            }
-            showPage('myRequestsPage');
-        } catch (error) {
-            console.error('Error fetching user requests:', error);
-            alert('Не удалось загрузить ваши заявки.');
-        }
+async function fetchMyRequests() {
+    showLoading(true);
+    const token = getToken();
+    if (!token) {
+        showLoading(false);
+        return;
     }
 
-    async function fetchAvailableOrders() {
-        try {
-            const city = getSelectedCity();
-            if (!city) {
-                alert('Пожалуйста, сначала выберите город.');
-                return;
-            }
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`${url}/api/work-requests?city_id=${city.id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error('Failed to fetch orders');
-            const orders = await response.json();
-            const ordersList = document.getElementById('ordersList');
-            ordersList.innerHTML = '';
-            if (orders.length === 0) {
-                ordersList.innerHTML = '<p class="no-orders">В вашем городе пока нет доступных заявок на работы.</p>';
-            } else {
-                orders.forEach(order => {
-                    const card = document.createElement('div');
-                    card.className = 'order-card';
-                    card.innerHTML = `
-                        <strong>Заявка #${order.id}</strong>
-                        <div><small>Описание:</small> ${order.description}</div>
-                        <div><small>Город:</small> ${getSelectedCity().name}</div>
-                        <div><small>Тип работ:</small> ${order.work_type}</div>
-                        <div><small>Требуется выезд:</small> ${order.needs_visit ? 'Да' : 'Нет'}</div>
-                        <div><small>Адрес:</small> ${order.address || 'Не указан'}</div>
-                        <button class="take-order-btn" data-order-id="${order.id}">Взять в работу</button>
-                    `;
-                    ordersList.appendChild(card);
-                });
-            }
-            showPage('takeOrderPage');
-        } catch (error) {
-            console.error('Error fetching orders:', error);
-            alert('Не удалось загрузить заявки.');
+    const myRequestsList = document.getElementById('myRequestsList');
+    myRequestsList.innerHTML = '';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/my-requests`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to fetch user requests');
         }
+
+        const data = await response.json();
+        if (data.length === 0) {
+            myRequestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
+        } else {
+            data.forEach(item => {
+                // ... ваш существующий код для отображения заявок
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching user requests:", error);
+        myRequestsList.innerHTML = `<p class="no-orders">Ошибка при загрузке ваших заявок. Пожалуйста, попробуйте позже.</p>`;
+    } finally {
+        showLoading(false);
     }
+}
+
+async function fetchAvailableOrders(city_id) {
+    showLoading(true);
+    const token = getToken();
+    if (!token) {
+        showLoading(false);
+        return;
+    }
+
+    const marketplaceList = document.getElementById('marketplaceList');
+    marketplaceList.innerHTML = '';
+
+    try {
+        const url = `${API_BASE_URL}/get-all-requests?city_id=${city_id}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to fetch orders');
+        }
+
+        const data = await response.json();
+        if (data.length === 0) {
+            marketplaceList.innerHTML = '<p class="no-orders">Пока нет доступных заявок.</p>';
+        } else {
+            data.forEach(item => {
+                // ... ваш существующий код для отображения заявок
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching orders:", error);
+        marketplaceList.innerHTML = `<p class="no-orders">Ошибка при загрузке доступных заявок. Пожалуйста, попробуйте позже.</p>`;
+    } finally {
+        showLoading(false);
+    }
+}
     
     async function fetchMarketplacePosts() {
         try {
