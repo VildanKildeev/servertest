@@ -644,22 +644,34 @@ const requestData = {
 
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch(`${url}/api/machinery-requests`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData,
-            });
-            if (!response.ok) throw new Error('Failed to submit machinery request');
-            await response.json();
-            alert('Заявка на аренду спецтехники успешно создана!');
-            form.reset();
-            showPage('myRequestsPage');
-        } catch (error) {
-            console.error('Error submitting machinery request:', error);
-            alert('Ошибка при создании заявки.');
-        }
-    }
-    
+const preorderDateValue = document.getElementById('preorderDate').value;
+const requestData = {
+    machinery_type: document.getElementById('machineryType').value,
+    address: document.getElementById('machineryAddress').value,
+    is_min_order: document.getElementById('minOrderCheckbox').checked,
+    is_preorder: document.getElementById('preorderCheckbox').checked,
+    preorder_date: preorderDateValue ? new Date(preorderDateValue).toISOString() : null,
+    description: document.getElementById('machineryDescription').value || null,
+    city_id: getSelectedCity().id,
+};
+
+// Отправляем данные в формате JSON
+const response = await fetch('/api/machinery-requests', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body: JSON.stringify(requestData),
+});
+
+if (response.status === 201) {
+    showToast('Заявка на технику успешно отправлена!', 'success');
+} else {
+    const errorData = await response.json();
+    console.error('Error submitting machinery request:', errorData.detail);
+    showToast(`Ошибка: ${errorData.detail}`, 'error');
+}    
     async function submitToolRequest(event) {
         event.preventDefault();
         const form = event.target;
