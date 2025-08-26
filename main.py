@@ -195,23 +195,20 @@ async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
     machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == current_user.id)
     tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user.id)
     material_query = material_ads.select().where(material_ads.c.user_id == current_user.id)
-    
+
     work_reqs = await database.fetch_all(work_query)
     machinery_reqs = await database.fetch_all(machinery_query)
     tool_reqs = await database.fetch_all(tool_query)
-    material_ad_requests = await database.fetch_all(material_query) # ✅ ИСПРАВЛЕНО
+    material_ad_requests = await database.fetch_all(material_query)
+
+    all_requests = [
+        *work_reqs,
+        *machinery_reqs,
+        *tool_reqs,
+        *material_ad_requests
+    ]
     
-    all_requests = []
-    for req in work_reqs:
-        all_requests.append({**req, "request_type": "work"})
-    for req in machinery_reqs:
-        all_requests.append({**req, "request_type": "machinery"})
-    for req in tool_reqs:
-        all_requests.append({**req, "request_type": "tool"})
-    for req in material_ad_requests: # ✅ ИСПРАВЛЕНО
-        all_requests.append({**req, "request_type": "material_ad"})
-        
-    return all_requests
+    return [dict(req) for req in all_requests]
 
 @api_router.post("/work-requests", response_model=WorkRequestInDB)
 async def create_work_request(work_request: WorkRequestCreate, current_user: UserInDB = Depends(get_current_user)):
