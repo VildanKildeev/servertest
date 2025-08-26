@@ -770,25 +770,34 @@
                 btn.style.display = cityName.includes(query) ? 'block' : 'none';
             });
         });
-        document.getElementById('authForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const phone = document.getElementById('userPhone').value;
-            const password = document.getElementById('userPassword').value;
-            try {
-                const response = await fetch(`${url}/api/token`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `grant_type=&username=${phone}&password=${password}&scope=&client_id=&client_secret=`
-                });
-                if (!response.ok) throw new Error('Authentication failed');
-                const data = await response.json();
-                localStorage.setItem('token', data.access_token);
-                await fetchProfile(data.access_token);
-                showPage('buttonContainer');
-            } catch (error) {
-                alert('Ошибка входа: ' + error.message);
-            }
-        });
+document.getElementById('authForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const url = 'https://smzrf.onrender.com';
+    const loginUsername = document.getElementById('userPhone').value;
+    const loginPassword = document.getElementById('userPassword').value;
+
+    fetch(url + '/api/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded', // ✅ Исправлено
+        },
+        body: `username=${encodeURIComponent(loginUsername)}&password=${encodeURIComponent(loginPassword)}` // ✅ Исправлено
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Authentication failed');
+    })
+    .then(data => {
+        localStorage.setItem('access_token', data.access_token);
+        fetchUserProfile();
+        showPage('profilePage');
+    })
+    .catch(error => {
+        alert('Ошибка входа: ' + error.message);
+    });
+});
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
