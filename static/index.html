@@ -506,16 +506,6 @@ async function fetchUserProfile() {
         }
     }
 
-    function checkAuthentication() {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            fetchUserProfile();
-            showPage('buttonContainer');
-        } else {
-            showPage('authModal');
-        }
-    }
-
 async function fetchMyRequests() {
     showLoading(true);
     const token = getToken();
@@ -527,7 +517,7 @@ async function fetchMyRequests() {
     const myRequestsList = document.getElementById('myRequestsList');
     myRequestsList.innerHTML = '';
 
-    try {
+    try { // ✅ Правильное начало блока try
         const response = await fetch(`${API_BASE_URL}/users/my-requests`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
@@ -546,10 +536,10 @@ async function fetchMyRequests() {
                 // ... ваш существующий код для отображения заявок
             });
         }
-    } catch (error) {
+    } catch (error) { // ✅ Обязательный блок catch
         console.error("Error fetching user requests:", error);
         myRequestsList.innerHTML = `<p class="no-orders">Ошибка при загрузке ваших заявок. Пожалуйста, попробуйте позже.</p>`;
-    } finally {
+    } finally { // ✅ Необязательный, но полезный блок finally
         showLoading(false);
     }
 }
@@ -565,7 +555,7 @@ async function fetchAvailableOrders(city_id) {
     const marketplaceList = document.getElementById('marketplaceList');
     marketplaceList.innerHTML = '';
 
-    try {
+    try { // ✅ Правильное начало блока try
         const url = `${API_BASE_URL}/get-all-requests?city_id=${city_id}`;
         const response = await fetch(url, {
             method: 'GET',
@@ -585,10 +575,10 @@ async function fetchAvailableOrders(city_id) {
                 // ... ваш существующий код для отображения заявок
             });
         }
-    } catch (error) {
+    } catch (error) { // ✅ Обязательный блок catch
         console.error("Error fetching orders:", error);
         marketplaceList.innerHTML = `<p class="no-orders">Ошибка при загрузке доступных заявок. Пожалуйста, попробуйте позже.</p>`;
-    } finally {
+    } finally { // ✅ Необязательный, но полезный блок finally
         showLoading(false);
     }
 }
