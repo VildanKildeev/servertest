@@ -152,20 +152,33 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     return {"access_token": user.username, "token_type": "bearer"}
 
-@api_router.post("/users/", response_model=UserInDB)
+# ✅ ИСПРАВЛЕНО: response_model теперь использует UserPublic
+@api_router.post("/users/", response_model=UserPublic)
 async def create_user(user: UserCreate):
     if await database.fetch_one(users.select().where(users.c.username == user.username)):
         raise HTTPException(status_code=400, detail="Username already registered")
+    
+    hashed_password = get_password_hash(user.password)
+    
     query = users.insert().values(
         username=user.username,
-        password_hash=get_password_hash(user.password),
+        password_hash=hashed_password,
         user_name=user.user_name,
         user_type=user.user_type,
         city_id=user.city_id,
         specialization=user.specialization
     )
     last_record_id = await database.execute(query)
-    return {**user.model_dump(), "id": last_record_id}
+    
+    # ✅ ИСПРАВЛЕНО: Возвращаем данные, которые соответствуют модели UserPublic
+    return {
+        "id": last_record_id,
+        "username": user.username,
+        "user_name": user.user_name,
+        "user_type": user.user_type,
+        "city_id": user.city_id,
+        "specialization": user.specialization,
+    }
 
 # ✅ Исправлено: response_model теперь использует UserPublic
 @api_router.get("/users/me", response_model=UserPublic)
