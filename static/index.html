@@ -718,8 +718,10 @@ async function submitMachineryRequest(event) {
             body: formData
         });
 
-        if (response.ok) {
-            const data = await response.json();
+if (!response.ok) {
+    throw new Error('Failed to fetch orders');
+}
+const data = await response.json();
             alert('Заявка на спецтехнику успешно создана!');
             console.log(data);
             showPage('buttonContainer');
