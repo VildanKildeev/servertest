@@ -238,7 +238,13 @@ async def get_machinery_types():
 
 app.include_router(api_router)
 
-app.mount("/", StaticFiles(directory="."), name="static")
+# Подключаем папку "static" для раздачи статических файлов
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
+    with open("static/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.get("/")
 async def serve_index():
