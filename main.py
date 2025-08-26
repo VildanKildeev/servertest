@@ -50,13 +50,21 @@ class UserCreate(BaseModel):
 
 class UserInDB(UserCreate):
     id: int
+    password_hash: str
+    created_at: datetime
+
+# ✅ Новая модель для ответа, без пароля
+class UserPublic(BaseModel):
+    id: int
+    username: str
+    user_name: str
+    user_type: str
+    city_id: int
+    specialization: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-class TokenData(BaseModel):
-    username: str | None = None
 
 class WorkRequestCreate(BaseModel):
     work_type: str
@@ -69,35 +77,35 @@ class WorkRequestInDB(WorkRequestCreate):
     id: int
     user_id: int
     created_at: datetime
-    
+
 class MachineryRequestCreate(BaseModel):
     machinery_type: str
     address: str
     is_min_order: bool
     is_preorder: bool
-    preorder_date: Optional[datetime] = None
-    description: Optional[str] = None
+    preorder_date: Optional[str] = None
+    description: str
     city_id: int
 
 class MachineryRequestInDB(MachineryRequestCreate):
     id: int
     user_id: int
     created_at: datetime
-
+    
 class ToolRequestCreate(BaseModel):
     tools: List[str]
     start_date: str
     end_date: str
     needs_delivery: bool
     delivery_address: Optional[str] = None
-    description: Optional[str] = None
+    description: str
     city_id: int
 
 class ToolRequestInDB(ToolRequestCreate):
     id: int
     user_id: int
     created_at: datetime
-
+    
 class MaterialAdCreate(BaseModel):
     material_type: str
     description: str
@@ -108,6 +116,7 @@ class MaterialAdInDB(MaterialAdCreate):
     id: int
     user_id: int
     created_at: datetime
+
 
 # OAuth2PasswordBearer
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -141,7 +150,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return {"access_token": user.username, "token_type": "bearer"} # Используем username как простой токен
+    return {"access_token": user.username, "token_type": "bearer"}
 
 @api_router.post("/users/", response_model=UserInDB)
 async def create_user(user: UserCreate):
@@ -158,7 +167,8 @@ async def create_user(user: UserCreate):
     last_record_id = await database.execute(query)
     return {**user.model_dump(), "id": last_record_id}
 
-@api_router.get("/users/me", response_model=UserInDB)
+# ✅ Исправлено: response_model теперь использует UserPublic
+@api_router.get("/users/me", response_model=UserPublic)
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     return current_user
 
@@ -176,7 +186,7 @@ async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
     machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == current_user.id)
     tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user.id)
     material_query = material_ads.select().where(material_ads.c.user_id == current_user.id)
-
+    
     work_reqs = await database.fetch_all(work_query)
     machinery_reqs = await database.fetch_all(machinery_query)
     tool_reqs = await database.fetch_all(tool_query)
