@@ -82,8 +82,8 @@ class MachineryRequestCreate(BaseModel):
     address: str
     is_min_order: bool
     is_preorder: bool
-    preorder_date: Optional[str] = None
-    description: str
+    preorder_date: Optional[datetime]
+    description: Optional[str]
     city_id: int
 
 class MachineryRequestInDB(MachineryRequestCreate):
