@@ -45,14 +45,15 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
+# Таблица заявок на технику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("machinery_type", sqlalchemy.String), # ✅ ИСПРАВЛЕНО
+    sqlalchemy.Column("machine_type", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("rental_price", sqlalchemy.Float), # ✅ ДОБАВЛЕНО
-    sqlalchemy.Column("contact_info", sqlalchemy.String), # ✅ ДОБАВЛЕНО
+    sqlalchemy.Column("rental_price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
