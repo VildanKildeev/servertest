@@ -23,9 +23,6 @@ app = FastAPI(title="СМЗ.РФ API")
 
 api_router = APIRouter(prefix="/api")
 
-# ИСПРАВЛЕНИЕ: Добавляем api_router в основное приложение
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*", "null"],
@@ -307,6 +304,8 @@ async def get_tools_list():
         "Перфоратор", "Шуруповерт", "Болгарка", "Сварочный аппарат", "Отбойный молоток", "Генератор", "Компрессор", "Бетономешалка"
     ]
     return tools_list
+    
+app.include_router(api_router)
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
