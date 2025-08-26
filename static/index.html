@@ -302,6 +302,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+// Функция для получения токена из локального хранилища
+function getAuthToken() {
+    return localStorage.getItem('access_token');
+}
+
+// Функция для добавления заголовков с токеном
+function getAuthHeaders() {
+    const token = getAuthToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+// Пример использования при запросе профиля
+async function fetchUserProfile() {
+    const headers = getAuthHeaders();
+    if (!headers['Authorization']) {
+        console.error('Ошибка: пользователь не аутентифицирован.');
+        return; // Или перенаправить на страницу входа
+    }
+
+    try {
+        const response = await fetch('/api/users/me', {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (response.ok) {
+            const userProfile = await response.json();
+            console.log('Профиль пользователя:', userProfile);
+        } else if (response.status === 401) {
+            console.error('Ошибка аутентификации: токен недействителен или истек.');
+            // Удалите устаревший токен и попросите пользователя войти снова
+            localStorage.removeItem('access_token');
+        } else {
+            console.error('Не удалось получить профиль.');
+        }
+    } catch (error) {
+        console.error('Произошла ошибка сети:', error);
+    }
+}
+
     // ✅ Исправлено: Эта функция теперь единственная и отвечает за загрузку профиля.
     async function fetchUserProfile() {
         const token = localStorage.getItem('access_token');
@@ -614,7 +654,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = event.target;
         const machineryType = document.getElementById('machineryType').value;
         const machineryAddress = document.getElementById('machineryAddress').value;
-        const isMinOrder = document.getElementById('minOrderCheckbox').checked;
+        const isMinOrder = 
+const machineryPrice = document.getElementById('machineryPrice').value; // ✅ ДОБАВЬТЕ ЭТО
+    const contactInfo = document.getElementById('contactInfo').value; // ✅ И 
+document.getElementById('minOrderCheckbox').checked;
         const isPreorder = document.getElementById('preorderCheckbox').checked;
         const preorderDate = document.getElementById('preorderDate').value;
         const machineryDescription = document.getElementById('machineryDescription').value;
@@ -629,6 +672,8 @@ document.addEventListener('DOMContentLoaded', () => {
             machinery_type: machineryType,
             address: machineryAddress,
             is_min_order: isMinOrder,
+rental_price: parseFloat(machineryPrice), // ✅ ДОБАВЬТЕ
+        contact_info: contactInfo, // ✅ ДОБАВЬТЕ
             is_preorder: isPreorder,
             preorder_date: isPreorder ? preorderDate : null,
             description: machineryDescription,
