@@ -7,5 +7,5 @@ asyncpg
 python-dotenv
 pydantic
 passlib
-bcrypt==4.1.2
+bcrypt==4.0.1
 psycopg2-binary
