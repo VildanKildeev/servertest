@@ -625,15 +625,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const requestData = {
-            machinery_type: machineryType,
-            address: machineryAddress,
-            is_min_order: isMinOrder,
-            is_preorder: isPreorder,
-            preorder_date: isPreorder ? preorderDate : null,
-            description: machineryDescription,
-            city_id: city.id,
-        };
+const preorderDateValue = document.getElementById('machineryPreorderDate').value;
+const requestData = {
+    machinery_type: document.getElementById('machineryTypeInput').value,
+    address: document.getElementById('machineryAddressInput').value,
+    is_min_order: document.getElementById('machineryMinOrder').checked,
+    is_preorder: document.getElementById('machineryPreorder').checked,
+    preorder_date: preorderDateValue ? new Date(preorderDateValue).toISOString() : null,
+    description: document.getElementById('machineryDescription').value || null,
+    city_id: city.id,
+};
 
         const formData = new FormData();
         formData.append('request', JSON.stringify(requestData));
