@@ -625,12 +625,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-const preorderDateValue = document.getElementById('machineryPreorderDate').value;
+const preorderDateValue = document.getElementById('preorderDate').value;
 const requestData = {
-    machinery_type: document.getElementById('machineryTypeInput').value,
-    address: document.getElementById('machineryAddressInput').value,
-    is_min_order: document.getElementById('machineryMinOrder').checked,
-    is_preorder: document.getElementById('machineryPreorder').checked,
+    machinery_type: document.getElementById('machineryType').value,
+    address: document.getElementById('machineryAddress').value,
+    is_min_order: document.getElementById('minOrderCheckbox').checked,
+    is_preorder: document.getElementById('preorderCheckbox').checked,
     preorder_date: preorderDateValue ? new Date(preorderDateValue).toISOString() : null,
     description: document.getElementById('machineryDescription').value || null,
     city_id: city.id,
