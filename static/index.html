@@ -517,7 +517,7 @@ async function fetchMyRequests() {
     const myRequestsList = document.getElementById('myRequestsList');
     myRequestsList.innerHTML = '';
 
-    try { // ✅ Правильное начало блока try
+    try {
         const response = await fetch(`${API_BASE_URL}/users/my-requests`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
@@ -533,13 +533,30 @@ async function fetchMyRequests() {
             myRequestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
         } else {
             data.forEach(item => {
-                // ... ваш существующий код для отображения заявок
+                const card = document.createElement('div');
+                card.className = 'request-card';
+                card.innerHTML = `
+                    <strong>Заявка на ${item.type_ru || 'работу'}</strong>
+                    <div><small>Название:</small> ${item.name}</div>
+                    <div><small>Описание:</small> ${item.description || 'Нет описания'}</div>
+                    <div><small>Контакты:</small> ${item.contact_info}</div>
+                    ${item.is_active ? '' : '<div style="color: red; margin-top: 10px;">Заявка снята с публикации</div>'}
+                    <button class="request-delete-btn" data-request-id="${item.id}" data-request-type="${item.type}">Удалить заявку</button>
+                `;
+                myRequestsList.appendChild(card);
+            });
+            document.querySelectorAll('.request-delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const requestId = e.target.dataset.requestId;
+                    const requestType = e.target.dataset.requestType;
+                    await deleteUserRequest(requestId, requestType);
+                });
             });
         }
-    } catch (error) { // ✅ Обязательный блок catch
+    } catch (error) {
         console.error("Error fetching user requests:", error);
         myRequestsList.innerHTML = `<p class="no-orders">Ошибка при загрузке ваших заявок. Пожалуйста, попробуйте позже.</p>`;
-    } finally { // ✅ Необязательный, но полезный блок finally
+    } finally {
         showLoading(false);
     }
 }
@@ -555,7 +572,7 @@ async function fetchAvailableOrders(city_id) {
     const marketplaceList = document.getElementById('marketplaceList');
     marketplaceList.innerHTML = '';
 
-    try { // ✅ Правильное начало блока try
+    try {
         const url = `${API_BASE_URL}/get-all-requests?city_id=${city_id}`;
         const response = await fetch(url, {
             method: 'GET',
@@ -572,13 +589,24 @@ async function fetchAvailableOrders(city_id) {
             marketplaceList.innerHTML = '<p class="no-orders">Пока нет доступных заявок.</p>';
         } else {
             data.forEach(item => {
-                // ... ваш существующий код для отображения заявок
+                const postCard = document.createElement('div');
+                postCard.className = 'post-card';
+                const postDate = new Date(item.created_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+                postCard.innerHTML = `
+                    <strong>${item.name}</strong>
+                    <div><small>Категория:</small> ${item.type_ru}</div>
+                    ${item.description ? `<div><small>Описание:</small> ${item.description}</div>` : ''}
+                    ${item.price ? `<div><small>Стоимость:</small> ${item.price} руб.</div>` : ''}
+                    <button class="take-order-btn" onclick="takeOrder('${item.id}', '${item.type}')">Взять в работу</button>
+                    <div class="post-date">${postDate}</div>
+                `;
+                marketplaceList.appendChild(postCard);
             });
         }
-    } catch (error) { // ✅ Обязательный блок catch
+    } catch (error) {
         console.error("Error fetching orders:", error);
         marketplaceList.innerHTML = `<p class="no-orders">Ошибка при загрузке доступных заявок. Пожалуйста, попробуйте позже.</p>`;
-    } finally { // ✅ Необязательный, но полезный блок finally
+    } finally {
         showLoading(false);
     }
 }
