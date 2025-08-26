@@ -772,11 +772,10 @@
         });
 document.getElementById('authForm').addEventListener('submit', function(event) {
     event.preventDefault();
-    const url = 'https://smzrf.onrender.com';
     const loginUsername = document.getElementById('userPhone').value;
     const loginPassword = document.getElementById('userPassword').value;
 
-    fetch(url + '/api/token', {
+    fetch('/api/token', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded', // ✅ Исправлено
