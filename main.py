@@ -2,7 +2,7 @@ import json
 import uvicorn
 import databases
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, Form, UploadFile # ✅ ДОБАВЛЕНО
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -78,14 +78,17 @@ class WorkRequestInDB(WorkRequestCreate):
     user_id: int
     created_at: datetime
 
+# ✅ ИСПРАВЛЕНО: Добавлены поля, которые есть в базе данных
 class MachineryRequestCreate(BaseModel):
     machinery_type: str
-    address: str
-    is_min_order: bool
-    is_preorder: bool
+    address: Optional[str] = None
+    is_min_order: bool = False
+    is_preorder: bool = False
     preorder_date: Optional[str] = None
     description: str
     city_id: int
+    rental_price: float 
+    contact_info: Optional[str] = None 
 
 class MachineryRequestInDB(MachineryRequestCreate):
     id: int
@@ -246,20 +249,47 @@ async def take_work_request(request_id: int, current_user: UserInDB = Depends(ge
     # Простая реализация:
     return {"message": f"Request {request_id} taken by user {current_user.id}"}
 
-@api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
-async def create_machinery_request(machinery_request: MachineryRequestCreate, current_user: UserInDB = Depends(get_current_user)):
-    query = machinery_requests.insert().values(
-        machinery_type=machinery_request.machinery_type,
-        address=machinery_request.address,
-        is_min_order=machinery_request.is_min_order,
-        is_preorder=machinery_request.is_preorder,
-        preorder_date=machinery_request.preorder_date,
-        description=machinery_request.description,
-        city_id=machinery_request.city_id,
-        user_id=current_user.id
-    )
-    last_record_id = await database.execute(query)
-    return {**machinery_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
+# ✅ ИСПРАВЛЕНО: Эндпоинт теперь обрабатывает данные формы и файлы
+@api_router.post("/machinery-requests")
+async def create_machinery_request(
+    request: str = Form(...),
+    photos: List[UploadFile] = File(None),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    try:
+        # 1. Распарсиваем строку 'request' в JSON-объект
+        request_data = json.loads(request)
+
+        # 2. Валидируем данные с помощью Pydantic модели
+        validated_request = MachineryRequestCreate(**request_data)
+
+        # 3. Сохраняем фотографии (простой пример)
+        if photos:
+            for photo in photos:
+                # Здесь должен быть ваш код для сохранения фото
+                print(f"Получено фото: {photo.filename}")
+
+        # 4. Вставляем данные в базу данных
+        query = machinery_requests.insert().values(
+            machinery_type=validated_request.machinery_type,
+            address=validated_request.address, # ✅ ДОБАВЛЕНО
+            is_min_order=validated_request.is_min_order, # ✅ ДОБАВЛЕНО
+            is_preorder=validated_request.is_preorder, # ✅ ДОБАВЛЕНО
+            preorder_date=validated_request.preorder_date, # ✅ ДОБАВЛЕНО
+            description=validated_request.description,
+            rental_price=validated_request.rental_price,
+            contact_info=current_user.username, # ✅ Используем данные пользователя для контактной информации
+            city_id=validated_request.city_id,
+            user_id=current_user.id
+        )
+        last_record_id = await database.execute(query)
+
+        # 5. Возвращаем ответ с созданным объектом
+        return {**validated_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
+    
+    except Exception as e:
+        print(f"Ошибка при создании объявления спецтехники: {e}")
+        raise HTTPException(status_code=500, detail=f"Произошла ошибка сервера: {e}")
 
 @api_router.post("/tool-requests", response_model=ToolRequestInDB)
 async def create_tool_request(tool_request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
