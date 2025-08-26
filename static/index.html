@@ -645,53 +645,49 @@ async function fetchAvailableOrders(city_id) {
         }
     }
 
-    async function submitWorkRequest(event) {
-        event.preventDefault();
-        const form = event.target;
-        const workType = document.getElementById('workType').value;
-        const visitNeeded = document.getElementById('visitCheckbox').checked;
-        const workAddress = document.getElementById('workAddress').value;
-        const description = document.getElementById('requestDescription').value;
-        const photos = document.getElementById('requestPhotos').files;
-        const city = getSelectedCity();
-        if (!city) {
-            alert('Пожалуйста, выберите город.');
-            return;
-        }
-
-        const requestData = {
-            work_type: workType,
-            needs_visit: visitNeeded,
-            address: visitNeeded ? workAddress : null,
-            description: description,
-            city_id: city.id
-        };
-
-        const formData = new FormData();
-        formData.append('request', JSON.stringify(requestData));
-        for (let i = 0; i < photos.length; i++) {
-            formData.append('photos', photos[i]);
-        }
-
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`${url}/api/work-requests`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-            if (!response.ok) throw new Error('Failed to submit work request');
-            await response.json();
-            alert('Заявка на работы успешно создана!');
-            form.reset();
-            showPage('myRequestsPage');
-        } catch (error) {
-            console.error('Error submitting work request:', error);
-            alert('Ошибка при создании заявки.');
-        }
+async function sendWorkRequest() {
+    const workType = workTypeSelect.value;
+    const needsVisit = needsVisitCheckbox.checked;
+    const address = needsVisit ? workAddressInput.value : null;
+    const description = workDescriptionInput.value;
+    const cityId = getSelectedCity().id;
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+        alert("Пожалуйста, авторизуйтесь для создания заявки.");
+        return;
     }
+
+    const requestData = {
+        work_type: workType,
+        needs_visit: needsVisit,
+        address: address,
+        description: description,
+        city_id: cityId,
+    };
+
+    try {
+        const response = await fetch(`${SERVER_URL}/api/work-requests`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestData)
+        });
+    
+        if (response.ok) {
+            alert('Заявка успешно создана!');
+            showPage('buttonContainer');
+        } else {
+            const errorData = await response.json();
+            alert(`Ошибка: ${errorData.detail}`);
+        }
+    } catch (error) {
+        console.error('Ошибка при отправке заявки:', error);
+        alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
+    }
+}
     
 async function submitMachineryRequest(event) {
     event.preventDefault();
