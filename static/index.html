@@ -161,23 +161,49 @@
     </div>
     
     <div id="machineryFormPage">
-        <div class="form-container">
-            <h2 class="form-title">Заявка на аренду спецтехники</h2>
-            <form id="machineryForm">
-                <div class="form-group"><label for="machineryType">Тип спецтехники:</label><select id="machineryType" required></select></div>
-                <div class="form-group"><label for="machineryAddress">Адрес подачи техники:</label><input type="text" id="machineryAddress" placeholder="Укажите адрес" required></div>
-                <div class="checkbox-group"><input type="checkbox" id="minOrderCheckbox"><label for="minOrderCheckbox">Минимальный заказ (4 часа)</label></div>
-                <div class="checkbox-group"><input type="checkbox" id="preorderCheckbox"><label for="preorderCheckbox">Предварительный заказ</label></div>
-                <div id="preorderFields" style="display: none;">
-                    <div class="form-group"><label for="preorderDate">Дата и время:</label><input type="datetime-local" id="preorderDate"></div>
+    <div class="form-container">
+        <h2 class="form-title">Заявка на аренду спецтехники</h2>
+        <form id="machineryForm">
+            <div class="form-group">
+                <label for="machineryType">Тип спецтехники:</label>
+                <select id="machineryType" required></select>
+            </div>
+            <div class="form-group">
+                <label for="machineryAddress">Адрес подачи техники:</label>
+                <input type="text" id="machineryAddress" placeholder="Укажите адрес" required>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="minOrderCheckbox">
+                <label for="minOrderCheckbox">Минимальный заказ (4 часа)</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="preorderCheckbox">
+                <label for="preorderCheckbox">Предварительный заказ</label>
+            </div>
+            <div id="preorderFields" style="display: none;">
+                <div class="form-group">
+                    <label for="preorderDate">Дата и время:</label>
+                    <input type="datetime-local" id="preorderDate">
                 </div>
-                <div class="form-group"><label for="machineryDescription">Описание задачи:</label><textarea id="machineryDescription" placeholder="Дополнительная информация..."></textarea></div>
-                <div class="form-group"><label for="machineryPhotos">Фотографии (необязательно):</label><input type="file" id="machineryPhotos" accept="image/*" multiple></div>
-                <button type="submit" class="submit-button">ОТПРАВИТЬ ЗАЯВКУ</button>
-                <a href="#" class="back-button" id="backToMainFromMachinery">← Назад</a>
-            </form>
-        </div>
-    </div>
+            </div>
+            <div class="form-group">
+                <label for="machineryDescription">Описание задачи:</label>
+                <textarea id="machineryDescription" placeholder="Дополнительная информация..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="machineryPhotos">Фотографии (необязательно):</label>
+                <input type="file" id="machineryPhotos" accept="image/*" multiple>
+            </div>
+            
+            <hr> <div class="form-group">
+                <label for="machineryPrice">Стоимость аренды (за час/смену):</label>
+                <input type="number" id="machineryPrice" placeholder="Введите стоимость" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="contactInfo">Контактная информация:</label>
+                <input type="text" id="contactInfo" placeholder="Введите ваш телефон или email" required>
+            </div>
 
     <div id="toolsFormPage">
          <div class="form-container">
