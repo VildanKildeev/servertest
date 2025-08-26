@@ -247,34 +247,34 @@ async def take_work_request(request_id: int, current_user: UserInDB = Depends(ge
     return {"message": f"Request {request_id} taken by user {current_user.id}"}
 
 @api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
-async def create_machinery_request(machinery_request: MachineryRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_machinery_request(
+    machinery_request: MachineryRequestCreate,
+    current_user: UserInDB = Depends(get_current_user),
+):
+    preorder_date_db = None
+    if machinery_request.preorder_date:
+        preorder_date_db = datetime.fromisoformat(machinery_request.preorder_date)
+
     query = machinery_requests.insert().values(
         machinery_type=machinery_request.machinery_type,
         address=machinery_request.address,
         is_min_order=machinery_request.is_min_order,
         is_preorder=machinery_request.is_preorder,
-        preorder_date=machinery_request.preorder_date,
+        preorder_date=preorder_date_db,
         description=machinery_request.description,
-        city_id=machinery_request.city_id,
+        rental_price=machinery_request.rental_price,
+        contact_info=machinery_request.contact_info,
+        city_id=current_user.city_id,
         user_id=current_user.id
     )
     last_record_id = await database.execute(query)
-    return {**machinery_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
-
-@api_router.post("/tool-requests", response_model=ToolRequestInDB)
-async def create_tool_request(tool_request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
-    query = tool_requests.insert().values(
-        tools=json.dumps(tool_request.tools),
-        start_date=tool_request.start_date,
-        end_date=tool_request.end_date,
-        needs_delivery=tool_request.needs_delivery,
-        delivery_address=tool_request.delivery_address,
-        description=tool_request.description,
-        city_id=tool_request.city_id,
-        user_id=current_user.id
-    )
-    last_record_id = await database.execute(query)
-    return {**tool_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
+    return {
+        **machinery_request.model_dump(),
+        "id": last_record_id,
+        "user_id": current_user.id,
+        "created_at": datetime.now(),
+        "city_id": current_user.city_id
+    }
 
 @api_router.post("/material-ads", response_model=MaterialAdInDB)
 async def create_material_ad(ad: MaterialAdCreate, current_user: UserInDB = Depends(get_current_user)):
