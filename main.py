@@ -2,7 +2,7 @@ import json
 import uvicorn
 import databases
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -53,7 +53,6 @@ class UserInDB(UserCreate):
     password_hash: str
     created_at: datetime
 
-# ✅ Новая модель для ответа, без пароля
 class UserPublic(BaseModel):
     id: int
     username: str
@@ -78,14 +77,17 @@ class WorkRequestInDB(WorkRequestCreate):
     user_id: int
     created_at: datetime
 
+# ✅ ИСПРАВЛЕНО: Добавлены поля rental_price и contact_info
 class MachineryRequestCreate(BaseModel):
     machinery_type: str
-    address: str
-    is_min_order: bool
-    is_preorder: bool
+    address: Optional[str] = None
+    is_min_order: bool = False
+    is_preorder: bool = False
     preorder_date: Optional[str] = None
     description: str
     city_id: int
+    rental_price: float
+    contact_info: str
 
 class MachineryRequestInDB(MachineryRequestCreate):
     id: int
@@ -129,8 +131,6 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    # Здесь должна быть логика декодирования JWT и проверки пользователя
-    # Поскольку у нас нет реального JWT, будем делать простую проверку
     user = await database.fetch_one(users.select().where(users.c.username == token))
     if not user:
         raise HTTPException(
@@ -203,19 +203,16 @@ async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
     work_reqs = await database.fetch_all(work_query)
     machinery_reqs = await database.fetch_all(machinery_query)
     tool_reqs = await database.fetch_all(tool_query)
-    material_ads = await database.fetch_all(material_query)
+    material_ad_requests = await database.fetch_all(material_query)
     
-    all_requests = []
-    for req in work_reqs:
-        all_requests.append({**req, "request_type": "work"})
-    for req in machinery_reqs:
-        all_requests.append({**req, "request_type": "machinery"})
-    for req in tool_reqs:
-        all_requests.append({**req, "request_type": "tool"})
-    for req in material_ads:
-        all_requests.append({**req, "request_type": "material_ad"})
-        
-    return all_requests
+    all_requests = [
+        *work_reqs,
+        *machinery_reqs,
+        *tool_reqs,
+        *material_ad_requests
+    ]
+    
+    return [dict(req) for req in all_requests]
 
 @api_router.post("/work-requests", response_model=WorkRequestInDB)
 async def create_work_request(work_request: WorkRequestCreate, current_user: UserInDB = Depends(get_current_user)):
@@ -240,19 +237,16 @@ async def read_work_requests(city_id: Optional[int] = None):
 
 @api_router.post("/work-requests/{request_id}/take")
 async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
-    # Логика для того, чтобы "взять" заявку
-    # В реальном приложении здесь будет проверка, что пользователь имеет право взять заявку,
-    # что она еще не взята и т.д.
-    # Простая реализация:
     return {"message": f"Request {request_id} taken by user {current_user.id}"}
 
+# ✅ ИСПРАВЛЕНО: Функция теперь использует Pydantic модель как параметр запроса, а не Form
 @api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
 async def create_machinery_request(
     machinery_request: MachineryRequestCreate,
     current_user: UserInDB = Depends(get_current_user),
 ):
     preorder_date_db = None
-    if machinery_request.preorder_date:
+    if machinery_request.is_preorder and machinery_request.preorder_date:
         preorder_date_db = datetime.fromisoformat(machinery_request.preorder_date)
 
     query = machinery_requests.insert().values(
@@ -273,8 +267,23 @@ async def create_machinery_request(
         "id": last_record_id,
         "user_id": current_user.id,
         "created_at": datetime.now(),
-        "city_id": current_user.city_id
+        "city_id": current_user.city_id,
     }
+    
+@api_router.post("/tool-requests", response_model=ToolRequestInDB)
+async def create_tool_request(tool_request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+    query = tool_requests.insert().values(
+        tools=json.dumps(tool_request.tools),
+        start_date=tool_request.start_date,
+        end_date=tool_request.end_date,
+        needs_delivery=tool_request.needs_delivery,
+        delivery_address=tool_request.delivery_address,
+        description=tool_request.description,
+        city_id=tool_request.city_id,
+        user_id=current_user.id
+    )
+    last_record_id = await database.execute(query)
+    return {**tool_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
 
 @api_router.post("/material-ads", response_model=MaterialAdInDB)
 async def create_material_ad(ad: MaterialAdCreate, current_user: UserInDB = Depends(get_current_user)):
