@@ -161,49 +161,23 @@
     </div>
     
     <div id="machineryFormPage">
-    <div class="form-container">
-        <h2 class="form-title">Заявка на аренду спецтехники</h2>
-        <form id="machineryForm">
-            <div class="form-group">
-                <label for="machineryType">Тип спецтехники:</label>
-                <select id="machineryType" required></select>
-            </div>
-            <div class="form-group">
-                <label for="machineryAddress">Адрес подачи техники:</label>
-                <input type="text" id="machineryAddress" placeholder="Укажите адрес" required>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="minOrderCheckbox">
-                <label for="minOrderCheckbox">Минимальный заказ (4 часа)</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="preorderCheckbox">
-                <label for="preorderCheckbox">Предварительный заказ</label>
-            </div>
-            <div id="preorderFields" style="display: none;">
-                <div class="form-group">
-                    <label for="preorderDate">Дата и время:</label>
-                    <input type="datetime-local" id="preorderDate">
+        <div class="form-container">
+            <h2 class="form-title">Заявка на аренду спецтехники</h2>
+            <form id="machineryForm">
+                <div class="form-group"><label for="machineryType">Тип спецтехники:</label><select id="machineryType" required></select></div>
+                <div class="form-group"><label for="machineryAddress">Адрес подачи техники:</label><input type="text" id="machineryAddress" placeholder="Укажите адрес" required></div>
+                <div class="checkbox-group"><input type="checkbox" id="minOrderCheckbox"><label for="minOrderCheckbox">Минимальный заказ (4 часа)</label></div>
+                <div class="checkbox-group"><input type="checkbox" id="preorderCheckbox"><label for="preorderCheckbox">Предварительный заказ</label></div>
+                <div id="preorderFields" style="display: none;">
+                    <div class="form-group"><label for="preorderDate">Дата и время:</label><input type="datetime-local" id="preorderDate"></div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="machineryDescription">Описание задачи:</label>
-                <textarea id="machineryDescription" placeholder="Дополнительная информация..."></textarea>
-            </div>
-            <div class="form-group">
-                <label for="machineryPhotos">Фотографии (необязательно):</label>
-                <input type="file" id="machineryPhotos" accept="image/*" multiple>
-            </div>
-            
-            <hr> <div class="form-group">
-                <label for="machineryPrice">Стоимость аренды (за час/смену):</label>
-                <input type="number" id="machineryPrice" placeholder="Введите стоимость" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="contactInfo">Контактная информация:</label>
-                <input type="text" id="contactInfo" placeholder="Введите ваш телефон или email" required>
-            </div>
+                <div class="form-group"><label for="machineryDescription">Описание задачи:</label><textarea id="machineryDescription" placeholder="Дополнительная информация..."></textarea></div>
+                <div class="form-group"><label for="machineryPhotos">Фотографии (необязательно):</label><input type="file" id="machineryPhotos" accept="image/*" multiple></div>
+                <button type="submit" class="submit-button">ОТПРАВИТЬ ЗАЯВКУ</button>
+                <a href="#" class="back-button" id="backToMainFromMachinery">← Назад</a>
+            </form>
+        </div>
+    </div>
 
     <div id="toolsFormPage">
          <div class="form-container">
@@ -327,46 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.classList.remove('active');
         });
     }
-
-// Функция для получения токена из локального хранилища
-function getAuthToken() {
-    return localStorage.getItem('access_token');
-}
-
-// Функция для добавления заголовков с токеном
-function getAuthHeaders() {
-    const token = getAuthToken();
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
-}
-
-// Пример использования при запросе профиля
-async function fetchUserProfile() {
-    const headers = getAuthHeaders();
-    if (!headers['Authorization']) {
-        console.error('Ошибка: пользователь не аутентифицирован.');
-        return; // Или перенаправить на страницу входа
-    }
-
-    try {
-        const response = await fetch('/api/users/me', {
-            method: 'GET',
-            headers: headers
-        });
-
-        if (response.ok) {
-            const userProfile = await response.json();
-            console.log('Профиль пользователя:', userProfile);
-        } else if (response.status === 401) {
-            console.error('Ошибка аутентификации: токен недействителен или истек.');
-            // Удалите устаревший токен и попросите пользователя войти снова
-            localStorage.removeItem('access_token');
-        } else {
-            console.error('Не удалось получить профиль.');
-        }
-    } catch (error) {
-        console.error('Произошла ошибка сети:', error);
-    }
-}
 
     // ✅ Исправлено: Эта функция теперь единственная и отвечает за загрузку профиля.
     async function fetchUserProfile() {
@@ -506,110 +440,92 @@ async function fetchUserProfile() {
         }
     }
 
-async function fetchMyRequests() {
-    showLoading(true);
-    const token = getToken();
-    if (!token) {
-        showLoading(false);
-        return;
+    function checkAuthentication() {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            fetchUserProfile();
+            showPage('buttonContainer');
+        } else {
+            showPage('authModal');
+        }
     }
 
-    const myRequestsList = document.getElementById('myRequestsList');
-    myRequestsList.innerHTML = '';
+    async function fetchMyRequests() {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/users/my-requests`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Failed to fetch user requests');
-        }
-
-        const data = await response.json();
-        if (data.length === 0) {
-            myRequestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
-        } else {
-            data.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'request-card';
-                card.innerHTML = `
-                    <strong>Заявка на ${item.type_ru || 'работу'}</strong>
-                    <div><small>Название:</small> ${item.name}</div>
-                    <div><small>Описание:</small> ${item.description || 'Нет описания'}</div>
-                    <div><small>Контакты:</small> ${item.contact_info}</div>
-                    ${item.is_active ? '' : '<div style="color: red; margin-top: 10px;">Заявка снята с публикации</div>'}
-                    <button class="request-delete-btn" data-request-id="${item.id}" data-request-type="${item.type}">Удалить заявку</button>
-                `;
-                myRequestsList.appendChild(card);
+            const response = await fetch(`${url}/api/users/my-requests`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-            document.querySelectorAll('.request-delete-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const requestId = e.target.dataset.requestId;
-                    const requestType = e.target.dataset.requestType;
-                    await deleteUserRequest(requestId, requestType);
+
+            if (!response.ok) throw new Error('Failed to fetch user requests');
+            
+            const requests = await response.json();
+            const requestsList = document.getElementById('userRequestsList');
+            requestsList.innerHTML = '';
+
+            if (requests.length === 0) {
+                requestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
+            } else {
+                requests.forEach(req => {
+                    const card = document.createElement('div');
+                    card.className = 'request-card';
+                    card.innerHTML = `
+                        <strong>Заявка #${req.id}</strong>
+                        <div><small>Тип:</small> ${req.request_type}</div>
+                        <div><small>Описание:</small> ${req.description}</div>
+                        <div><small>Дата:</small> ${new Date(req.created_at).toLocaleDateString()}</div>
+                    `;
+                    requestsList.appendChild(card);
                 });
+            }
+            showPage('myRequestsPage');
+        } catch (error) {
+            console.error('Error fetching user requests:', error);
+            alert('Не удалось загрузить ваши заявки.');
+        }
+    }
+
+    async function fetchAvailableOrders() {
+        try {
+            const city = getSelectedCity();
+            if (!city) {
+                alert('Пожалуйста, сначала выберите город.');
+                return;
+            }
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/work-requests?city_id=${city.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (!response.ok) throw new Error('Failed to fetch orders');
+            const orders = await response.json();
+            const ordersList = document.getElementById('ordersList');
+            ordersList.innerHTML = '';
+            if (orders.length === 0) {
+                ordersList.innerHTML = '<p class="no-orders">В вашем городе пока нет доступных заявок на работы.</p>';
+            } else {
+                orders.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = 'order-card';
+                    card.innerHTML = `
+                        <strong>Заявка #${order.id}</strong>
+                        <div><small>Описание:</small> ${order.description}</div>
+                        <div><small>Город:</small> ${getSelectedCity().name}</div>
+                        <div><small>Тип работ:</small> ${order.work_type}</div>
+                        <div><small>Требуется выезд:</small> ${order.needs_visit ? 'Да' : 'Нет'}</div>
+                        <div><small>Адрес:</small> ${order.address || 'Не указан'}</div>
+                        <button class="take-order-btn" data-order-id="${order.id}">Взять в работу</button>
+                    `;
+                    ordersList.appendChild(card);
+                });
+            }
+            showPage('takeOrderPage');
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            alert('Не удалось загрузить заявки.');
         }
-    } catch (error) {
-        console.error("Error fetching user requests:", error);
-        myRequestsList.innerHTML = `<p class="no-orders">Ошибка при загрузке ваших заявок. Пожалуйста, попробуйте позже.</p>`;
-    } finally {
-        showLoading(false);
     }
-}
-
-async function fetchAvailableOrders(city_id) {
-    showLoading(true);
-    const token = getToken();
-    if (!token) {
-        showLoading(false);
-        return;
-    }
-
-    const marketplaceList = document.getElementById('marketplaceList');
-    marketplaceList.innerHTML = '';
-
-    try {
-        const url = `${API_BASE_URL}/get-all-requests?city_id=${city_id}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${getToken()}` }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Failed to fetch orders');
-        }
-
-        const data = await response.json();
-        if (data.length === 0) {
-            marketplaceList.innerHTML = '<p class="no-orders">Пока нет доступных заявок.</p>';
-        } else {
-            data.forEach(item => {
-                const postCard = document.createElement('div');
-                postCard.className = 'post-card';
-                const postDate = new Date(item.created_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
-                postCard.innerHTML = `
-                    <strong>${item.name}</strong>
-                    <div><small>Категория:</small> ${item.type_ru}</div>
-                    ${item.description ? `<div><small>Описание:</small> ${item.description}</div>` : ''}
-                    ${item.price ? `<div><small>Стоимость:</small> ${item.price} руб.</div>` : ''}
-                    <button class="take-order-btn" onclick="takeOrder('${item.id}', '${item.type}')">Взять в работу</button>
-                    <div class="post-date">${postDate}</div>
-                `;
-                marketplaceList.appendChild(postCard);
-            });
-        }
-    } catch (error) {
-        console.error("Error fetching orders:", error);
-        marketplaceList.innerHTML = `<p class="no-orders">Ошибка при загрузке доступных заявок. Пожалуйста, попробуйте позже.</p>`;
-    } finally {
-        showLoading(false);
-    }
-}
     
     async function fetchMarketplacePosts() {
         try {
@@ -645,109 +561,103 @@ async function fetchAvailableOrders(city_id) {
         }
     }
 
-async function sendWorkRequest() {
-    const workType = workTypeSelect.value;
-    const needsVisit = needsVisitCheckbox.checked;
-    const address = needsVisit ? workAddressInput.value : null;
-    const description = workDescriptionInput.value;
-    const cityId = getSelectedCity().id;
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-        alert("Пожалуйста, авторизуйтесь для создания заявки.");
-        return;
-    }
-
-    const requestData = {
-        work_type: workType,
-        needs_visit: needsVisit,
-        address: address,
-        description: description,
-        city_id: cityId,
-    };
-
-    try {
-        const response = await fetch(`${SERVER_URL}/api/work-requests`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(requestData)
-        });
-    
-        if (response.ok) {
-            alert('Заявка успешно создана!');
-            showPage('buttonContainer');
-        } else {
-            const errorData = await response.json();
-            alert(`Ошибка: ${errorData.detail}`);
+    async function submitWorkRequest(event) {
+        event.preventDefault();
+        const form = event.target;
+        const workType = document.getElementById('workType').value;
+        const visitNeeded = document.getElementById('visitCheckbox').checked;
+        const workAddress = document.getElementById('workAddress').value;
+        const description = document.getElementById('requestDescription').value;
+        const photos = document.getElementById('requestPhotos').files;
+        const city = getSelectedCity();
+        if (!city) {
+            alert('Пожалуйста, выберите город.');
+            return;
         }
-    } catch (error) {
-        console.error('Ошибка при отправке заявки:', error);
-        alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
-    }
-}
-    
-async function submitMachineryRequest(event) {
-    event.preventDefault();
 
-    const machineryType = document.getElementById('machineryType').value;
-    const description = document.getElementById('machineryDescription').value;
-    const cityId = document.getElementById('machineryCitySelect').value;
-    const photosInput = document.getElementById('machineryPhotos');
-    
-    // ✅ ИСПРАВЛЕНИЕ: Новые переменные должны быть объявлены здесь
-    const machineryPrice = document.getElementById('machineryPrice').value;
-    const contactInfo = document.getElementById('contactInfo').value;
-    
-    if (!machineryType || !description || !cityId || !machineryPrice) {
-        alert("Пожалуйста, заполните все обязательные поля.");
-        return;
-    }
+        const requestData = {
+            work_type: workType,
+            needs_visit: visitNeeded,
+            address: visitNeeded ? workAddress : null,
+            description: description,
+            city_id: city.id
+        };
 
-    const requestData = {
-        machinery_type: machineryType,
-        description: description,
-        city_id: parseInt(cityId),
-        rental_price: parseFloat(machineryPrice), // ✅ ИСПРАВЛЕНИЕ: Используем переменную
-        contact_info: contactInfo // ✅ ИСПРАВЛЕНИЕ: Используем переменную
-    };
+        const formData = new FormData();
+        formData.append('request', JSON.stringify(requestData));
+        for (let i = 0; i < photos.length; i++) {
+            formData.append('photos', photos[i]);
+        }
 
-    const formData = new FormData();
-    formData.append('request', JSON.stringify(requestData));
-
-    if (photosInput.files.length > 0) {
-        for (const file of photosInput.files) {
-            formData.append('photos', file);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/work-requests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            if (!response.ok) throw new Error('Failed to submit work request');
+            await response.json();
+            alert('Заявка на работы успешно создана!');
+            form.reset();
+            showPage('myRequestsPage');
+        } catch (error) {
+            console.error('Error submitting work request:', error);
+            alert('Ошибка при создании заявки.');
         }
     }
-
-    try {
-        const response = await fetch('/api/machinery-requests', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: formData
-        });
-
-if (!response.ok) {
-    throw new Error('Failed to fetch orders');
-}
-const data = await response.json();
-            alert('Заявка на спецтехнику успешно создана!');
-            console.log(data);
-            showPage('buttonContainer');
-        } else {
-            const errorData = await response.json();
-            throw new Error(`Ошибка: ${errorData.detail}`);
+    
+    async function submitMachineryRequest(event) {
+        event.preventDefault();
+        const form = event.target;
+        const machineryType = document.getElementById('machineryType').value;
+        const machineryAddress = document.getElementById('machineryAddress').value;
+        const isMinOrder = document.getElementById('minOrderCheckbox').checked;
+        const isPreorder = document.getElementById('preorderCheckbox').checked;
+        const preorderDate = document.getElementById('preorderDate').value;
+        const machineryDescription = document.getElementById('machineryDescription').value;
+        const photos = document.getElementById('machineryPhotos').files;
+        const city = getSelectedCity();
+        if (!city) {
+            alert('Пожалуйста, выберите город.');
+            return;
         }
-    } catch (error) {
-        console.error('Ошибка при отправке заявки:', error);
-        alert(error.message);
+
+        const requestData = {
+            machinery_type: machineryType,
+            address: machineryAddress,
+            is_min_order: isMinOrder,
+            is_preorder: isPreorder,
+            preorder_date: isPreorder ? preorderDate : null,
+            description: machineryDescription,
+            city_id: city.id,
+        };
+
+        const formData = new FormData();
+        formData.append('request', JSON.stringify(requestData));
+        for (let i = 0; i < photos.length; i++) {
+            formData.append('photos', photos[i]);
+        }
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/machinery-requests`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+            if (!response.ok) throw new Error('Failed to submit machinery request');
+            await response.json();
+            alert('Заявка на аренду спецтехники успешно создана!');
+            form.reset();
+            showPage('myRequestsPage');
+        } catch (error) {
+            console.error('Error submitting machinery request:', error);
+            alert('Ошибка при создании заявки.');
+        }
     }
-}
     
     async function submitToolRequest(event) {
         event.preventDefault();
