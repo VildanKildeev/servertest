@@ -2,7 +2,7 @@ import json
 import uvicorn
 import databases
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, Form, UploadFile # ✅ ДОБАВЛЕНО
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -53,7 +53,6 @@ class UserInDB(UserCreate):
     password_hash: str
     created_at: datetime
 
-# ✅ Новая модель для ответа, без пароля
 class UserPublic(BaseModel):
     id: int
     username: str
@@ -78,7 +77,6 @@ class WorkRequestInDB(WorkRequestCreate):
     user_id: int
     created_at: datetime
 
-# ✅ ИСПРАВЛЕНО: Добавлены поля, которые есть в базе данных
 class MachineryRequestCreate(BaseModel):
     machinery_type: str
     address: Optional[str] = None
@@ -87,8 +85,8 @@ class MachineryRequestCreate(BaseModel):
     preorder_date: Optional[str] = None
     description: str
     city_id: int
-    rental_price: float 
-    contact_info: Optional[str] = None 
+    rental_price: float
+    contact_info: Optional[str] = None
 
 class MachineryRequestInDB(MachineryRequestCreate):
     id: int
@@ -132,8 +130,6 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    # Здесь должна быть логика декодирования JWT и проверки пользователя
-    # Поскольку у нас нет реального JWT, будем делать простую проверку
     user = await database.fetch_one(users.select().where(users.c.username == token))
     if not user:
         raise HTTPException(
@@ -155,7 +151,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     return {"access_token": user.username, "token_type": "bearer"}
 
-# ✅ ИСПРАВЛЕНО: response_model теперь использует UserPublic
 @api_router.post("/users/", response_model=UserPublic)
 async def create_user(user: UserCreate):
     if await database.fetch_one(users.select().where(users.c.username == user.username)):
@@ -173,7 +168,6 @@ async def create_user(user: UserCreate):
     )
     last_record_id = await database.execute(query)
     
-    # ✅ ИСПРАВЛЕНО: Возвращаем данные, которые соответствуют модели UserPublic
     return {
         "id": last_record_id,
         "username": user.username,
@@ -183,7 +177,6 @@ async def create_user(user: UserCreate):
         "specialization": user.specialization,
     }
 
-# ✅ Исправлено: response_model теперь использует UserPublic
 @api_router.get("/users/me", response_model=UserPublic)
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     return current_user
@@ -206,7 +199,7 @@ async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
     work_reqs = await database.fetch_all(work_query)
     machinery_reqs = await database.fetch_all(machinery_query)
     tool_reqs = await database.fetch_all(tool_query)
-    material_ads = await database.fetch_all(material_query)
+    material_ad_requests = await database.fetch_all(material_query) # ✅ ИСПРАВЛЕНО
     
     all_requests = []
     for req in work_reqs:
@@ -215,7 +208,7 @@ async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
         all_requests.append({**req, "request_type": "machinery"})
     for req in tool_reqs:
         all_requests.append({**req, "request_type": "tool"})
-    for req in material_ads:
+    for req in material_ad_requests: # ✅ ИСПРАВЛЕНО
         all_requests.append({**req, "request_type": "material_ad"})
         
     return all_requests
@@ -243,13 +236,8 @@ async def read_work_requests(city_id: Optional[int] = None):
 
 @api_router.post("/work-requests/{request_id}/take")
 async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
-    # Логика для того, чтобы "взять" заявку
-    # В реальном приложении здесь будет проверка, что пользователь имеет право взять заявку,
-    # что она еще не взята и т.д.
-    # Простая реализация:
     return {"message": f"Request {request_id} taken by user {current_user.id}"}
 
-# ✅ ИСПРАВЛЕНО: Эндпоинт теперь обрабатывает данные формы и файлы
 @api_router.post("/machinery-requests")
 async def create_machinery_request(
     request: str = Form(...),
@@ -257,34 +245,28 @@ async def create_machinery_request(
     current_user: UserInDB = Depends(get_current_user)
 ):
     try:
-        # 1. Распарсиваем строку 'request' в JSON-объект
         request_data = json.loads(request)
 
-        # 2. Валидируем данные с помощью Pydantic модели
         validated_request = MachineryRequestCreate(**request_data)
 
-        # 3. Сохраняем фотографии (простой пример)
         if photos:
             for photo in photos:
-                # Здесь должен быть ваш код для сохранения фото
                 print(f"Получено фото: {photo.filename}")
 
-        # 4. Вставляем данные в базу данных
         query = machinery_requests.insert().values(
             machinery_type=validated_request.machinery_type,
-            address=validated_request.address, # ✅ ДОБАВЛЕНО
-            is_min_order=validated_request.is_min_order, # ✅ ДОБАВЛЕНО
-            is_preorder=validated_request.is_preorder, # ✅ ДОБАВЛЕНО
-            preorder_date=validated_request.preorder_date, # ✅ ДОБАВЛЕНО
+            address=validated_request.address,
+            is_min_order=validated_request.is_min_order,
+            is_preorder=validated_request.is_preorder,
+            preorder_date=validated_request.preorder_date,
             description=validated_request.description,
             rental_price=validated_request.rental_price,
-            contact_info=current_user.username, # ✅ Используем данные пользователя для контактной информации
+            contact_info=current_user.username,
             city_id=validated_request.city_id,
             user_id=current_user.id
         )
         last_record_id = await database.execute(query)
 
-        # 5. Возвращаем ответ с созданным объектом
         return {**validated_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
     
     except Exception as e:
