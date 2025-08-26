@@ -266,155 +266,75 @@
     </div>
 
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const url = 'https://servertest2-0.onrender.com'; // Ваш URL бэкенда
-        const cityModal = document.getElementById('cityModal');
-        const cityNameEl = document.getElementById('cityName');
-        const buttonContainer = document.getElementById('buttonContainer');
-        const navMasterBtn = document.getElementById('navMaster');
-        const navCreateBtn = document.getElementById('navCreate');
-        const navProfileBtn = document.getElementById('navProfile');
-        const navSubscriptionBtn = document.getElementById('navSubscription');
-        
-        // Переменные для хранения данных
-        let availableCities = [];
-        let availableSpecializations = [];
-        let currentUser = null;
+document.addEventListener('DOMContentLoaded', () => {
+    const url = 'https://servertest2-0.onrender.com';
+    const cityModal = document.getElementById('cityModal');
+    const cityNameEl = document.getElementById('cityName');
+    const buttonContainer = document.getElementById('buttonContainer');
+    const navMasterBtn = document.getElementById('navMaster');
+    const navCreateBtn = document.getElementById('navCreate');
+    const navProfileBtn = document.getElementById('navProfile');
+    const navSubscriptionBtn = document.getElementById('navSubscription');
 
-        // Вспомогательная функция для переключения между страницами
-        function showPage(pageId) {
-            document.querySelectorAll('#authModal, #registerModal, #profilePage, #requestFormPage, #takeOrderPage, #myRequestsPage, #machineryFormPage, #toolsFormPage, #materialsFormPage, #marketplacePage, #chatPage, #buttonContainer').forEach(page => {
-                if (page.id === pageId) {
-                    page.style.display = 'flex';
-                } else {
-                    page.style.display = 'none';
-                }
-            });
-            // Обновляем информацию о подписке при переходе на страницу профиля
-            if (pageId === 'profilePage') {
-                updateSubscriptionInfo();
-            }
-        }
+    let availableCities = [];
+    let availableSpecializations = [];
+    let currentUser = null;
 
-        function closeAllModals() {
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.classList.remove('active');
-            });
-        }
-
-        function getSelectedCity() {
-            return JSON.parse(localStorage.getItem('selectedCity'));
-        }
-
-        async function fetchCities() {
-            try {
-                const response = await fetch(`${url}/api/cities`);
-                if (!response.ok) throw new Error('Failed to fetch cities');
-                availableCities = await response.json();
-                renderCities();
-            } catch (error) {
-                console.error('Error fetching cities:', error);
-            }
-        }
-
- function renderCities() {
-    const cityButtonsContainer = document.getElementById('cityButtons');
-    const regUserCitySelect = document.getElementById('regUserCity'); // Новый элемент для заполнения
-
-    cityButtonsContainer.innerHTML = '';
-    
-    // Очищаем и добавляем дефолтный элемент для формы регистрации
-    regUserCitySelect.innerHTML = '<option value="">Выберите ваш город...</option>'; 
-
-    availableCities.forEach(city => {
-        // Логика для кнопок в модальном окне выбора города
-        const button = document.createElement('button');
-        button.className = 'modal-button';
-        button.textContent = city.name;
-        button.onclick = () => {
-            localStorage.setItem('selectedCity', JSON.stringify(city));
-            cityNameEl.textContent = city.name;
-            closeAllModals();
-            checkAuthentication();
-        };
-        cityButtonsContainer.appendChild(button);
-
-        // Логика для списка в форме регистрации
-        const option = document.createElement('option');
-        option.value = city.id; // Важно: используем ID для отправки на бэкенд
-        option.textContent = city.name;
-        regUserCitySelect.appendChild(option);
-    });
-}
-
-        async function fetchSpecializations() {
-            try {
-                const response = await fetch(`${url}/api/specializations`);
-                if (!response.ok) throw new Error('Failed to fetch specializations');
-                availableSpecializations = await response.json();
-                renderSpecializations();
-            } catch (error) {
-                console.error('Error fetching specializations:', error);
-            }
-        }
-
-        function renderSpecializations() {
-            const regSelect = document.getElementById('regSpecializationSelect');
-            const profileSelect = document.getElementById('profileSpecializationSelect');
-            regSelect.innerHTML = '<option value="">Выберите специализацию...</option>';
-            profileSelect.innerHTML = '';
-            availableSpecializations.forEach(spec => {
-                const option = document.createElement('option');
-                option.value = spec;
-                option.textContent = spec;
-                regSelect.appendChild(option.cloneNode(true));
-                profileSelect.appendChild(option.cloneNode(true));
-            });
-        }
-
-        // Обновление состояния вкладок навигации
-        function updateNavButtons(currentPageId) {
-            document.querySelectorAll('.navigation .nav-btn').forEach(btn => {
-                btn.style.backgroundColor = '#f5f0e6';
-                btn.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
-            });
-            let activeNavButtonId;
-            if (currentPageId === 'buttonContainer') {
-                activeNavButtonId = 'navCreate';
-            } else if (currentPageId === 'takeOrderPage') {
-                activeNavButtonId = 'navMaster';
-            } else if (currentPageId === 'profilePage' || currentPageId === 'myRequestsPage') {
-                activeNavButtonId = 'navProfile';
-            } else if (currentPageId === 'paymentModal') {
-                activeNavButtonId = 'navSubscription';
-            }
-            if (activeNavButtonId) {
-                const activeBtn = document.getElementById(activeNavButtonId);
-                if (activeBtn) {
-                    activeBtn.style.backgroundColor = '#e0d6c8';
-                    activeBtn.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.15)';
-                }
-            }
-        }
-
-        function checkAuthentication() {
-            const token = localStorage.getItem('token');
-            if (token) {
-                fetchProfile(token);
-                showPage('buttonContainer');
+    function showPage(pageId) {
+        document.querySelectorAll('#authModal, #registerModal, #profilePage, #requestFormPage, #takeOrderPage, #myRequestsPage, #machineryFormPage, #toolsFormPage, #materialsFormPage, #marketplacePage, #chatPage, #buttonContainer').forEach(page => {
+            if (page.id === pageId) {
+                page.style.display = 'flex';
             } else {
-                showPage('authModal');
+                page.style.display = 'none';
+            }
+        });
+        if (pageId === 'profilePage') {
+            updateSubscriptionInfo();
+            if (localStorage.getItem('access_token')) {
+                fetchUserProfile();
             }
         }
+    }
 
-        function setLoggedInState(user) {
+    function closeAllModals() {
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.classList.remove('active');
+        });
+    }
+
+    // ✅ Исправлено: Эта функция теперь единственная и отвечает за загрузку профиля.
+    async function fetchUserProfile() {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            console.error('No access token found in local storage.');
+            showPage('authModal');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${url}/api/users/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                localStorage.removeItem('access_token');
+                throw new Error('Не удалось получить профиль пользователя. Возможно, токен устарел.');
+            }
+
+            const user = await response.json();
             currentUser = user;
-            document.getElementById('profileType').textContent = user.user_type;
-            document.getElementById('profileName').textContent = user.user_name;
-            document.getElementById('profilePhone').textContent = user.username;
+            document.getElementById('profileName').textContent = user.user_name || 'Не указано';
+            document.getElementById('profilePhone').textContent = user.username || 'Не указано';
+            document.getElementById('profileType').textContent = user.user_type || 'Не указан';
+            
+            // ✅ Исправлено: Находим название города по city_id
             const city = availableCities.find(c => c.id === user.city_id);
-            document.getElementById('profileCity').textContent = city ? city.name : 'Неизвестен';
-
+            document.getElementById('profileCity').textContent = city ? city.name : 'Не указан';
+            
+            // ✅ Исправлено: Проверяем, если у пользователя есть специализация, и отображаем её
             const specializationGroup = document.getElementById('specializationGroup');
             const profileSpecializationDisplay = document.getElementById('profileSpecializationDisplay');
             if (user.user_type === 'ИСПОЛНИТЕЛЬ' || user.user_type === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') {
@@ -426,648 +346,728 @@
                 specializationGroup.style.display = 'none';
                 profileSpecializationDisplay.style.display = 'none';
             }
-            updateNavButtons('buttonContainer');
-        }
-
-        async function fetchProfile(token) {
-            try {
-                const response = await fetch(`${url}/api/users/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) throw new Error('Failed to fetch profile');
-                const user = await response.json();
-                setLoggedInState(user);
-            } catch (error) {
-                console.error('Error fetching profile:', error);
-                localStorage.removeItem('token');
-                showPage('authModal');
-            }
-        }
-        
-        async function fetchMyRequests() {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
-
-                const response = await fetch(`${url}/api/users/my-requests`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!response.ok) throw new Error('Failed to fetch user requests');
-                
-                const requests = await response.json();
-                const requestsList = document.getElementById('userRequestsList');
-                requestsList.innerHTML = '';
-
-                if (requests.length === 0) {
-                    requestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
-                } else {
-                    requests.forEach(req => {
-                        const card = document.createElement('div');
-                        card.className = 'request-card';
-                        card.innerHTML = `
-                            <strong>Заявка #${req.id}</strong>
-                            <div><small>Тип:</small> ${req.request_type}</div>
-                            <div><small>Описание:</small> ${req.description}</div>
-                            <div><small>Дата:</small> ${new Date(req.created_at).toLocaleDateString()}</div>
-                        `;
-                        requestsList.appendChild(card);
-                    });
-                }
-                showPage('myRequestsPage');
-            } catch (error) {
-                console.error('Error fetching user requests:', error);
-                alert('Не удалось загрузить ваши заявки.');
-            }
-        }
-
-        async function fetchAvailableOrders() {
-            try {
-                const city = getSelectedCity();
-                if (!city) {
-                    alert('Пожалуйста, сначала выберите город.');
-                    return;
-                }
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${url}/api/work-requests?city_id=${city.id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) throw new Error('Failed to fetch orders');
-                const orders = await response.json();
-                const ordersList = document.getElementById('ordersList');
-                ordersList.innerHTML = '';
-                if (orders.length === 0) {
-                    ordersList.innerHTML = '<p class="no-orders">В вашем городе пока нет доступных заявок на работы.</p>';
-                } else {
-                    orders.forEach(order => {
-                        const card = document.createElement('div');
-                        card.className = 'order-card';
-                        card.innerHTML = `
-                            <strong>Заявка #${order.id}</strong>
-                            <div><small>Описание:</small> ${order.description}</div>
-                            <div><small>Город:</small> ${getSelectedCity().name}</div>
-                            <div><small>Тип работ:</small> ${order.work_type}</div>
-                            <div><small>Требуется выезд:</small> ${order.needs_visit ? 'Да' : 'Нет'}</div>
-                            <div><small>Адрес:</small> ${order.address || 'Не указан'}</div>
-                            <button class="take-order-btn" data-order-id="${order.id}">Взять в работу</button>
-                        `;
-                        ordersList.appendChild(card);
-                    });
-                }
-                showPage('takeOrderPage');
-            } catch (error) {
-                console.error('Error fetching orders:', error);
-                alert('Не удалось загрузить заявки.');
-            }
-        }
-        
-        async function fetchMarketplacePosts() {
-            try {
-                const city = getSelectedCity();
-                if (!city) {
-                    alert('Пожалуйста, сначала выберите город.');
-                    return;
-                }
-                const response = await fetch(`${url}/api/material-ads?city_id=${city.id}`);
-                if (!response.ok) throw new Error('Failed to fetch marketplace posts');
-                const posts = await response.json();
-                const postsList = document.getElementById('marketplacePostsList');
-                postsList.innerHTML = '';
-                if (posts.length === 0) {
-                    postsList.innerHTML = '<p class="no-orders">На доске объявлений пока нет материалов на продажу.</p>';
-                } else {
-                    posts.forEach(post => {
-                        const card = document.createElement('div');
-                        card.className = 'post-card';
-                        card.innerHTML = `
-                            <strong>${post.material_type}</strong>
-                            <div><small>Описание:</small> ${post.description}</div>
-                            <div><small>Цена:</small> ${post.price} руб.</div>
-                            <div class="post-date">Объявление от ${new Date(post.created_at).toLocaleDateString()}</div>
-                        `;
-                        postsList.appendChild(card);
-                    });
-                }
-                showPage('marketplacePage');
-            } catch (error) {
-                console.error('Error fetching marketplace posts:', error);
-                alert('Не удалось загрузить объявления.');
-            }
-        }
-
-        async function submitWorkRequest(event) {
-            event.preventDefault();
-            const form = event.target;
-            const workType = document.getElementById('workType').value;
-            const visitNeeded = document.getElementById('visitCheckbox').checked;
-            const workAddress = document.getElementById('workAddress').value;
-            const description = document.getElementById('requestDescription').value;
-            const photos = document.getElementById('requestPhotos').files;
-
-            const city = getSelectedCity();
-            if (!city) {
-                alert('Пожалуйста, выберите город.');
-                return;
-            }
-
-            const requestData = {
-                work_type: workType,
-                needs_visit: visitNeeded,
-                address: visitNeeded ? workAddress : null,
-                description: description,
-                city_id: city.id
-            };
-
-            const formData = new FormData();
-            formData.append('request', JSON.stringify(requestData));
-            for (let i = 0; i < photos.length; i++) {
-                formData.append('photos', photos[i]);
-            }
-
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${url}/api/work-requests`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: formData
-                });
-                if (!response.ok) throw new Error('Failed to submit work request');
-                await response.json();
-                alert('Заявка на работы успешно создана!');
-                form.reset();
-                showPage('myRequestsPage');
-            } catch (error) {
-                console.error('Error submitting work request:', error);
-                alert('Ошибка при создании заявки.');
-            }
-        }
-        
-        async function submitMachineryRequest(event) {
-            event.preventDefault();
-            const form = event.target;
-            const machineryType = document.getElementById('machineryType').value;
-            const machineryAddress = document.getElementById('machineryAddress').value;
-            const isMinOrder = document.getElementById('minOrderCheckbox').checked;
-            const isPreorder = document.getElementById('preorderCheckbox').checked;
-            const preorderDate = document.getElementById('preorderDate').value;
-            const machineryDescription = document.getElementById('machineryDescription').value;
-            const photos = document.getElementById('machineryPhotos').files;
-            
-            const city = getSelectedCity();
-            if (!city) {
-                alert('Пожалуйста, выберите город.');
-                return;
-            }
-
-            const requestData = {
-                machinery_type: machineryType,
-                address: machineryAddress,
-                is_min_order: isMinOrder,
-                is_preorder: isPreorder,
-                preorder_date: isPreorder ? preorderDate : null,
-                description: machineryDescription,
-                city_id: city.id,
-            };
-
-            const formData = new FormData();
-            formData.append('request', JSON.stringify(requestData));
-            for (let i = 0; i < photos.length; i++) {
-                formData.append('photos', photos[i]);
-            }
-
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${url}/api/machinery-requests`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData,
-                });
-                if (!response.ok) throw new Error('Failed to submit machinery request');
-                await response.json();
-                alert('Заявка на аренду спецтехники успешно создана!');
-                form.reset();
-                showPage('myRequestsPage');
-            } catch (error) {
-                console.error('Error submitting machinery request:', error);
-                alert('Ошибка при создании заявки.');
-            }
-        }
-        
-        async function submitToolRequest(event) {
-            event.preventDefault();
-            const form = event.target;
-            const rentStartDate = document.getElementById('rentStartDate').value;
-            const rentEndDate = document.getElementById('rentEndDate').value;
-            const deliveryNeeded = document.getElementById('deliveryCheckbox').checked;
-            const deliveryAddress = document.getElementById('deliveryAddress').value;
-            const description = document.getElementById('toolsDescription').value;
-            const photos = document.getElementById('toolsPhotos').files;
-            const toolItems = Array.from(document.querySelectorAll('#selectedToolsList .tool-item'));
-            const toolsList = toolItems.map(item => item.dataset.toolName);
-
-            const city = getSelectedCity();
-            if (!city) {
-                alert('Пожалуйста, выберите город.');
-                return;
-            }
-
-            const requestData = {
-                tools: toolsList,
-                start_date: rentStartDate,
-                end_date: rentEndDate,
-                needs_delivery: deliveryNeeded,
-                delivery_address: deliveryNeeded ? deliveryAddress : null,
-                description: description,
-                city_id: city.id
-            };
-            
-            const formData = new FormData();
-            formData.append('request', JSON.stringify(requestData));
-            for (let i = 0; i < photos.length; i++) {
-                formData.append('photos', photos[i]);
-            }
-
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${url}/api/tool-requests`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData,
-                });
-                if (!response.ok) throw new Error('Failed to submit tool request');
-                await response.json();
-                alert('Заявка на аренду инструмента успешно создана!');
-                form.reset();
-                document.getElementById('selectedToolsList').innerHTML = '';
-                showPage('myRequestsPage');
-            } catch (error) {
-                console.error('Error submitting tool request:', error);
-                alert('Ошибка при создании заявки.');
-            }
-        }
-        
-        async function submitMaterialAd(event) {
-            event.preventDefault();
-            const form = event.target;
-            const materialsInput = document.getElementById('materialsInput').value;
-            const materialsDescription = document.getElementById('materialsDescription').value;
-            const materialPrice = document.getElementById('materialPrice').value;
-
-            const city = getSelectedCity();
-            if (!city) {
-                alert('Пожалуйста, выберите город.');
-                return;
-            }
-            
-            const adData = {
-                material_type: materialsInput,
-                description: materialsDescription,
-                price: parseFloat(materialPrice),
-                city_id: city.id
-            };
-
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${url}/api/material-ads`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(adData),
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
-                }
-
-                const result = await response.json();
-                alert('Объявление о продаже материалов успешно размещено!');
-                form.reset();
-                showPage('marketplacePage');
-
-            } catch (error) {
-                console.error('Ошибка при размещении объявления:', error);
-                alert('Ошибка при размещении объявления: ' + error.message);
-            }
-        }
-        
-        // Add listeners
-        document.getElementById('changeCityButton').addEventListener('click', () => {
-            cityModal.classList.add('active');
-        });
-        document.getElementById('cityModal').querySelector('.close-modal').addEventListener('click', () => {
-            closeAllModals();
-        });
-        document.getElementById('citySearch').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const cityButtons = document.querySelectorAll('#cityButtons .modal-button');
-            cityButtons.forEach(btn => {
-                const cityName = btn.textContent.toLowerCase();
-                btn.style.display = cityName.includes(query) ? 'block' : 'none';
-            });
-        });
-document.getElementById('authForm').addEventListener('submit', function(event) {
-    event.preventDefault();
-    const loginUsername = document.getElementById('userPhone').value;
-    const loginPassword = document.getElementById('userPassword').value;
-
-    fetch('/api/token', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded', // ✅ Исправлено
-        },
-        body: `username=${encodeURIComponent(loginUsername)}&password=${encodeURIComponent(loginPassword)}` // ✅ Исправлено
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json();
-        }
-        throw new Error('Authentication failed');
-    })
-    .then(data => {
-        localStorage.setItem('access_token', data.access_token);
-        fetchUserProfile();
-        showPage('profilePage');
-    })
-    .catch(error => {
-        alert('Ошибка входа: ' + error.message);
-    });
-});
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const userType = document.getElementById('regUserType').value;
-            const userName = document.getElementById('regUserName').value;
-            const userCityId = document.getElementById('regUserCity').value;
-            const userPhone = document.getElementById('regUserPhone').value;
-            const userPassword = document.getElementById('regUserPassword').value;
-            const specialization = (userType === 'ИСПОЛНИТЕЛЬ' || userType === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') ? document.getElementById('regSpecializationSelect').value : null;
-
-            const userData = {
-                username: userPhone,
-                password: userPassword,
-                user_name: userName,
-                user_type: userType,
-                city_id: parseInt(userCityId),
-                specialization: specialization
-            };
-
-            try {
-                const response = await fetch(`${url}/api/users/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(userData)
-                });
-                if (!response.ok) {
-                    const errorDetails = await response.json();
-                    throw new Error(errorDetails.detail || 'Failed to register');
-                }
-                const result = await response.json();
-                alert('Регистрация успешна! Теперь вы можете войти.');
-                form.reset();
-                showPage('authModal');
-            } catch (error) {
-                alert('Ошибка регистрации: ' + error.message);
-            }
-        });
-        document.getElementById('regUserType').addEventListener('change', (e) => {
-            const specializationGroup = document.getElementById('regSpecializationGroup');
-            if (e.target.value === 'ИСПОЛНИТЕЛЬ' || e.target.value === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') {
-                specializationGroup.style.display = 'block';
-            } else {
-                specializationGroup.style.display = 'none';
-            }
-        });
-        document.getElementById('switchToRegister').addEventListener('click', async (e) => {
-    e.preventDefault();
-    await fetchCities();
-    await fetchSpecializations();
-    showPage('registerModal');
-});
-        document.getElementById('switchToLogin').addEventListener('click', (e) => { e.preventDefault(); showPage('authModal'); });
-        document.getElementById('profileButton').addEventListener('click', () => { showPage('profilePage'); });
-        document.getElementById('logoutButton').addEventListener('click', () => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('subscription');
+        } catch (error) {
+            console.error('Ошибка при получении профиля:', error);
+            alert('Ошибка при загрузке профиля: ' + error.message);
             showPage('authModal');
-        });
-        document.getElementById('myRequestsButton').addEventListener('click', fetchMyRequests);
-        document.getElementById('saveSpecialization').addEventListener('click', async () => {
-            const newSpecialization = document.getElementById('profileSpecializationSelect').value;
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${url}/api/users/update-specialization`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ specialization: newSpecialization })
-                });
-                if (!response.ok) throw new Error('Failed to update specialization');
-                currentUser.specialization = newSpecialization;
-                document.getElementById('profileSpecialization').textContent = newSpecialization;
-                alert('Специализация обновлена!');
-            } catch (error) {
-                console.error('Error updating specialization:', error);
-                alert('Не удалось обновить специализацию.');
-            }
-        });
-        document.getElementById('masterButton').addEventListener('click', () => {
-            showPage('requestFormPage');
-            fetch(`${url}/api/specializations`)
-                .then(response => response.json())
-                .then(data => {
-                    const select = document.getElementById('workType');
-                    select.innerHTML = '<option value="">Выберите тип работ...</option>';
-                    data.forEach(spec => {
-                        const option = document.createElement('option');
-                        option.value = spec;
-                        option.textContent = spec;
-                        select.appendChild(option);
-                    });
-                })
-                .catch(error => console.error('Error fetching work types:', error));
-        });
-        document.getElementById('machineryButton').addEventListener('click', () => {
-            showPage('machineryFormPage');
-            fetch(`${url}/api/machinery-types`)
-                .then(response => response.json())
-                .then(data => {
-                    const select = document.getElementById('machineryType');
-                    select.innerHTML = '<option value="">Выберите тип техники...</option>';
-                    data.forEach(type => {
-                        const option = document.createElement('option');
-                        option.value = type;
-                        option.textContent = type;
-                        select.appendChild(option);
-                    });
-                })
-                .catch(error => console.error('Error fetching machinery types:', error));
-        });
-        document.getElementById('toolsButton').addEventListener('click', () => {
-            showPage('toolsFormPage');
-            fetch(`${url}/api/tools-list`)
-                .then(response => response.json())
-                .then(data => {
-                    const select = document.getElementById('toolsSelect');
-                    select.innerHTML = '<option value="">Выберите инструмент...</option>';
-                    data.forEach(tool => {
-                        const option = document.createElement('option');
-                        option.value = tool;
-                        option.textContent = tool;
-                        select.appendChild(option);
-                    });
-                })
-                .catch(error => console.error('Error fetching tool list:', error));
-        });
-        document.getElementById('sellMaterialsButton').addEventListener('click', () => { showPage('materialsFormPage'); });
-        document.getElementById('marketplaceButton').addEventListener('click', fetchMarketplacePosts);
-        document.getElementById('navMaster').addEventListener('click', fetchAvailableOrders);
-        document.getElementById('navCreate').addEventListener('click', () => { showPage('buttonContainer'); });
-        document.getElementById('navProfile').addEventListener('click', () => { showPage('profilePage'); });
-        document.getElementById('navSubscription').addEventListener('click', () => {
-            if (isSubscriptionActive()) {
-                alert('Ваша подписка уже активна!');
-            } else {
-                paymentModal.classList.add('active');
-            }
-        });
+        }
+    }
 
-        document.getElementById('visitCheckbox').addEventListener('change', (e) => {
-            document.getElementById('addressField').style.display = e.target.checked ? 'block' : 'none';
-        });
-        document.getElementById('preorderCheckbox').addEventListener('change', (e) => {
-            document.getElementById('preorderFields').style.display = e.target.checked ? 'block' : 'none';
-        });
-        document.getElementById('deliveryCheckbox').addEventListener('change', (e) => {
-            document.getElementById('deliveryAddressField').style.display = e.target.checked ? 'block' : 'none';
-        });
-        document.getElementById('addToolBtn').addEventListener('click', () => {
-            const select = document.getElementById('toolsSelect');
-            const toolName = select.value;
-            if (toolName) {
-                const list = document.getElementById('selectedToolsList');
-                const item = document.createElement('div');
-                item.className = 'tool-item';
-                item.dataset.toolName = toolName;
-                item.innerHTML = `<span>${toolName}</span><button type="button">Удалить</button>`;
-                item.querySelector('button').onclick = () => item.remove();
-                list.appendChild(item);
-                select.value = '';
-            }
-        });
-        
-        document.getElementById('requestForm').addEventListener('submit', submitWorkRequest);
-        document.getElementById('machineryForm').addEventListener('submit', submitMachineryRequest);
-        document.getElementById('toolsForm').addEventListener('submit', submitToolRequest);
-        document.getElementById('materialsForm').addEventListener('submit', submitMaterialAd);
-        
-        document.addEventListener('click', async (e) => {
-            if (e.target && e.target.classList.contains('take-order-btn')) {
-                const orderId = e.target.dataset.orderId;
-                const confirmation = confirm('Вы уверены, что хотите взять этот заказ в работу?');
-                if (confirmation) {
-                    try {
-                        const token = localStorage.getItem('token');
-                        const response = await fetch(`${url}/api/work-requests/${orderId}/take`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (!response.ok) {
-                            const errorText = await response.text();
-                            throw new Error(errorText);
-                        }
-                        alert('Заказ успешно взят в работу!');
-                        fetchAvailableOrders();
-                    } catch (error) {
-                        console.error('Error taking order:', error);
-                        alert('Ошибка: ' + error.message);
-                    }
-                }
-            }
-        });
+    function getSelectedCity() {
+        return JSON.parse(localStorage.getItem('selectedCity'));
+    }
 
-        const paymentModal = document.getElementById('paymentModal');
-        document.getElementById('subscriptionButton').addEventListener('click', () => {
-            if (isSubscriptionActive()) {
-                alert('Ваша подписка уже активна!');
-            } else {
-                paymentModal.classList.add('active');
-            }
-        });
-        document.getElementById('paymentModal').querySelector('.close-modal').addEventListener('click', () => {
-            closeAllModals();
-        });
-        document.getElementById('paymentForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const button = document.getElementById('payButton');
-            button.disabled = true;
-            button.textContent = 'Обработка...';
+    async function fetchCities() {
+        try {
+            const response = await fetch(`${url}/api/cities`);
+            if (!response.ok) throw new Error('Failed to fetch cities');
+            availableCities = await response.json();
+            renderCities();
+        } catch (error) {
+            console.error('Error fetching cities:', error);
+        }
+    }
 
-            setTimeout(() => {
-                const subscriptionExpiry = new Date();
-                subscriptionExpiry.setMonth(subscriptionExpiry.getMonth() + 1);
-                localStorage.setItem('subscription', JSON.stringify({ active: true, expiry: subscriptionExpiry.getTime() }));
-            
+    function renderCities() {
+        const cityButtonsContainer = document.getElementById('cityButtons');
+        const regUserCitySelect = document.getElementById('regUserCity');
+        cityButtonsContainer.innerHTML = '';
+        regUserCitySelect.innerHTML = '<option value="">Выберите ваш город...</option>';
+        availableCities.forEach(city => {
+            const button = document.createElement('button');
+            button.className = 'modal-button';
+            button.textContent = city.name;
+            button.onclick = () => {
+                localStorage.setItem('selectedCity', JSON.stringify(city));
+                cityNameEl.textContent = city.name;
                 closeAllModals();
-                document.getElementById('paymentForm').reset();
-                button.disabled = false;
-                button.textContent = 'ОПЛАТИТЬ';
-                alert('Подписка успешно оформлена!');
-            
-            }, 1500);
+                checkAuthentication();
+            };
+            cityButtonsContainer.appendChild(button);
+            const option = document.createElement('option');
+            option.value = city.id;
+            option.textContent = city.name;
+            regUserCitySelect.appendChild(option);
         });
-    
-        function updateSubscriptionInfo() {
-            const statusEl = document.getElementById('subscriptionStatus');
-            const expiryEl = document.getElementById('subscriptionExpiry');
-            const subButton = document.getElementById('subscriptionButton');
-            if (isSubscriptionActive()) {
-                const sub = JSON.parse(localStorage.getItem('subscription'));
-                statusEl.textContent = 'Активна';
-                statusEl.classList.add('active');
-                expiryEl.textContent = `до ${new Date(sub.expiry).toLocaleDateString('ru-RU')}`;
-                subButton.textContent = 'Подписка активна';
-                subButton.disabled = true;
-            } else {
-                statusEl.textContent = 'Не активна';
-                statusEl.classList.remove('active');
-                expiryEl.textContent = '-';
-                subButton.textContent = 'Оформить подписку';
-                subButton.disabled = false;
+    }
+
+    async function fetchSpecializations() {
+        try {
+            const response = await fetch(`${url}/api/specializations`);
+            if (!response.ok) throw new Error('Failed to fetch specializations');
+            availableSpecializations = await response.json();
+            renderSpecializations();
+        } catch (error) {
+            console.error('Error fetching specializations:', error);
+        }
+    }
+
+    function renderSpecializations() {
+        const regSelect = document.getElementById('regSpecializationSelect');
+        const profileSelect = document.getElementById('profileSpecializationSelect');
+        regSelect.innerHTML = '<option value="">Выберите специализацию...</option>';
+        profileSelect.innerHTML = '';
+        availableSpecializations.forEach(spec => {
+            const option = document.createElement('option');
+            option.value = spec;
+            option.textContent = spec;
+            regSelect.appendChild(option.cloneNode(true));
+            profileSelect.appendChild(option.cloneNode(true));
+        });
+    }
+
+    function updateNavButtons(currentPageId) {
+        document.querySelectorAll('.navigation .nav-btn').forEach(btn => {
+            btn.style.backgroundColor = '#f5f0e6';
+            btn.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
+        });
+        let activeNavButtonId;
+        if (currentPageId === 'buttonContainer') {
+            activeNavButtonId = 'navCreate';
+        } else if (currentPageId === 'takeOrderPage') {
+            activeNavButtonId = 'navMaster';
+        } else if (currentPageId === 'profilePage' || currentPageId === 'myRequestsPage') {
+            activeNavButtonId = 'navProfile';
+        } else if (currentPageId === 'paymentModal') {
+            activeNavButtonId = 'navSubscription';
+        }
+        if (activeNavButtonId) {
+            const activeBtn = document.getElementById(activeNavButtonId);
+            if (activeBtn) {
+                activeBtn.style.backgroundColor = '#e0d6c8';
+                activeBtn.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.15)';
             }
         }
+    }
 
-        function isSubscriptionActive() {
-            const subscription = JSON.parse(localStorage.getItem('subscription') || 'null');
-            return subscription && subscription.active && new Date(subscription.expiry) > new Date();
+    function checkAuthentication() {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            fetchUserProfile();
+            showPage('buttonContainer');
+        } else {
+            showPage('authModal');
+        }
+    }
+
+    async function fetchMyRequests() {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
+
+            const response = await fetch(`${url}/api/users/my-requests`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch user requests');
+            
+            const requests = await response.json();
+            const requestsList = document.getElementById('userRequestsList');
+            requestsList.innerHTML = '';
+
+            if (requests.length === 0) {
+                requestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
+            } else {
+                requests.forEach(req => {
+                    const card = document.createElement('div');
+                    card.className = 'request-card';
+                    card.innerHTML = `
+                        <strong>Заявка #${req.id}</strong>
+                        <div><small>Тип:</small> ${req.request_type}</div>
+                        <div><small>Описание:</small> ${req.description}</div>
+                        <div><small>Дата:</small> ${new Date(req.created_at).toLocaleDateString()}</div>
+                    `;
+                    requestsList.appendChild(card);
+                });
+            }
+            showPage('myRequestsPage');
+        } catch (error) {
+            console.error('Error fetching user requests:', error);
+            alert('Не удалось загрузить ваши заявки.');
+        }
+    }
+
+    async function fetchAvailableOrders() {
+        try {
+            const city = getSelectedCity();
+            if (!city) {
+                alert('Пожалуйста, сначала выберите город.');
+                return;
+            }
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/work-requests?city_id=${city.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch orders');
+            const orders = await response.json();
+            const ordersList = document.getElementById('ordersList');
+            ordersList.innerHTML = '';
+            if (orders.length === 0) {
+                ordersList.innerHTML = '<p class="no-orders">В вашем городе пока нет доступных заявок на работы.</p>';
+            } else {
+                orders.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = 'order-card';
+                    card.innerHTML = `
+                        <strong>Заявка #${order.id}</strong>
+                        <div><small>Описание:</small> ${order.description}</div>
+                        <div><small>Город:</small> ${getSelectedCity().name}</div>
+                        <div><small>Тип работ:</small> ${order.work_type}</div>
+                        <div><small>Требуется выезд:</small> ${order.needs_visit ? 'Да' : 'Нет'}</div>
+                        <div><small>Адрес:</small> ${order.address || 'Не указан'}</div>
+                        <button class="take-order-btn" data-order-id="${order.id}">Взять в работу</button>
+                    `;
+                    ordersList.appendChild(card);
+                });
+            }
+            showPage('takeOrderPage');
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            alert('Не удалось загрузить заявки.');
+        }
+    }
+    
+    async function fetchMarketplacePosts() {
+        try {
+            const city = getSelectedCity();
+            if (!city) {
+                alert('Пожалуйста, сначала выберите город.');
+                return;
+            }
+            const response = await fetch(`${url}/api/material-ads?city_id=${city.id}`);
+            if (!response.ok) throw new Error('Failed to fetch marketplace posts');
+            const posts = await response.json();
+            const postsList = document.getElementById('marketplacePostsList');
+            postsList.innerHTML = '';
+            if (posts.length === 0) {
+                postsList.innerHTML = '<p class="no-orders">На доске объявлений пока нет материалов на продажу.</p>';
+            } else {
+                posts.forEach(post => {
+                    const card = document.createElement('div');
+                    card.className = 'post-card';
+                    card.innerHTML = `
+                        <strong>${post.material_type}</strong>
+                        <div><small>Описание:</small> ${post.description}</div>
+                        <div><small>Цена:</small> ${post.price} руб.</div>
+                        <div class="post-date">Объявление от ${new Date(post.created_at).toLocaleDateString()}</div>
+                    `;
+                    postsList.appendChild(card);
+                });
+            }
+            showPage('marketplacePage');
+        } catch (error) {
+            console.error('Error fetching marketplace posts:', error);
+            alert('Не удалось загрузить объявления.');
+        }
+    }
+
+    async function submitWorkRequest(event) {
+        event.preventDefault();
+        const form = event.target;
+        const workType = document.getElementById('workType').value;
+        const visitNeeded = document.getElementById('visitCheckbox').checked;
+        const workAddress = document.getElementById('workAddress').value;
+        const description = document.getElementById('requestDescription').value;
+        const photos = document.getElementById('requestPhotos').files;
+        const city = getSelectedCity();
+        if (!city) {
+            alert('Пожалуйста, выберите город.');
+            return;
         }
 
-        // Назад
-        document.getElementById('backToMainFromRequest').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-        document.getElementById('backToMainFromMachinery').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-        document.getElementById('backToMainFromTools').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-        document.getElementById('backToMainFromMaterials').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-        document.getElementById('backToMainFromTakeOrder').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-        document.getElementById('backToMainFromMarketplace').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-        document.getElementById('backToProfileFromRequests').addEventListener('click', (e) => { e.preventDefault(); showPage('profilePage'); });
-        document.getElementById('backToMain').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+        const requestData = {
+            work_type: workType,
+            needs_visit: visitNeeded,
+            address: visitNeeded ? workAddress : null,
+            description: description,
+            city_id: city.id
+        };
+
+        const formData = new FormData();
+        formData.append('request', JSON.stringify(requestData));
+        for (let i = 0; i < photos.length; i++) {
+            formData.append('photos', photos[i]);
+        }
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/work-requests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            if (!response.ok) throw new Error('Failed to submit work request');
+            await response.json();
+            alert('Заявка на работы успешно создана!');
+            form.reset();
+            showPage('myRequestsPage');
+        } catch (error) {
+            console.error('Error submitting work request:', error);
+            alert('Ошибка при создании заявки.');
+        }
+    }
+    
+    async function submitMachineryRequest(event) {
+        event.preventDefault();
+        const form = event.target;
+        const machineryType = document.getElementById('machineryType').value;
+        const machineryAddress = document.getElementById('machineryAddress').value;
+        const isMinOrder = document.getElementById('minOrderCheckbox').checked;
+        const isPreorder = document.getElementById('preorderCheckbox').checked;
+        const preorderDate = document.getElementById('preorderDate').value;
+        const machineryDescription = document.getElementById('machineryDescription').value;
+        const photos = document.getElementById('machineryPhotos').files;
+        const city = getSelectedCity();
+        if (!city) {
+            alert('Пожалуйста, выберите город.');
+            return;
+        }
+
+        const requestData = {
+            machinery_type: machineryType,
+            address: machineryAddress,
+            is_min_order: isMinOrder,
+            is_preorder: isPreorder,
+            preorder_date: isPreorder ? preorderDate : null,
+            description: machineryDescription,
+            city_id: city.id,
+        };
+
+        const formData = new FormData();
+        formData.append('request', JSON.stringify(requestData));
+        for (let i = 0; i < photos.length; i++) {
+            formData.append('photos', photos[i]);
+        }
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/machinery-requests`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+            if (!response.ok) throw new Error('Failed to submit machinery request');
+            await response.json();
+            alert('Заявка на аренду спецтехники успешно создана!');
+            form.reset();
+            showPage('myRequestsPage');
+        } catch (error) {
+            console.error('Error submitting machinery request:', error);
+            alert('Ошибка при создании заявки.');
+        }
+    }
+    
+    async function submitToolRequest(event) {
+        event.preventDefault();
+        const form = event.target;
+        const rentStartDate = document.getElementById('rentStartDate').value;
+        const rentEndDate = document.getElementById('rentEndDate').value;
+        const deliveryNeeded = document.getElementById('deliveryCheckbox').checked;
+        const deliveryAddress = document.getElementById('deliveryAddress').value;
+        const description = document.getElementById('toolsDescription').value;
+        const photos = document.getElementById('toolsPhotos').files;
+        const toolItems = Array.from(document.querySelectorAll('#selectedToolsList .tool-item'));
+        const toolsList = toolItems.map(item => item.dataset.toolName);
+        const city = getSelectedCity();
+        if (!city) {
+            alert('Пожалуйста, выберите город.');
+            return;
+        }
+
+        const requestData = {
+            tools: toolsList,
+            start_date: rentStartDate,
+            end_date: rentEndDate,
+            needs_delivery: deliveryNeeded,
+            delivery_address: deliveryNeeded ? deliveryAddress : null,
+            description: description,
+            city_id: city.id
+        };
         
-        // Initial setup
-        fetchCities();
-        fetchSpecializations();
-        if (getSelectedCity()) {
-            cityNameEl.textContent = getSelectedCity().name;
-            checkAuthentication();
-        } else {
-            cityModal.classList.add('active');
+        const formData = new FormData();
+        formData.append('request', JSON.stringify(requestData));
+        for (let i = 0; i < photos.length; i++) {
+            formData.append('photos', photos[i]);
+        }
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/tool-requests`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+            if (!response.ok) throw new Error('Failed to submit tool request');
+            await response.json();
+            alert('Заявка на аренду инструмента успешно создана!');
+            form.reset();
+            document.getElementById('selectedToolsList').innerHTML = '';
+            showPage('myRequestsPage');
+        } catch (error) {
+            console.error('Error submitting tool request:', error);
+            alert('Ошибка при создании заявки.');
+        }
+    }
+    
+    async function submitMaterialAd(event) {
+        event.preventDefault();
+        const form = event.target;
+        const materialsInput = document.getElementById('materialsInput').value;
+        const materialsDescription = document.getElementById('materialsDescription').value;
+        const materialPrice = document.getElementById('materialPrice').value;
+        const city = getSelectedCity();
+        if (!city) {
+            alert('Пожалуйста, выберите город.');
+            return;
+        }
+        
+        const adData = {
+            material_type: materialsInput,
+            description: materialsDescription,
+            price: parseFloat(materialPrice),
+            city_id: city.id
+        };
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/material-ads`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(adData),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
+            }
+
+            const result = await response.json();
+            alert('Объявление о продаже материалов успешно размещено!');
+            form.reset();
+            showPage('marketplacePage');
+
+        } catch (error) {
+            console.error('Ошибка при размещении объявления:', error);
+            alert('Ошибка при размещении объявления: ' + error.message);
+        }
+    }
+    
+    document.getElementById('changeCityButton').addEventListener('click', () => {
+        cityModal.classList.add('active');
+    });
+    document.getElementById('cityModal').querySelector('.close-modal').addEventListener('click', () => {
+        closeAllModals();
+    });
+    document.getElementById('citySearch').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        const cityButtons = document.querySelectorAll('#cityButtons .modal-button');
+        cityButtons.forEach(btn => {
+            const cityName = btn.textContent.toLowerCase();
+            btn.style.display = cityName.includes(query) ? 'block' : 'none';
+        });
+    });
+    // ✅ Исправлено: Используем `${url}` для запроса входа.
+    document.getElementById('authForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const loginUsername = document.getElementById('userPhone').value;
+        const loginPassword = document.getElementById('userPassword').value;
+
+        fetch(`${url}/api/token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `username=${encodeURIComponent(loginUsername)}&password=${encodeURIComponent(loginPassword)}`
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Authentication failed');
+        })
+        .then(data => {
+            localStorage.setItem('access_token', data.access_token);
+            fetchUserProfile();
+            showPage('profilePage');
+        })
+        .catch(error => {
+            alert('Ошибка входа: ' + error.message);
+        });
+    });
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const userType = document.getElementById('regUserType').value;
+        const userName = document.getElementById('regUserName').value;
+        const userCityId = document.getElementById('regUserCity').value;
+        const userPhone = document.getElementById('regUserPhone').value;
+        const userPassword = document.getElementById('regUserPassword').value;
+        const specialization = (userType === 'ИСПОЛНИТЕЛЬ' || userType === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') ? document.getElementById('regSpecializationSelect').value : null;
+
+        const userData = {
+            username: userPhone,
+            password: userPassword,
+            user_name: userName,
+            user_type: userType,
+            city_id: parseInt(userCityId),
+            specialization: specialization
+        };
+
+        try {
+            const response = await fetch(`${url}/api/users/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            if (!response.ok) {
+                const errorDetails = await response.json();
+                throw new Error(errorDetails.detail || 'Failed to register');
+            }
+            const result = await response.json();
+            alert('Регистрация успешна! Теперь вы можете войти.');
+            form.reset();
+            showPage('authModal');
+        } catch (error) {
+            alert('Ошибка регистрации: ' + error.message);
         }
     });
-    </script>
+    document.getElementById('regUserType').addEventListener('change', (e) => {
+        const specializationGroup = document.getElementById('regSpecializationGroup');
+        if (e.target.value === 'ИСПОЛНИТЕЛЬ' || e.target.value === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') {
+            specializationGroup.style.display = 'block';
+        } else {
+            specializationGroup.style.display = 'none';
+        }
+    });
+    document.getElementById('switchToRegister').addEventListener('click', async (e) => {
+        e.preventDefault();
+        await fetchCities();
+        await fetchSpecializations();
+        showPage('registerModal');
+    });
+    document.getElementById('switchToLogin').addEventListener('click', (e) => { e.preventDefault(); showPage('authModal'); });
+    document.getElementById('profileButton').addEventListener('click', () => { showPage('profilePage'); });
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('subscription');
+        showPage('authModal');
+    });
+    document.getElementById('myRequestsButton').addEventListener('click', fetchMyRequests);
+    document.getElementById('saveSpecialization').addEventListener('click', async () => {
+        const newSpecialization = document.getElementById('profileSpecializationSelect').value;
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${url}/api/users/update-specialization`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ specialization: newSpecialization })
+            });
+            if (!response.ok) throw new Error('Failed to update specialization');
+            currentUser.specialization = newSpecialization;
+            document.getElementById('profileSpecialization').textContent = newSpecialization;
+            alert('Специализация обновлена!');
+        } catch (error) {
+            console.error('Error updating specialization:', error);
+            alert('Не удалось обновить специализацию.');
+        }
+    });
+    document.getElementById('masterButton').addEventListener('click', () => {
+        showPage('requestFormPage');
+        fetch(`${url}/api/specializations`)
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('workType');
+                select.innerHTML = '<option value="">Выберите тип работ...</option>';
+                data.forEach(spec => {
+                    const option = document.createElement('option');
+                    option.value = spec;
+                    option.textContent = spec;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching work types:', error));
+    });
+    document.getElementById('machineryButton').addEventListener('click', () => {
+        showPage('machineryFormPage');
+        fetch(`${url}/api/machinery-types`)
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('machineryType');
+                select.innerHTML = '<option value="">Выберите тип техники...</option>';
+                data.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching machinery types:', error));
+    });
+    document.getElementById('toolsButton').addEventListener('click', () => {
+        showPage('toolsFormPage');
+        fetch(`${url}/api/tools-list`)
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('toolsSelect');
+                select.innerHTML = '<option value="">Выберите инструмент...</option>';
+                data.forEach(tool => {
+                    const option = document.createElement('option');
+                    option.value = tool;
+                    option.textContent = tool;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching tool list:', error));
+    });
+    document.getElementById('sellMaterialsButton').addEventListener('click', () => { showPage('materialsFormPage'); });
+    document.getElementById('marketplaceButton').addEventListener('click', fetchMarketplacePosts);
+    document.getElementById('navMaster').addEventListener('click', fetchAvailableOrders);
+    document.getElementById('navCreate').addEventListener('click', () => { showPage('buttonContainer'); });
+    document.getElementById('navProfile').addEventListener('click', () => { showPage('profilePage'); });
+    document.getElementById('navSubscription').addEventListener('click', () => {
+        if (isSubscriptionActive()) {
+            alert('Ваша подписка уже активна!');
+        } else {
+            paymentModal.classList.add('active');
+        }
+    });
+
+    document.getElementById('visitCheckbox').addEventListener('change', (e) => {
+        document.getElementById('addressField').style.display = e.target.checked ? 'block' : 'none';
+    });
+    document.getElementById('preorderCheckbox').addEventListener('change', (e) => {
+        document.getElementById('preorderFields').style.display = e.target.checked ? 'block' : 'none';
+    });
+    document.getElementById('deliveryCheckbox').addEventListener('change', (e) => {
+        document.getElementById('deliveryAddressField').style.display = e.target.checked ? 'block' : 'none';
+    });
+    document.getElementById('addToolBtn').addEventListener('click', () => {
+        const select = document.getElementById('toolsSelect');
+        const toolName = select.value;
+        if (toolName) {
+            const list = document.getElementById('selectedToolsList');
+            const item = document.createElement('div');
+            item.className = 'tool-item';
+            item.dataset.toolName = toolName;
+            item.innerHTML = `<span>${toolName}</span><button type="button">Удалить</button>`;
+            item.querySelector('button').onclick = () => item.remove();
+            list.appendChild(item);
+            select.value = '';
+        }
+    });
+    
+    document.getElementById('requestForm').addEventListener('submit', submitWorkRequest);
+    document.getElementById('machineryForm').addEventListener('submit', submitMachineryRequest);
+    document.getElementById('toolsForm').addEventListener('submit', submitToolRequest);
+    document.getElementById('materialsForm').addEventListener('submit', submitMaterialAd);
+    
+    document.addEventListener('click', async (e) => {
+        if (e.target && e.target.classList.contains('take-order-btn')) {
+            const orderId = e.target.dataset.orderId;
+            const confirmation = confirm('Вы уверены, что хотите взять этот заказ в работу?');
+            if (confirmation) {
+                try {
+                    const token = localStorage.getItem('access_token');
+                    const response = await fetch(`${url}/api/work-requests/${orderId}/take`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(errorText);
+                    }
+                    alert('Заказ успешно взят в работу!');
+                    fetchAvailableOrders();
+                } catch (error) {
+                    console.error('Error taking order:', error);
+                    alert('Ошибка: ' + error.message);
+                }
+            }
+        }
+    });
+
+    const paymentModal = document.getElementById('paymentModal');
+    document.getElementById('subscriptionButton').addEventListener('click', () => {
+        if (isSubscriptionActive()) {
+            alert('Ваша подписка уже активна!');
+        } else {
+            paymentModal.classList.add('active');
+        }
+    });
+    document.getElementById('paymentModal').querySelector('.close-modal').addEventListener('click', () => {
+        closeAllModals();
+    });
+    document.getElementById('paymentForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const button = document.getElementById('payButton');
+        button.disabled = true;
+        button.textContent = 'Обработка...';
+
+        setTimeout(() => {
+            const subscriptionExpiry = new Date();
+            subscriptionExpiry.setMonth(subscriptionExpiry.getMonth() + 1);
+            localStorage.setItem('subscription', JSON.stringify({ active: true, expiry: subscriptionExpiry.getTime() }));
+        
+            closeAllModals();
+            document.getElementById('paymentForm').reset();
+            button.disabled = false;
+            button.textContent = 'ОПЛАТИТЬ';
+            alert('Подписка успешно оформлена!');
+        
+        }, 1500);
+    });
+
+    function updateSubscriptionInfo() {
+        const statusEl = document.getElementById('subscriptionStatus');
+        const expiryEl = document.getElementById('subscriptionExpiry');
+        const subButton = document.getElementById('subscriptionButton');
+        if (isSubscriptionActive()) {
+            const sub = JSON.parse(localStorage.getItem('subscription'));
+            statusEl.textContent = 'Активна';
+            statusEl.classList.add('active');
+            expiryEl.textContent = `до ${new Date(sub.expiry).toLocaleDateString('ru-RU')}`;
+            subButton.textContent = 'Подписка активна';
+            subButton.disabled = true;
+        } else {
+            statusEl.textContent = 'Не активна';
+            statusEl.classList.remove('active');
+            expiryEl.textContent = '-';
+            subButton.textContent = 'Оформить подписку';
+            subButton.disabled = false;
+        }
+    }
+
+    function isSubscriptionActive() {
+        const subscription = JSON.parse(localStorage.getItem('subscription') || 'null');
+        return subscription && subscription.active && new Date(subscription.expiry) > new Date();
+    }
+
+    document.getElementById('backToMainFromRequest').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+    document.getElementById('backToMainFromMachinery').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+    document.getElementById('backToMainFromTools').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+    document.getElementById('backToMainFromMaterials').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+    document.getElementById('backToMainFromTakeOrder').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+    document.getElementById('backToMainFromMarketplace').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+    document.getElementById('backToProfileFromRequests').addEventListener('click', (e) => { e.preventDefault(); showPage('profilePage'); });
+    document.getElementById('backToMain').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+    
+    fetchCities();
+    fetchSpecializations();
+    if (getSelectedCity()) {
+        cityNameEl.textContent = getSelectedCity().name;
+        checkAuthentication();
+    } else {
+        cityModal.classList.add('active');
+    }
+});   
+</script>
 </body>
 </html>
