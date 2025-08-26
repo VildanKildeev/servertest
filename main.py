@@ -53,7 +53,6 @@ class UserInDB(UserCreate):
     password_hash: str
     created_at: datetime
 
-# ✅ Новая модель для ответа, без пароля
 class UserPublic(BaseModel):
     id: int
     username: str
@@ -118,7 +117,6 @@ class MaterialAdInDB(MaterialAdCreate):
     created_at: datetime
 
 
-# OAuth2PasswordBearer
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
@@ -129,8 +127,6 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    # Здесь должна быть логика декодирования JWT и проверки пользователя
-    # Поскольку у нас нет реального JWT, будем делать простую проверку
     user = await database.fetch_one(users.select().where(users.c.username == token))
     if not user:
         raise HTTPException(
@@ -152,7 +148,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     return {"access_token": user.username, "token_type": "bearer"}
 
-# ✅ ИСПРАВЛЕНО: response_model теперь использует UserPublic
 @api_router.post("/users/", response_model=UserPublic)
 async def create_user(user: UserCreate):
     if await database.fetch_one(users.select().where(users.c.username == user.username)):
@@ -170,7 +165,6 @@ async def create_user(user: UserCreate):
     )
     last_record_id = await database.execute(query)
     
-    # ✅ ИСПРАВЛЕНО: Возвращаем данные, которые соответствуют модели UserPublic
     return {
         "id": last_record_id,
         "username": user.username,
@@ -180,7 +174,6 @@ async def create_user(user: UserCreate):
         "specialization": user.specialization,
     }
 
-# ✅ Исправлено: response_model теперь использует UserPublic
 @api_router.get("/users/me", response_model=UserPublic)
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     return current_user
@@ -228,7 +221,12 @@ async def create_work_request(work_request: WorkRequestCreate, current_user: Use
         user_id=current_user.id
     )
     last_record_id = await database.execute(query)
-    return {**work_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
+    return WorkRequestInDB(
+        id=last_record_id,
+        user_id=current_user.id,
+        created_at=datetime.now(),
+        **work_request.model_dump()
+    )
 
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
 async def read_work_requests(city_id: Optional[int] = None):
@@ -240,10 +238,6 @@ async def read_work_requests(city_id: Optional[int] = None):
 
 @api_router.post("/work-requests/{request_id}/take")
 async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
-    # Логика для того, чтобы "взять" заявку
-    # В реальном приложении здесь будет проверка, что пользователь имеет право взять заявку,
-    # что она еще не взята и т.д.
-    # Простая реализация:
     return {"message": f"Request {request_id} taken by user {current_user.id}"}
 
 @api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
@@ -259,7 +253,12 @@ async def create_machinery_request(machinery_request: MachineryRequestCreate, cu
         user_id=current_user.id
     )
     last_record_id = await database.execute(query)
-    return {**machinery_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
+    return MachineryRequestInDB(
+        id=last_record_id,
+        user_id=current_user.id,
+        created_at=datetime.now(),
+        **machinery_request.model_dump()
+    )
 
 @api_router.post("/tool-requests", response_model=ToolRequestInDB)
 async def create_tool_request(tool_request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
@@ -274,7 +273,18 @@ async def create_tool_request(tool_request: ToolRequestCreate, current_user: Use
         user_id=current_user.id
     )
     last_record_id = await database.execute(query)
-    return {**tool_request.model_dump(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.now()}
+    return ToolRequestInDB(
+        id=last_record_id,
+        user_id=current_user.id,
+        created_at=datetime.now(),
+        tools=tool_request.tools,
+        start_date=tool_request.start_date,
+        end_date=tool_request.end_date,
+        needs_delivery=tool_request.needs_delivery,
+        delivery_address=tool_request.delivery_address,
+        description=tool_request.description,
+        city_id=tool_request.city_id
+    )
 
 @api_router.post("/material-ads", response_model=MaterialAdInDB)
 async def create_material_ad(ad: MaterialAdCreate, current_user: UserInDB = Depends(get_current_user)):
