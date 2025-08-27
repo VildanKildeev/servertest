@@ -217,7 +217,14 @@
                     <div class="form-group"><label for="preorderDate">Дата и время:</label><input type="datetime-local" id="preorderDate"></div>
                 </div>
                 <div class="form-group"><label for="machineryDescription">Описание задачи:</label><textarea id="machineryDescription" placeholder="Дополнительная информация..."></textarea></div>
-                <div class="form-group"><label for="machineryPhotos">Фотографии (необязательно):</label><input type="file" id="machineryPhotos" accept="image/*" multiple></div>
+<div class="form-group">
+    <label for="rentalPrice">Цена аренды (руб/час):</label>
+    <input type="number" id="rentalPrice" placeholder="Например: 1500" required>
+</div>
+<div class="form-group">
+    <label for="contactInfo">Контактный телефон:</label>
+    <input type="tel" id="contactInfo" placeholder="+7 (999) 999-99-99" required>
+</div>
                 <button type="submit" class="submit-button">ОТПРАВИТЬ ЗАЯВКУ</button>
                 <a href="#" class="back-button" id="backToMainFromMachinery">← Назад</a>
             </form>
@@ -621,52 +628,58 @@
                 }
             }
 
-            async function submitMachineryRequest(event) {
-                event.preventDefault();
-                const form = event.target;
-                const machineryType = document.getElementById('machineryType').value;
-                const machineryAddress = document.getElementById('machineryAddress').value;
-                const isMinOrder = document.getElementById('minOrderCheckbox').checked;
-                const isPreorder = document.getElementById('preorderCheckbox').checked;
-                const preorderDate = document.getElementById('preorderDate').value;
-                const machineryDescription = document.getElementById('machineryDescription').value;
-                const photos = document.getElementById('machineryPhotos').files;
-                const city = getSelectedCity();
-                if (!city) {
-                    alert('Пожалуйста, выберите город.');
-                    return;
-                }
-                const requestData = {
-                    machinery_type: machineryType,
-                    address: machineryAddress,
-                    is_min_order: isMinOrder,
-                    is_preorder: isPreorder,
-                    preorder_date: isPreorder ? preorderDate : null,
-                    description: machineryDescription,
-                    city_id: city.id
-                };
-                const formData = new FormData();
-                formData.append('request', JSON.stringify(requestData));
-                for (let i = 0; i < photos.length; i++) {
-                    formData.append('photos', photos[i]);
-                }
-                try {
-                    const token = localStorage.getItem('access_token');
-                    const response = await fetch(`${url}/api/machinery-requests`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData,
-                    });
-                    if (!response.ok) throw new Error('Failed to submit machinery request');
-                    await response.json();
-                    alert('Заявка на аренду спецтехники успешно создана!');
-                    form.reset();
-                    showPage('myRequestsPage');
-                } catch (error) {
-                    console.error('Error submitting machinery request:', error);
-                    alert('Ошибка при создании заявки.');
-                }
-            }
+sync function submitMachineryRequest(event) {
+    event.preventDefault();
+    const form = event.target;
+    const machineryType = document.getElementById('machineryType').value;
+    const machineryAddress = document.getElementById('machineryAddress').value;
+    const isMinOrder = document.getElementById('minOrderCheckbox').checked;
+    const isPreorder = document.getElementById('preorderCheckbox').checked;
+    const preorderDate = document.getElementById('preorderDate').value;
+    const machineryDescription = document.getElementById('machineryDescription').value;
+    const city = getSelectedCity();
+    if (!city) {
+        alert('Пожалуйста, выберите город.');
+        return;
+    }
+
+    const requestData = {
+        machinery_type: machineryType,
+        address: machineryAddress,
+        is_min_order: isMinOrder,
+        is_preorder: isPreorder,
+        preorder_date: isPreorder ? preorderDate : null,
+        description: machineryDescription,
+        city_id: city.id,
+        rental_price: 5000,       // ← Укажите значение
+        contact_info: "+79991234567"  // ← Укажите значение
+    };
+
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${url}/api/machinery-requests`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        const result = await response.json();
+        alert('Заявка на аренду спецтехники успешно создана!');
+        form.reset();
+        showPage('myRequestsPage');
+    } catch (error) {
+        console.error('Error submitting machinery request:', error);
+        alert('Ошибка при создании заявки: ' + error.message);
+    }
+}
 
             async function submitToolRequest(event) {
                 event.preventDefault();
