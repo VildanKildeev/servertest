@@ -229,6 +229,14 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+@api_router.get("/create-tables")
+async def create_tables():
+    try:
+        metadata.create_all(engine)
+        return {"message": "Таблицы успешно созданы."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при создании таблиц: {str(e)}")
+
 @api_router.post("/users/", response_model=UserPublic)
 async def create_user(user: UserCreate):
     if await database.fetch_one(users.select().where(users.c.username == user.username)):
