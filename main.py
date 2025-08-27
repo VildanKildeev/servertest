@@ -75,10 +75,12 @@ class UserInDB(BaseModel):
     specialization: Optional[str] = None
     created_at: datetime
 
-class UserInDB(UserBase):
-    id: int
-    password_hash: str
-    created_at: Optional[datetime] = None
+class UserBase(BaseModel):
+    username: str
+    user_name: str
+    user_type: str
+    city_id: int
+    specialization: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
