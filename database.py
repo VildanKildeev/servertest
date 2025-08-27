@@ -5,19 +5,14 @@ import os
 
 # Получаем DATABASE_URL из переменных окружения
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
-# Проверка, что переменная окружения установлена
 if not DATABASE_URL:
     raise Exception("Переменная окружения DATABASE_URL не установлена.")
 
-# Исправляем URL: postgres:// → postgresql:// (для SQLAlchemy)
+# Исправляем URL: postgres:// → postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Создаём движок
 engine = create_engine(DATABASE_URL)
-
-# Объект метаданных для хранения структуры таблиц
 metadata = MetaData()
 
 # Таблица пользователей
@@ -47,28 +42,30 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица заявок на аренду техники
+# ✅ ИСПРАВЛЕНО: Добавлены rental_price, contact_info, preorder_date как DateTime
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("machinery_type", sqlalchemy.String),
-    sqlalchemy.Column("address", sqlalchemy.String),
+    sqlalchemy.Column("address", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("is_min_order", sqlalchemy.Boolean),
     sqlalchemy.Column("is_preorder", sqlalchemy.Boolean),
-    sqlalchemy.Column("preorder_date", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("preorder_date", sqlalchemy.DateTime, nullable=True),  # Теперь DateTime
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("rental_price", sqlalchemy.Float),  # Добавлено
+    sqlalchemy.Column("contact_info", sqlalchemy.String),  # Добавлено
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица заявок на аренду инструмента
+# Таблица заявок на инструменты
 tool_requests = sqlalchemy.Table(
     "tool_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("tools", sqlalchemy.String),  # JSON-строка в виде '["Перфоратор", "Шуруповерт"]'
+    sqlalchemy.Column("tools", sqlalchemy.String),  # JSON-строка
     sqlalchemy.Column("start_date", sqlalchemy.String),
     sqlalchemy.Column("end_date", sqlalchemy.String),
     sqlalchemy.Column("needs_delivery", sqlalchemy.Boolean),
