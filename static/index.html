@@ -515,7 +515,8 @@
             }
         }
         
-        async function createMachineryRequest() {
+async function createMachineryRequest() {
+            // ✅ ИСПРАВЛЕНО: Правильное имя переменной
             const machinery_type = document.getElementById('machineryType').value;
             const description = document.getElementById('machineryDescription').value;
             const rental_price = parseFloat(document.getElementById('machineryPrice').value);
@@ -538,7 +539,8 @@
             const response = await fetch(`${API_URL}/machinery-requests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                body: JSON.stringify({ machine_type, description, rental_price, contact_info, city_id: city.id })
+                // ✅ ИСПРАВЛЕНО: Используем правильную переменную
+                body: JSON.stringify({ machinery_type, description, rental_price, contact_info, city_id: city.id })
             });
 
             const data = await response.json();
