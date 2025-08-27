@@ -193,20 +193,17 @@ async def create_record_and_return(table, data_to_insert, response_model, curren
     """
     if current_user:
         data_to_insert["user_id"] = current_user.id
-    
     query = table.insert().values(**data_to_insert)
     last_record_id = await database.execute(query)
-    
     new_record_data = {
         "id": last_record_id,
         "created_at": datetime.now(),
         **data_to_insert
     }
-    
     return response_model(**new_record_data)
 
 # =======================================================
-#                       МАРШРУТЫ API
+#                  МАРШРУТЫ API
 # =======================================================
 
 @api_router.post("/token", response_model=Token)
@@ -219,7 +216,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
@@ -230,9 +226,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def create_user(user: UserCreate):
     if await database.fetch_one(users.select().where(users.c.username == user.username)):
         raise HTTPException(status_code=400, detail="Username already registered")
-    
     hashed_password = get_password_hash(user.password)
-    
     data_to_insert = {
         "username": user.username,
         "password_hash": hashed_password,
@@ -241,7 +235,6 @@ async def create_user(user: UserCreate):
         "city_id": user.city_id,
         "specialization": user.specialization,
     }
-    
     return await create_record_and_return(
         table=users,
         data_to_insert=data_to_insert,
@@ -249,37 +242,48 @@ async def create_user(user: UserCreate):
     )
 
 @api_router.put("/users/update-specialization")
-async def update_user_specialization(specialization_data: dict, current_user: UserInDB = Depends(get_current_user)):
+async def update_user_specialization(specialization: str, current_user: UserInDB = Depends(get_current_user)):
+    # Проверяем, что пользователь имеет право обновлять специализацию
     if current_user.user_type not in ["ИСПОЛНИТЕЛЬ", "ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ"]:
-        raise HTTPException(status_code=403, detail="Only executors or machinery owners can have a specialization")
-    query = users.update().where(users.c.id == current_user.id).values(specialization=specialization_data.get("specialization"))
+        raise HTTPException(status_code=403, detail="Только Исполнители и Владельцы спецтехники могут обновлять специализацию.")
+
+    query = users.update().where(users.c.id == current_user.id).values(specialization=specialization)
     await database.execute(query)
-    return {"message": "Specialization updated successfully"}
+    return {"message": "Специализация успешно обновлена."}
+
+@api_router.get("/users/me", response_model=UserPublic)
+async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
+    return UserPublic(**current_user._mapping)
 
 @api_router.get("/users/my-requests", response_model=MyRequestsResponse)
-async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
+async def read_my_requests(current_user: UserInDB = Depends(get_current_user)):
     work_query = work_requests.select().where(work_requests.c.user_id == current_user.id)
     machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == current_user.id)
     tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user.id)
     material_query = material_ads.select().where(material_ads.c.user_id == current_user.id)
     
-    work_reqs = await database.fetch_all(work_query)
-    machinery_reqs = await database.fetch_all(machinery_query)
-    tool_reqs = await database.fetch_all(tool_query)
-    material_ads_data = await database.fetch_all(material_query)
+    work_results = await database.fetch_all(work_query)
+    machinery_results = await database.fetch_all(machinery_query)
+    tool_results = await database.fetch_all(tool_query)
+    material_results = await database.fetch_all(material_query)
     
-    return MyRequestsResponse(
-        work_requests=[WorkRequestInDB(**req._mapping) for req in work_reqs],
-        machinery_requests=[MachineryRequestInDB(**req._mapping) for req in machinery_reqs],
-        tool_requests=[ToolRequestInDB(**req._mapping) for req in tool_reqs],
-        material_ads=[MaterialAdInDB(**ad._mapping) for ad in material_ads_data]
-    )
+    return {
+        "work_requests": [WorkRequestInDB(**r._mapping) for r in work_results],
+        "machinery_requests": [MachineryRequestInDB(**r._mapping) for r in machinery_results],
+        "tool_requests": [ToolRequestInDB(**r._mapping) for r in tool_results],
+        "material_ads": [MaterialAdInDB(**r._mapping) for r in material_results],
+    }
+
 
 @api_router.post("/work-requests", response_model=WorkRequestInDB)
-async def create_work_request(work_request: WorkRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_work_request(request: WorkRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+    if not request.specialization:
+        raise HTTPException(status_code=400, detail="Специализация не может быть пустой.")
+    
+    data_to_insert = request.model_dump()
     return await create_record_and_return(
         table=work_requests,
-        data_to_insert=work_request.model_dump(),
+        data_to_insert=data_to_insert,
         response_model=WorkRequestInDB,
         current_user=current_user
     )
@@ -289,36 +293,53 @@ async def read_work_requests(city_id: Optional[int] = None):
     query = work_requests.select()
     if city_id is not None:
         query = query.where(work_requests.c.city_id == city_id)
+        
     requests = await database.fetch_all(query)
-    return [WorkRequestInDB(**request._mapping) for request in requests]
-
-@api_router.post("/work-requests/{request_id}/take")
-async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
-    return {"message": f"Request {request_id} taken by user {current_user.id}"}
+    # ✅ ИСПРАВЛЕНИЕ: Преобразуем данные в Pydantic-модели
+    return [WorkRequestInDB(**r._mapping) for r in requests]
 
 @api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
-async def create_machinery_request(machinery_request: MachineryRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_machinery_request(request: MachineryRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+    data_to_insert = request.model_dump()
     return await create_record_and_return(
         table=machinery_requests,
-        data_to_insert=machinery_request.model_dump(),
+        data_to_insert=data_to_insert,
         response_model=MachineryRequestInDB,
         current_user=current_user
     )
 
+@api_router.get("/machinery-requests", response_model=List[MachineryRequestInDB])
+async def read_machinery_requests(city_id: Optional[int] = None):
+    query = machinery_requests.select()
+    if city_id is not None:
+        query = query.where(machinery_requests.c.city_id == city_id)
+    requests = await database.fetch_all(query)
+    return [MachineryRequestInDB(**r._mapping) for r in requests]
+
 @api_router.post("/tool-requests", response_model=ToolRequestInDB)
-async def create_tool_request(tool_request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_tool_request(request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
+    data_to_insert = request.model_dump()
     return await create_record_and_return(
         table=tool_requests,
-        data_to_insert=tool_request.model_dump(),
+        data_to_insert=data_to_insert,
         response_model=ToolRequestInDB,
         current_user=current_user
     )
 
+@api_router.get("/tool-requests", response_model=List[ToolRequestInDB])
+async def read_tool_requests(city_id: Optional[int] = None):
+    query = tool_requests.select()
+    if city_id is not None:
+        query = query.where(tool_requests.c.city_id == city_id)
+    requests = await database.fetch_all(query)
+    return [ToolRequestInDB(**r._mapping) for r in requests]
+
 @api_router.post("/material-ads", response_model=MaterialAdInDB)
 async def create_material_ad(ad: MaterialAdCreate, current_user: UserInDB = Depends(get_current_user)):
+    data_to_insert = ad.model_dump()
     return await create_record_and_return(
         table=material_ads,
-        data_to_insert=ad.model_dump(),
+        data_to_insert=data_to_insert,
         response_model=MaterialAdInDB,
         current_user=current_user
     )
@@ -331,6 +352,29 @@ async def read_material_ads(city_id: Optional[int] = None):
     
     ads = await database.fetch_all(query)
     return [MaterialAdInDB(**ad._mapping) for ad in ads]
+
+@api_router.post("/work-requests/{request_id}/take", response_model=WorkRequestInDB)
+async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
+    # Проверяем, что пользователь является ИСПОЛНИТЕЛЕМ
+    if current_user.user_type != "ИСПОЛНИТЕЛЬ":
+        raise HTTPException(status_code=403, detail="Только Исполнитель может принять заявку на работу.")
+
+    # Получаем заявку из базы данных
+    query = work_requests.select().where(work_requests.c.id == request_id)
+    request = await database.fetch_one(query)
+
+    if not request:
+        raise HTTPException(status_code=404, detail="Заявка не найдена.")
+
+    # Если у заявки уже есть исполнитель, ее нельзя взять
+    if request.executor_id is not None:
+        raise HTTPException(status_code=400, detail="Эта заявка уже принята другим исполнителем.")
+    
+    # Обновляем заявку, присваивая исполнителя
+    update_query = work_requests.update().where(work_requests.c.id == request_id).values(executor_id=current_user.id)
+    await database.execute(update_query)
+
+    return WorkRequestInDB(**request._mapping)
 
 @api_router.get("/cities")
 async def get_cities():
@@ -360,13 +404,9 @@ async def get_machinery_types():
 @api_router.get("/tools-list")
 async def get_tools_list():
     tools_list = [
-        "Перфоратор", "Шуруповерт", "Болгарка", "Сварочный аппарат", "Отбойный молоток", "Генератор", "Компрессор", "Бетономешалка"
+        "Бетономешалка", "Отбойный молоток", "Перфоратор", "Лазерный уровень", "Строительный пылесос"
     ]
     return tools_list
-    
+
 app.include_router(api_router)
-
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
