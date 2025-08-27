@@ -3,12 +3,15 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.engine import create_engine
 import os
 
-# Получаем DATABASE_URL из переменных окружения
+# Получаем DATABASE_URL из переменных окружения.
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise Exception("Переменная окружения DATABASE_URL не установлена.")
 
-# Исправляем URL: postgres:// → postgresql://
+# Проверяем, что переменная установлена, иначе приложение не запустится
+if not DATABASE_URL:
+    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
+
+# ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
+# но SQLAlchemy требует для asyncpg/databases формат postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -33,44 +36,24 @@ work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("work_type", sqlalchemy.String),
-    sqlalchemy.Column("needs_visit", sqlalchemy.Boolean),
-    sqlalchemy.Column("address", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("description", sqlalchemy.String),
+    sqlalchemy.Column("budget", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
+    sqlalchemy.Column("specialization", sqlalchemy.String),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# ✅ ИСПРАВЛЕНО: Добавлены rental_price, contact_info, preorder_date как DateTime
+# Таблица заявок на технику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("machinery_type", sqlalchemy.String),
-    sqlalchemy.Column("address", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("is_min_order", sqlalchemy.Boolean),
-    sqlalchemy.Column("is_preorder", sqlalchemy.Boolean),
-    sqlalchemy.Column("preorder_date", sqlalchemy.DateTime, nullable=True),  # Теперь DateTime
+    sqlalchemy.Column("machine_type", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("rental_price", sqlalchemy.Float),  # Добавлено
-    sqlalchemy.Column("contact_info", sqlalchemy.String),  # Добавлено
-    sqlalchemy.Column("city_id", sqlalchemy.Integer),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-)
-
-# Таблица заявок на инструменты
-tool_requests = sqlalchemy.Table(
-    "tool_requests",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("tools", sqlalchemy.String),  # JSON-строка
-    sqlalchemy.Column("start_date", sqlalchemy.String),
-    sqlalchemy.Column("end_date", sqlalchemy.String),
-    sqlalchemy.Column("needs_delivery", sqlalchemy.Boolean),
-    sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("description", sqlalchemy.String),
+    sqlalchemy.Column("rental_price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
@@ -82,8 +65,23 @@ material_ads = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("material_type", sqlalchemy.String),
-    sqlalchemy.Column("description", sqlalchemy.String),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+)
+
+# Таблица заявок на инструменты (tool_requests)
+tool_requests = sqlalchemy.Table(
+    "tool_requests",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("tool_name", sqlalchemy.String),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("rental_price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
