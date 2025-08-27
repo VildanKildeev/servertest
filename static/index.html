@@ -102,11 +102,8 @@
         <button class="nav-btn" id="navProfile"><i class="fas fa-user"></i><span>Профиль</span></button>
         <button class="nav-btn" id="navSubscription"><i class="fas fa-crown"></i><span>Подписка</span></button>
     </div>
-    
     <div class="modal" id="cityModal"><div class="modal-content"><button class="close-modal">&times;</button><h2 class="modal-title">Выберите ваш город</h2><div class="search-container"><i class="fas fa-search search-icon"></i><input type="text" id="citySearch" placeholder="Поиск..."></div><div class="modal-buttons" id="cityButtons"></div></div></div>
-
     <div id="authModal"><h2 class="auth-header">Вход в аккаунт</h2><form id="authForm" class="form-container"><div class="form-group"><label for="userPhone">Номер телефона:</label><input type="tel" id="userPhone" placeholder="+7 (999) 999-99-99" required></div><div class="form-group"><label for="userPassword">Пароль:</label><input type="password" id="userPassword" placeholder="Введите пароль" required></div><button type="submit" class="auth-button">ВОЙТИ</button><a href="#" id="switchToRegister" class="back-button">У меня нет аккаунта (Регистрация)</a></form></div>
-    
     <div id="registerModal" style="display: none;"><h2 class="auth-header">Регистрация</h2><form id="registerForm" class="form-container">
         <div class="form-group"><label for="regUserType">Я...</label><select id="regUserType" required><option value="">Выберите тип пользователя...</option><option value="ЗАКАЗЧИК">Заказчик</option><option value="ИСПОЛНИТЕЛЬ">Исполнитель</option><option value="ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ">Владелец спецтехники</option></select></div>
         <div class="form-group"><label for="regUserName">Мое имя:</label><input type="text" id="regUserName" placeholder="Введите ваше имя" required></div>
@@ -117,7 +114,6 @@
         <button type="submit" class="auth-button">ЗАРЕГИСТРИРОВАТЬСЯ</button>
         <a href="#" id="switchToLogin" class="back-button">У меня уже есть аккаунт (Войти)</a></form>
     </div>
-
     <div id="profilePage">
         <h2 class="profile-header">Ваш профиль</h2>
         <div class="profile-card">
@@ -144,7 +140,6 @@
         <button class="logout-button" id="logoutButton">ВЫЙТИ</button>
         <a href="#" class="back-button" id="backToMain">← Назад</a>
     </div>
-
     <div id="requestFormPage">
          <div class="form-container">
             <h2 class="form-title">Создать заявку на работы</h2>
@@ -159,7 +154,6 @@
             </form>
         </div>
     </div>
-    
     <div id="machineryFormPage">
         <div class="form-container">
             <h2 class="form-title">Заявка на аренду спецтехники</h2>
@@ -178,7 +172,6 @@
             </form>
         </div>
     </div>
-
     <div id="toolsFormPage">
          <div class="form-container">
             <h2 class="form-title">Заявка на аренду инструмента</h2>
@@ -199,7 +192,6 @@
             </form>
         </div>
     </div>
-
     <div id="takeOrderPage"><h2 class="orders-header">Доступные заявки</h2><div class="orders-list" id="ordersList"></div><a href="#" class="back-button" id="backToMainFromTakeOrder">← Назад</a></div>
     <div id="myRequestsPage"><h2 class="requests-header">Мои заявки</h2><div class="orders-list" id="userRequestsList"></div><a href="#" class="back-button" id="backToProfileFromRequests">← Назад в профиль</a></div>
     <div id="materialsFormPage">
@@ -227,9 +219,7 @@
             </form>
         </div>
     </div>
-
     <div id="marketplacePage"><h2 class="marketplace-header">Доска объявлений</h2><div class="orders-list" id="marketplacePostsList"></div><a href="#" class="back-button" id="backToMainFromMarketplace">← Назад</a></div>
-    
     <div id="chatPage">
         <h2 class="requests-header">Чат с заказчиком</h2>
         <div class="form-container" style="padding: 10px; max-width: 400px; max-height: 70vh; overflow-y: auto;">
@@ -242,7 +232,6 @@
             <a href="#" class="back-button" id="backToRequests">← Назад к заявкам</a>
         </form>
     </div>
-
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <button class="close-modal">&times;</button>
@@ -264,10 +253,9 @@
             </form>
         </div>
     </div>
-
     <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const url = 'https://servertest2-0.onrender.com';
+    const url = 'https://servertest2-0.onrender.com'; // Убедитесь, что URL правильный
     const cityModal = document.getElementById('cityModal');
     const cityNameEl = document.getElementById('cityName');
     const buttonContainer = document.getElementById('buttonContainer');
@@ -275,7 +263,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const navCreateBtn = document.getElementById('navCreate');
     const navProfileBtn = document.getElementById('navProfile');
     const navSubscriptionBtn = document.getElementById('navSubscription');
-
     let availableCities = [];
     let availableSpecializations = [];
     let currentUser = null;
@@ -302,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ✅ Исправлено: Эта функция теперь единственная и отвечает за загрузку профиля.
     async function fetchUserProfile() {
         const token = localStorage.getItem('access_token');
         if (!token) {
@@ -310,7 +296,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showPage('authModal');
             return;
         }
-
         try {
             const response = await fetch(`${url}/api/users/me`, {
                 method: 'GET',
@@ -318,23 +303,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
             if (!response.ok) {
                 localStorage.removeItem('access_token');
                 throw new Error('Не удалось получить профиль пользователя. Возможно, токен устарел.');
             }
-
             const user = await response.json();
             currentUser = user;
             document.getElementById('profileName').textContent = user.user_name || 'Не указано';
             document.getElementById('profilePhone').textContent = user.username || 'Не указано';
             document.getElementById('profileType').textContent = user.user_type || 'Не указан';
-            
-            // ✅ Исправлено: Находим название города по city_id
             const city = availableCities.find(c => c.id === user.city_id);
             document.getElementById('profileCity').textContent = city ? city.name : 'Не указан';
-            
-            // ✅ Исправлено: Проверяем, если у пользователя есть специализация, и отображаем её
             const specializationGroup = document.getElementById('specializationGroup');
             const profileSpecializationDisplay = document.getElementById('profileSpecializationDisplay');
             if (user.user_type === 'ИСПОЛНИТЕЛЬ' || user.user_type === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') {
@@ -454,17 +433,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const token = localStorage.getItem('access_token');
             if (!token) return;
-
             const response = await fetch(`${url}/api/users/my-requests`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
             if (!response.ok) throw new Error('Failed to fetch user requests');
-            
             const requests = await response.json();
             const requestsList = document.getElementById('userRequestsList');
             requestsList.innerHTML = '';
-
             if (requests.length === 0) {
                 requestsList.innerHTML = '<p class="no-orders">У вас пока нет заявок.</p>';
             } else {
@@ -526,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Не удалось загрузить заявки.');
         }
     }
-    
+
     async function fetchMarketplacePosts() {
         try {
             const city = getSelectedCity();
@@ -574,7 +549,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Пожалуйста, выберите город.');
             return;
         }
-
         const requestData = {
             work_type: workType,
             needs_visit: visitNeeded,
@@ -582,13 +556,11 @@ document.addEventListener('DOMContentLoaded', () => {
             description: description,
             city_id: city.id
         };
-
         const formData = new FormData();
         formData.append('request', JSON.stringify(requestData));
         for (let i = 0; i < photos.length; i++) {
             formData.append('photos', photos[i]);
         }
-
         try {
             const token = localStorage.getItem('access_token');
             const response = await fetch(`${url}/api/work-requests`, {
@@ -608,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Ошибка при создании заявки.');
         }
     }
-    
+
     async function submitMachineryRequest(event) {
         event.preventDefault();
         const form = event.target;
@@ -624,7 +596,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Пожалуйста, выберите город.');
             return;
         }
-
         const requestData = {
             machinery_type: machineryType,
             address: machineryAddress,
@@ -634,13 +605,11 @@ document.addEventListener('DOMContentLoaded', () => {
             description: machineryDescription,
             city_id: city.id,
         };
-
         const formData = new FormData();
         formData.append('request', JSON.stringify(requestData));
         for (let i = 0; i < photos.length; i++) {
             formData.append('photos', photos[i]);
         }
-
         try {
             const token = localStorage.getItem('access_token');
             const response = await fetch(`${url}/api/machinery-requests`, {
@@ -658,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Ошибка при создании заявки.');
         }
     }
-    
+
     async function submitToolRequest(event) {
         event.preventDefault();
         const form = event.target;
@@ -675,7 +644,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Пожалуйста, выберите город.');
             return;
         }
-
         const requestData = {
             tools: toolsList,
             start_date: rentStartDate,
@@ -685,13 +653,11 @@ document.addEventListener('DOMContentLoaded', () => {
             description: description,
             city_id: city.id
         };
-        
         const formData = new FormData();
         formData.append('request', JSON.stringify(requestData));
         for (let i = 0; i < photos.length; i++) {
             formData.append('photos', photos[i]);
         }
-
         try {
             const token = localStorage.getItem('access_token');
             const response = await fetch(`${url}/api/tool-requests`, {
@@ -710,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Ошибка при создании заявки.');
         }
     }
-    
+
     async function submitMaterialAd(event) {
         event.preventDefault();
         const form = event.target;
@@ -722,14 +688,12 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Пожалуйста, выберите город.');
             return;
         }
-        
         const adData = {
             material_type: materialsInput,
             description: materialsDescription,
             price: parseFloat(materialPrice),
             city_id: city.id
         };
-
         try {
             const token = localStorage.getItem('access_token');
             const response = await fetch(`${url}/api/material-ads`, {
@@ -740,29 +704,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify(adData),
             });
-
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
             }
-
             const result = await response.json();
             alert('Объявление о продаже материалов успешно размещено!');
             form.reset();
             showPage('marketplacePage');
-
         } catch (error) {
             console.error('Ошибка при размещении объявления:', error);
             alert('Ошибка при размещении объявления: ' + error.message);
         }
     }
-    
+
     document.getElementById('changeCityButton').addEventListener('click', () => {
         cityModal.classList.add('active');
     });
+
     document.getElementById('cityModal').querySelector('.close-modal').addEventListener('click', () => {
         closeAllModals();
     });
+
     document.getElementById('citySearch').addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
         const cityButtons = document.querySelectorAll('#cityButtons .modal-button');
@@ -771,12 +734,11 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.style.display = cityName.includes(query) ? 'block' : 'none';
         });
     });
-    // ✅ Исправлено: Используем `${url}` для запроса входа.
+
     document.getElementById('authForm').addEventListener('submit', function(event) {
         event.preventDefault();
         const loginUsername = document.getElementById('userPhone').value;
         const loginPassword = document.getElementById('userPassword').value;
-
         fetch(`${url}/api/token`, {
             method: 'POST',
             headers: {
@@ -799,6 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Ошибка входа: ' + error.message);
         });
     });
+
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.target;
@@ -808,7 +771,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const userPhone = document.getElementById('regUserPhone').value;
         const userPassword = document.getElementById('regUserPassword').value;
         const specialization = (userType === 'ИСПОЛНИТЕЛЬ' || userType === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') ? document.getElementById('regSpecializationSelect').value : null;
-
         const userData = {
             username: userPhone,
             password: userPassword,
@@ -817,7 +779,6 @@ document.addEventListener('DOMContentLoaded', () => {
             city_id: parseInt(userCityId),
             specialization: specialization
         };
-
         try {
             const response = await fetch(`${url}/api/users/`, {
                 method: 'POST',
@@ -836,6 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Ошибка регистрации: ' + error.message);
         }
     });
+
     document.getElementById('regUserType').addEventListener('change', (e) => {
         const specializationGroup = document.getElementById('regSpecializationGroup');
         if (e.target.value === 'ИСПОЛНИТЕЛЬ' || e.target.value === 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ') {
@@ -844,20 +806,26 @@ document.addEventListener('DOMContentLoaded', () => {
             specializationGroup.style.display = 'none';
         }
     });
+
     document.getElementById('switchToRegister').addEventListener('click', async (e) => {
         e.preventDefault();
         await fetchCities();
         await fetchSpecializations();
         showPage('registerModal');
     });
+
     document.getElementById('switchToLogin').addEventListener('click', (e) => { e.preventDefault(); showPage('authModal'); });
+
     document.getElementById('profileButton').addEventListener('click', () => { showPage('profilePage'); });
+
     document.getElementById('logoutButton').addEventListener('click', () => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('subscription');
         showPage('authModal');
     });
+
     document.getElementById('myRequestsButton').addEventListener('click', fetchMyRequests);
+
     document.getElementById('saveSpecialization').addEventListener('click', async () => {
         const newSpecialization = document.getElementById('profileSpecializationSelect').value;
         try {
@@ -879,6 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Не удалось обновить специализацию.');
         }
     });
+
     document.getElementById('masterButton').addEventListener('click', () => {
         showPage('requestFormPage');
         fetch(`${url}/api/specializations`)
@@ -895,6 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => console.error('Error fetching work types:', error));
     });
+
     document.getElementById('machineryButton').addEventListener('click', () => {
         showPage('machineryFormPage');
         fetch(`${url}/api/machinery-types`)
@@ -911,6 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => console.error('Error fetching machinery types:', error));
     });
+
     document.getElementById('toolsButton').addEventListener('click', () => {
         showPage('toolsFormPage');
         fetch(`${url}/api/tools-list`)
@@ -927,11 +898,17 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => console.error('Error fetching tool list:', error));
     });
+
     document.getElementById('sellMaterialsButton').addEventListener('click', () => { showPage('materialsFormPage'); });
+
     document.getElementById('marketplaceButton').addEventListener('click', fetchMarketplacePosts);
+
     document.getElementById('navMaster').addEventListener('click', fetchAvailableOrders);
+
     document.getElementById('navCreate').addEventListener('click', () => { showPage('buttonContainer'); });
+
     document.getElementById('navProfile').addEventListener('click', () => { showPage('profilePage'); });
+
     document.getElementById('navSubscription').addEventListener('click', () => {
         if (isSubscriptionActive()) {
             alert('Ваша подписка уже активна!');
@@ -943,12 +920,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('visitCheckbox').addEventListener('change', (e) => {
         document.getElementById('addressField').style.display = e.target.checked ? 'block' : 'none';
     });
+
     document.getElementById('preorderCheckbox').addEventListener('change', (e) => {
         document.getElementById('preorderFields').style.display = e.target.checked ? 'block' : 'none';
     });
+
     document.getElementById('deliveryCheckbox').addEventListener('change', (e) => {
         document.getElementById('deliveryAddressField').style.display = e.target.checked ? 'block' : 'none';
     });
+
     document.getElementById('addToolBtn').addEventListener('click', () => {
         const select = document.getElementById('toolsSelect');
         const toolName = select.value;
@@ -963,12 +943,12 @@ document.addEventListener('DOMContentLoaded', () => {
             select.value = '';
         }
     });
-    
+
     document.getElementById('requestForm').addEventListener('submit', submitWorkRequest);
     document.getElementById('machineryForm').addEventListener('submit', submitMachineryRequest);
     document.getElementById('toolsForm').addEventListener('submit', submitToolRequest);
     document.getElementById('materialsForm').addEventListener('submit', submitMaterialAd);
-    
+
     document.addEventListener('click', async (e) => {
         if (e.target && e.target.classList.contains('take-order-btn')) {
             const orderId = e.target.dataset.orderId;
@@ -1002,26 +982,25 @@ document.addEventListener('DOMContentLoaded', () => {
             paymentModal.classList.add('active');
         }
     });
+
     document.getElementById('paymentModal').querySelector('.close-modal').addEventListener('click', () => {
         closeAllModals();
     });
+
     document.getElementById('paymentForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const button = document.getElementById('payButton');
         button.disabled = true;
         button.textContent = 'Обработка...';
-
         setTimeout(() => {
             const subscriptionExpiry = new Date();
             subscriptionExpiry.setMonth(subscriptionExpiry.getMonth() + 1);
             localStorage.setItem('subscription', JSON.stringify({ active: true, expiry: subscriptionExpiry.getTime() }));
-        
             closeAllModals();
             document.getElementById('paymentForm').reset();
             button.disabled = false;
             button.textContent = 'ОПЛАТИТЬ';
             alert('Подписка успешно оформлена!');
-        
         }, 1500);
     });
 
@@ -1058,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('backToMainFromMarketplace').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
     document.getElementById('backToProfileFromRequests').addEventListener('click', (e) => { e.preventDefault(); showPage('profilePage'); });
     document.getElementById('backToMain').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-    
+
     fetchCities();
     fetchSpecializations();
     if (getSelectedCity()) {
@@ -1067,7 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         cityModal.classList.add('active');
     }
-});   
-</script>
+});
+    </script>
 </body>
 </html>
