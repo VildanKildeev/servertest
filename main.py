@@ -47,33 +47,8 @@ async def shutdown():
     await database.disconnect()
 
 # =======================================================
-#                  МОДЕЛИ Pydantic
+#               МОДЕЛИ Pydantic
 # =======================================================
-
-class UserCreate(BaseModel):
-    username: str
-    password: str
-    user_name: str
-    user_type: str
-    city_id: int
-    specialization: Optional[str] = None
-
-class UserPublic(BaseModel):
-    id: int
-    username: str
-    user_name: str
-    user_type: str
-    city_id: int
-    specialization: Optional[str] = None
-
-class UserInDB(BaseModel):
-    id: int
-    username: str
-    user_name: str
-    user_type: str
-    city_id: int
-    specialization: Optional[str] = None
-    created_at: datetime
 
 class UserBase(BaseModel):
     username: str
@@ -81,6 +56,17 @@ class UserBase(BaseModel):
     user_type: str
     city_id: int
     specialization: Optional[str] = None
+
+class UserCreate(UserBase):
+    password: str
+
+class UserPublic(UserBase):
+    id: int
+
+class UserInDB(UserBase):
+    id: int
+    password_hash: str
+    created_at: Optional[datetime] = None
 
 class Token(BaseModel):
     access_token: str
@@ -97,9 +83,10 @@ class WorkRequestInDB(WorkRequestCreate):
     id: int
     user_id: int
     created_at: datetime
+    executor_id: Optional[int] = None
 
 class MachineryRequestCreate(BaseModel):
-    machine_type: str
+    machinery_type: str
     description: Optional[str] = None
     rental_price: float
     contact_info: str
@@ -126,7 +113,7 @@ class MaterialAdCreate(BaseModel):
     material_type: str
     description: Optional[str] = None
     price: float
-    contact_info: str
+    contact_info: Optional[str] = None
     city_id: int
 
 class MaterialAdInDB(MaterialAdCreate):
@@ -185,7 +172,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     return UserInDB(**user._mapping)
 
 # =======================================================
-#                  ОБЩИЕ ФУНКЦИИ
+#               ОБЩИЕ ФУНКЦИИ
 # =======================================================
 
 async def create_record_and_return(table, data_to_insert, response_model, current_user=None):
@@ -210,7 +197,7 @@ async def create_record_and_return(table, data_to_insert, response_model, curren
     return response_model(**new_record_data)
 
 # =======================================================
-#                  МАРШРУТЫ API
+#               МАРШРУТЫ API
 # =======================================================
 
 @api_router.post("/token", response_model=Token)
@@ -280,7 +267,6 @@ async def read_my_requests(current_user: UserInDB = Depends(get_current_user)):
         "tool_requests": [ToolRequestInDB(**r._mapping) for r in tool_results],
         "material_ads": [MaterialAdInDB(**r._mapping) for r in material_results],
     }
-
 
 @api_router.post("/work-requests", response_model=WorkRequestInDB)
 async def create_work_request(request: WorkRequestCreate, current_user: UserInDB = Depends(get_current_user)):
