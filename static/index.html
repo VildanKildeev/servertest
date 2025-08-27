@@ -632,23 +632,27 @@
                 return;
             }
             const response = await fetch(`${API_URL}/work-requests?city_id=${city.id}`);
-            const requests = await response.json();
-            listEl.innerHTML = '';
-            if (requests.length === 0) {
-                listEl.innerHTML = '<p>Заявок по работе в вашем городе пока нет.</p>';
+            if (response.ok) {
+                const requests = await response.json();
+                listEl.innerHTML = '';
+                if (requests.length === 0) {
+                    listEl.innerHTML = '<p>Заявок по работе в вашем городе пока нет.</p>';
+                } else {
+                    requests.forEach(req => {
+                        const item = document.createElement('div');
+                        item.className = 'request-item';
+                        item.innerHTML = `
+                            <h3>${req.description}</h3>
+                            <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
+                            <p><strong>Специализация:</strong> ${req.specialization}</p>
+                            <p><strong>Контакты:</strong> ${req.contact_info}</p>
+                            <button onclick="prepareTakeRequest(${req.id}, 'work')">Принять</button>
+                        `;
+                        listEl.appendChild(item);
+                    });
+                }
             } else {
-                requests.forEach(req => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    item.innerHTML = `
-                        <h3>${req.description}</h3>
-                        <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
-                        <p><strong>Специализация:</strong> ${req.specialization}</p>
-                        <p><strong>Контакты:</strong> ${req.contact_info}</p>
-                        <button onclick="prepareTakeRequest(${req.id}, 'work')">Принять</button>
-                    `;
-                    listEl.appendChild(item);
-                });
+                listEl.innerHTML = '<p class="error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>';
             }
         }
 
@@ -661,22 +665,26 @@
                 return;
             }
             const response = await fetch(`${API_URL}/machinery-requests?city_id=${city.id}`);
-            const requests = await response.json();
-            listEl.innerHTML = '';
-            if (requests.length === 0) {
-                listEl.innerHTML = '<p>Заявок на спецтехнику в вашем городе пока нет.</p>';
+            if (response.ok) {
+                const requests = await response.json();
+                listEl.innerHTML = '';
+                if (requests.length === 0) {
+                    listEl.innerHTML = '<p>Заявок на спецтехнику в вашем городе пока нет.</p>';
+                } else {
+                    requests.forEach(req => {
+                        const item = document.createElement('div');
+                        item.className = 'request-item';
+                        item.innerHTML = `
+                            <h3>${req.machine_type}</h3>
+                            <p><strong>Описание:</strong> ${req.description}</p>
+                            <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
+                            <p><strong>Контакты:</strong> ${req.contact_info}</p>
+                        `;
+                        listEl.appendChild(item);
+                    });
+                }
             } else {
-                requests.forEach(req => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    item.innerHTML = `
-                        <h3>${req.machine_type}</h3>
-                        <p><strong>Описание:</strong> ${req.description}</p>
-                        <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
-                        <p><strong>Контакты:</strong> ${req.contact_info}</p>
-                    `;
-                    listEl.appendChild(item);
-                });
+                listEl.innerHTML = '<p class="error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>';
             }
         }
 
@@ -689,22 +697,26 @@
                 return;
             }
             const response = await fetch(`${API_URL}/tool-requests?city_id=${city.id}`);
-            const requests = await response.json();
-            listEl.innerHTML = '';
-            if (requests.length === 0) {
-                listEl.innerHTML = '<p>Заявок на инструменты в вашем городе пока нет.</p>';
+            if (response.ok) {
+                const requests = await response.json();
+                listEl.innerHTML = '';
+                if (requests.length === 0) {
+                    listEl.innerHTML = '<p>Заявок на инструменты в вашем городе пока нет.</p>';
+                } else {
+                    requests.forEach(req => {
+                        const item = document.createElement('div');
+                        item.className = 'request-item';
+                        item.innerHTML = `
+                            <h3>${req.tool_name}</h3>
+                            <p><strong>Описание:</strong> ${req.description}</p>
+                            <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
+                            <p><strong>Контакты:</strong> ${req.contact_info}</p>
+                        `;
+                        listEl.appendChild(item);
+                    });
+                }
             } else {
-                requests.forEach(req => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    item.innerHTML = `
-                        <h3>${req.tool_name}</h3>
-                        <p><strong>Описание:</strong> ${req.description}</p>
-                        <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
-                        <p><strong>Контакты:</strong> ${req.contact_info}</p>
-                    `;
-                    listEl.appendChild(item);
-                });
+                listEl.innerHTML = '<p class="error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>';
             }
         }
 
@@ -717,22 +729,26 @@
                 return;
             }
             const response = await fetch(`${API_URL}/material-ads?city_id=${city.id}`);
-            const ads = await response.json();
-            listEl.innerHTML = '';
-            if (ads.length === 0) {
-                listEl.innerHTML = '<p>Объявлений о материалах в вашем городе пока нет.</p>';
+            if (response.ok) {
+                const ads = await response.json();
+                listEl.innerHTML = '';
+                if (ads.length === 0) {
+                    listEl.innerHTML = '<p>Объявлений о материалах в вашем городе пока нет.</p>';
+                } else {
+                    ads.forEach(ad => {
+                        const item = document.createElement('div');
+                        item.className = 'request-item';
+                        item.innerHTML = `
+                            <h3>${ad.material_type}</h3>
+                            <p><strong>Описание:</strong> ${ad.description}</p>
+                            <p><strong>Цена:</strong> ${ad.price} руб.</p>
+                            <p><strong>Контакты:</strong> ${ad.contact_info}</p>
+                        `;
+                        listEl.appendChild(item);
+                    });
+                }
             } else {
-                ads.forEach(ad => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    item.innerHTML = `
-                        <h3>${ad.material_type}</h3>
-                        <p><strong>Описание:</strong> ${ad.description}</p>
-                        <p><strong>Цена:</strong> ${ad.price} руб.</p>
-                        <p><strong>Контакты:</strong> ${ad.contact_info}</p>
-                    `;
-                    listEl.appendChild(item);
-                });
+                listEl.innerHTML = '<p class="error">Не удалось загрузить объявления. Пожалуйста, попробуйте позже.</p>';
             }
         }
         
