@@ -57,17 +57,18 @@
         </div>
     </div>
 
-    <div id="mainContent" class="main-content active">
-        <div id="loginPage" class="tab-content active">
+    <main id="mainContent" class="main-content active">
+
+        <section id="loginPage" class="tab-content active">
             <h2>Вход</h2>
             <input type="text" id="loginUsername" placeholder="Username">
             <input type="password" id="loginPassword" placeholder="Password">
             <button onclick="loginUser()">Войти</button>
             <p id="loginStatus"></p>
             <p>Нет аккаунта? <a href="#" onclick="showPage('registerPage')">Зарегистрироваться</a></p>
-        </div>
+        </section>
 
-        <div id="registerPage" class="tab-content">
+        <section id="registerPage" class="tab-content">
             <h2>Регистрация</h2>
             <input type="text" id="regUsername" placeholder="Username">
             <input type="password" id="regPassword" placeholder="Password">
@@ -77,9 +78,19 @@
             <button onclick="registerUser()">Зарегистрироваться</button>
             <p id="regStatus"></p>
             <p>Уже есть аккаунт? <a href="#" onclick="showPage('loginPage')">Войти</a></p>
-        </div>
+        </section>
 
-        <div id="profilePage" class="tab-content">
+        <section id="buttonContainer" class="tab-content">
+            <p class="selected-city">Ваш город: <span id="cityNameEl"></span> <a href="#" onclick="changeCity()">Изменить</a></p>
+            <div class="logo-placeholder">СМЗ.РФ</div>
+            <div class="button-grid">
+                <button class="action-button" onclick="showPage('requestPage')">Разместить заявку</button>
+                <button class="action-button" onclick="showPage('marketplacePage')">Биржа заявок</button>
+                <button class="action-button" onclick="showPage('profilePage')">Профиль</button>
+            </div>
+        </section>
+
+        <section id="profilePage" class="tab-content">
             <p class="selected-city">Ваш город: <span id="cityNameEl"></span> <a href="#" onclick="changeCity()">Изменить</a></p>
             <h2>Профиль</h2>
             <div id="profileInfo" class="profile-info"></div>
@@ -91,25 +102,17 @@
             <p><a href="#" onclick="logout()">Выйти</a></p>
             <button onclick="showPage('myRequestsPage')">Мои заявки</button>
             <button onclick="showPage('buttonContainer')">На главную</button>
-        </div>
+        </section>
 
-        <div id="buttonContainer" class="tab-content">
-            <div class="logo-placeholder">СМЗ.РФ</div>
-            <div class="button-grid">
-                <button class="action-button" onclick="showPage('requestPage')">Разместить заявку</button>
-                <button class="action-button" onclick="showPage('marketplacePage')">Биржа заявок</button>
-                <button class="action-button" onclick="showPage('profilePage')">Профиль</button>
-            </div>
-        </div>
-
-        <div id="requestPage" class="tab-content">
+        <section id="requestPage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Разместить заявку</h2>
             <div class="tabs">
                 <button class="tab-button active" onclick="showTab('workRequestForm')">Работа</button>
                 <button class="tab-button" onclick="showTab('machineryRequestForm')">Спецтехника</button>
                 <button class="tab-button" onclick="showTab('toolsRequestForm')">Инструменты</button>
                 <button class="tab-button" onclick="showTab('materialsRequestForm')">Материалы</button>
             </div>
-            
             <div id="workRequestForm" class="request-form active tab-pane">
                 <h3>Заявка на работу</h3>
                 <input type="text" id="workDescription" placeholder="Описание работы">
@@ -119,7 +122,6 @@
                 <button onclick="createWorkRequest()">Разместить</button>
                 <p id="workStatus" class="message"></p>
             </div>
-
             <div id="machineryRequestForm" class="request-form tab-pane">
                 <h3>Заявка на спецтехнику</h3>
                 <select id="machineryType"></select>
@@ -129,7 +131,6 @@
                 <button onclick="createMachineryRequest()">Разместить</button>
                 <p id="machineryStatus" class="message"></p>
             </div>
-
             <div id="toolsRequestForm" class="request-form tab-pane">
                 <h3>Заявка на инструменты</h3>
                 <select id="toolsList"></select>
@@ -139,7 +140,6 @@
                 <button onclick="createToolRequest()">Разместить</button>
                 <p id="toolsStatus" class="message"></p>
             </div>
-
             <div id="materialsRequestForm" class="request-form tab-pane">
                 <h3>Объявление о материалах</h3>
                 <input type="text" id="materialType" placeholder="Тип материала">
@@ -149,10 +149,10 @@
                 <button onclick="createMaterialAd()">Разместить</button>
                 <p id="materialsStatus" class="message"></p>
             </div>
-            <button id="backToMainFromRequest">Назад</button>
-        </div>
+        </section>
 
-        <div id="marketplacePage" class="tab-content">
+        <section id="marketplacePage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
             <h2>Биржа заявок</h2>
             <div class="tabs">
                 <button class="tab-button active" onclick="showMarketplaceTab('workMarketplace')">Работа</button>
@@ -176,18 +176,18 @@
                 <h3>Объявления о материалах</h3>
                 <div id="materialsAdsList"></div>
             </div>
-            <button id="backToMainFromMarketplace">Назад</button>
-        </div>
+        </section>
 
-        <div id="takeOrderPage" class="tab-content">
+        <section id="takeOrderPage" class="tab-content">
+            <button onclick="showPage('marketplacePage')">Назад</button>
             <h2>Принять заявку</h2>
             <p id="takeOrderDetails"></p>
             <button onclick="takeWorkRequest()">Принять</button>
-            <button id="backToMainFromTakeOrder">Назад</button>
             <p id="takeOrderStatus" class="message"></p>
-        </div>
-
-        <div id="myRequestsPage" class="tab-content">
+        </section>
+        
+        <section id="myRequestsPage" class="tab-content">
+            <button onclick="showPage('profilePage')">Назад</button>
             <h2>Мои заявки</h2>
             <div class="tabs">
                 <button class="tab-button active" onclick="showMyRequestsTab('myWorkRequests')">Работа</button>
@@ -211,9 +211,8 @@
                 <h3>Объявления о материалах</h3>
                 <div id="myMaterialAdsList"></div>
             </div>
-            <button id="backToProfileFromRequests">Назад</button>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script>
         const API_URL = "/api";
@@ -222,7 +221,7 @@
         let currentUser = null;
         let lastSelectedRequestId = null;
 
-        const pages = ['loginPage', 'registerPage', 'profilePage', 'buttonContainer', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
+        const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityNameEl');
 
@@ -246,15 +245,18 @@
             if (pageId === 'myRequestsPage') {
                 fetchMyRequests();
             }
+            if (pageId === 'profilePage') {
+                fetchProfile();
+            }
         }
 
         function showTab(tabId) {
-            const tabs = document.querySelectorAll('.tabs .tab-button');
+            const tabs = document.querySelectorAll('#requestPage .tabs .tab-button');
             tabs.forEach(tab => tab.classList.remove('active'));
-            const tabButtons = document.querySelectorAll('.tab-pane');
-            tabButtons.forEach(tab => tab.classList.remove('active'));
+            const tabPanes = document.querySelectorAll('#requestPage .tab-pane');
+            tabPanes.forEach(tab => tab.classList.remove('active'));
 
-            const activeTab = document.querySelector(`.tabs button[onclick="showTab('${tabId}')"]`);
+            const activeTab = document.querySelector(`#requestPage .tabs button[onclick="showTab('${tabId}')"]`);
             if (activeTab) {
                 activeTab.classList.add('active');
             }
@@ -267,8 +269,8 @@
         function showMarketplaceTab(tabId) {
             const tabs = document.querySelectorAll('#marketplacePage .tabs .tab-button');
             tabs.forEach(tab => tab.classList.remove('active'));
-            const tabButtons = document.querySelectorAll('#marketplacePage .tab-pane');
-            tabButtons.forEach(tab => tab.classList.remove('active'));
+            const tabPanes = document.querySelectorAll('#marketplacePage .tab-pane');
+            tabPanes.forEach(tab => tab.classList.remove('active'));
             
             const activeTab = document.querySelector(`#marketplacePage .tabs button[onclick="showMarketplaceTab('${tabId}')"]`);
             if (activeTab) {
@@ -283,8 +285,8 @@
         function showMyRequestsTab(tabId) {
             const tabs = document.querySelectorAll('#myRequestsPage .tabs .tab-button');
             tabs.forEach(tab => tab.classList.remove('active'));
-            const tabButtons = document.querySelectorAll('#myRequestsPage .tab-pane');
-            tabButtons.forEach(tab => tab.classList.remove('active'));
+            const tabPanes = document.querySelectorAll('#myRequestsPage .tab-pane');
+            tabPanes.forEach(tab => tab.classList.remove('active'));
             
             const activeTab = document.querySelector(`#myRequestsPage .tabs button[onclick="showMyRequestsTab('${tabId}')"]`);
             if (activeTab) {
@@ -820,17 +822,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('backToMainFromRequest').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-            document.getElementById('backToMainFromMarketplace').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-            document.getElementById('backToProfileFromRequests').addEventListener('click', (e) => { e.preventDefault(); showPage('profilePage'); });
-            document.getElementById('backToMainFromTakeOrder').addEventListener('click', (e) => { e.preventDefault(); showPage('marketplacePage'); });
-            
-            // Эта кнопка не существует в HTML
-            const backToMainButton = document.getElementById('backToMain');
-            if (backToMainButton) {
-                backToMainButton.addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
-            }
-
             fetchCities();
             fetchSpecializations();
             fetchMachineryTypes();
