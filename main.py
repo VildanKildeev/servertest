@@ -39,20 +39,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    # Создаем таблицы, используя синхронный движок
-    from sqlalchemy.schema import MetaData
-    from sqlalchemy.engine import create_engine
-    import os
-    
-    DATABASE_URL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-    engine = create_engine(DATABASE_URL)
-    metadata = MetaData()
-    metadata.reflect(bind=engine) # Отражаем текущее состояние БД
-    
-    # Создаем все таблицы, которые еще не существуют
-    metadata.create_all(bind=engine, checkfirst=True)
-    
-    # Теперь подключаемся к базе данных
+    metadata.create_all(engine)
     await database.connect()
 
 @app.on_event("shutdown")
@@ -213,6 +200,14 @@ async def create_record_and_return(table, data_to_insert, response_model, curren
 #               МАРШРУТЫ API
 # =======================================================
 
+@api_router.get("/create-tables")
+async def create_tables():
+    try:
+        metadata.create_all(engine)
+        return {"message": "Таблицы успешно созданы."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при создании таблиц: {str(e)}")
+
 @api_router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     query = users.select().where(users.c.username == form_data.username)
@@ -228,14 +223,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
-
-@api_router.get("/create-tables")
-async def create_tables():
-    try:
-        metadata.create_all(engine)
-        return {"message": "Таблицы успешно созданы."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при создании таблиц: {str(e)}")
 
 @api_router.post("/users/", response_model=UserPublic)
 async def create_user(user: UserCreate):
@@ -268,7 +255,8 @@ async def update_user_specialization(specialization: str, current_user: UserInDB
 
 @api_router.get("/users/me", response_model=UserPublic)
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
-    return UserPublic(**current_user._mapping)
+    # ✅ ИСПРАВЛЕНИЕ: Используем .model_dump() для преобразования Pydantic-модели в словарь
+    return UserPublic(**current_user.model_dump())
 
 @api_router.get("/users/my-requests", response_model=MyRequestsResponse)
 async def read_my_requests(current_user: UserInDB = Depends(get_current_user)):
