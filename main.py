@@ -409,4 +409,4 @@ async def get_tools_list():
     return tools_list
 
 app.include_router(api_router)
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
