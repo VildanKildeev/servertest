@@ -486,6 +486,12 @@
             const specialization = document.getElementById('workSpecialization').value;
             const statusEl = document.getElementById('workStatus');
             const city = getSelectedCity();
+            
+            if (!accessToken) {
+                statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
+                statusEl.className = 'message error';
+                return;
+            }
 
             if (!city) {
                 statusEl.textContent = 'Ошибка: Пожалуйста, выберите город.';
@@ -517,6 +523,12 @@
             const statusEl = document.getElementById('machineryStatus');
             const city = getSelectedCity();
             
+            if (!accessToken) {
+                statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
+                statusEl.className = 'message error';
+                return;
+            }
+
             if (!city) {
                 statusEl.textContent = 'Ошибка: Пожалуйста, выберите город.';
                 statusEl.className = 'message error';
@@ -547,6 +559,12 @@
             const statusEl = document.getElementById('toolsStatus');
             const city = getSelectedCity();
             
+            if (!accessToken) {
+                statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
+                statusEl.className = 'message error';
+                return;
+            }
+
             if (!city) {
                 statusEl.textContent = 'Ошибка: Пожалуйста, выберите город.';
                 statusEl.className = 'message error';
@@ -577,6 +595,12 @@
             const statusEl = document.getElementById('materialsStatus');
             const city = getSelectedCity();
             
+            if (!accessToken) {
+                statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
+                statusEl.className = 'message error';
+                return;
+            }
+
             if (!city) {
                 statusEl.textContent = 'Ошибка: Пожалуйста, выберите город.';
                 statusEl.className = 'message error';
