@@ -824,7 +824,12 @@
             document.getElementById('backToMainFromMarketplace').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
             document.getElementById('backToProfileFromRequests').addEventListener('click', (e) => { e.preventDefault(); showPage('profilePage'); });
             document.getElementById('backToMainFromTakeOrder').addEventListener('click', (e) => { e.preventDefault(); showPage('marketplacePage'); });
-            document.getElementById('backToMain').addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+            
+            // Эта кнопка не существует в HTML
+            const backToMainButton = document.getElementById('backToMain');
+            if (backToMainButton) {
+                backToMainButton.addEventListener('click', (e) => { e.preventDefault(); showPage('buttonContainer'); });
+            }
 
             fetchCities();
             fetchSpecializations();
