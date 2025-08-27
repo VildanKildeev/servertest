@@ -39,7 +39,20 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    metadata.create_all(engine)
+    # Создаем таблицы, используя синхронный движок
+    from sqlalchemy.schema import MetaData
+    from sqlalchemy.engine import create_engine
+    import os
+    
+    DATABASE_URL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
+    engine = create_engine(DATABASE_URL)
+    metadata = MetaData()
+    metadata.reflect(bind=engine) # Отражаем текущее состояние БД
+    
+    # Создаем все таблицы, которые еще не существуют
+    metadata.create_all(bind=engine, checkfirst=True)
+    
+    # Теперь подключаемся к базе данных
     await database.connect()
 
 @app.on_event("shutdown")
