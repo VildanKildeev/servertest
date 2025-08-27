@@ -46,6 +46,10 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
+# =======================================================
+#                  МОДЕЛИ Pydantic
+# =======================================================
+
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -54,18 +58,6 @@ class UserCreate(BaseModel):
     city_id: int
     specialization: Optional[str] = None
 
-class UserInDB(UserCreate):
-    id: int
-    password_hash: str
-    created_at: datetime
-
-class MyRequestsResponse(BaseModel):
-    work_requests: List[WorkRequestInDB]
-    machinery_requests: List[MachineryRequestInDB]
-    tool_requests: List[ToolRequestInDB]
-    material_ads: List[MaterialAdInDB]
-
-# ✅ Новая модель для ответа, без пароля
 class UserPublic(BaseModel):
     id: int
     username: str
@@ -73,6 +65,15 @@ class UserPublic(BaseModel):
     user_type: str
     city_id: int
     specialization: Optional[str] = None
+
+class UserInDB(BaseModel):
+    id: int
+    username: str
+    user_name: str
+    user_type: str
+    city_id: int
+    specialization: Optional[str] = None
+    created_at: datetime
 
 class Token(BaseModel):
     access_token: str
@@ -126,8 +127,17 @@ class MaterialAdInDB(MaterialAdCreate):
     user_id: int
     created_at: datetime
 
+# Теперь, когда все зависимые модели определены, можно определить MyRequestsResponse
+class MyRequestsResponse(BaseModel):
+    work_requests: List[WorkRequestInDB]
+    machinery_requests: List[MachineryRequestInDB]
+    tool_requests: List[ToolRequestInDB]
+    material_ads: List[MaterialAdInDB]
 
-# OAuth2PasswordBearer
+# =======================================================
+#               ФУНКЦИИ АУТЕНТИФИКАЦИИ
+# =======================================================
+
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
@@ -147,54 +157,57 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def verify_token(token: str):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            return None
-        return username
+            raise credentials_exception
     except JWTError:
-        return None
+        raise credentials_exception
 
-async def create_record_and_return(table, data_to_insert, current_user, response_model):
+    query = users.select().where(users.c.username == username)
+    user = await database.fetch_one(query)
+    if user is None:
+        raise credentials_exception
+    return UserInDB(**user._mapping)
+
+# =======================================================
+#                  ОБЩИЕ ФУНКЦИИ
+# =======================================================
+
+async def create_record_and_return(table, data_to_insert, response_model, current_user=None):
     """
     Общая функция для создания записи в базе данных.
     
     Args:
         table: SQLAlchemy таблица.
         data_to_insert: Словарь с данными для вставки в БД.
-        current_user: Текущий аутентифицированный пользователь.
         response_model: Pydantic-модель для ответа API.
+        current_user: Текущий аутентифицированный пользователь.
     """
-    query = table.insert().values(
-        user_id=current_user.id,
-        **data_to_insert
-    )
+    if current_user:
+        data_to_insert["user_id"] = current_user.id
+    
+    query = table.insert().values(**data_to_insert)
     last_record_id = await database.execute(query)
     
     new_record_data = {
         "id": last_record_id,
-        "user_id": current_user.id,
         "created_at": datetime.now(),
         **data_to_insert
     }
     
     return response_model(**new_record_data)
 
-# Маршруты API
-@api_router.post("/work-requests", response_model=WorkRequestInDB)
-async def create_work_request(work_request: WorkRequestCreate, current_user: UserInDB = Depends(get_current_user)):
-    """
-    Создает новую заявку на работу в базе данных.
-    """
-    # ✅ ИСПРАВЛЕНИЕ: Используем нашу общую функцию для создания записи
-    return await create_record_and_return(
-        table=work_requests,
-        data_to_insert=work_request.model_dump(),
-        current_user=current_user,
-        response_model=WorkRequestInDB
-    )
+# =======================================================
+#                       МАРШРУТЫ API
+# =======================================================
 
 @api_router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -207,14 +220,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # ✅ ИСПРАВЛЕНИЕ: Генерация JWT-токена
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ✅ ИСПРАВЛЕНО: response_model теперь использует UserPublic
 @api_router.post("/users/", response_model=UserPublic)
 async def create_user(user: UserCreate):
     if await database.fetch_one(users.select().where(users.c.username == user.username)):
@@ -222,7 +233,6 @@ async def create_user(user: UserCreate):
     
     hashed_password = get_password_hash(user.password)
     
-    # ✅ ИСПРАВЛЕНИЕ: Подготавливаем данные для вставки, исключая пароль
     data_to_insert = {
         "username": user.username,
         "password_hash": hashed_password,
@@ -232,11 +242,9 @@ async def create_user(user: UserCreate):
         "specialization": user.specialization,
     }
     
-    # Теперь мы можем использовать нашу общую функцию
     return await create_record_and_return(
         table=users,
         data_to_insert=data_to_insert,
-        current_user=None, # user_id не нужен для создания пользователя
         response_model=UserPublic
     )
 
@@ -255,13 +263,11 @@ async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
     tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user.id)
     material_query = material_ads.select().where(material_ads.c.user_id == current_user.id)
     
-    # Получаем данные из каждой таблицы
     work_reqs = await database.fetch_all(work_query)
     machinery_reqs = await database.fetch_all(machinery_query)
     tool_reqs = await database.fetch_all(tool_query)
     material_ads_data = await database.fetch_all(material_query)
     
-    # ✅ ИСПРАВЛЕНИЕ: Преобразуем данные в Pydantic-модели и возвращаем в структурированном виде
     return MyRequestsResponse(
         work_requests=[WorkRequestInDB(**req._mapping) for req in work_reqs],
         machinery_requests=[MachineryRequestInDB(**req._mapping) for req in machinery_reqs],
@@ -271,14 +277,11 @@ async def get_my_requests(current_user: UserInDB = Depends(get_current_user)):
 
 @api_router.post("/work-requests", response_model=WorkRequestInDB)
 async def create_work_request(work_request: WorkRequestCreate, current_user: UserInDB = Depends(get_current_user)):
-    """
-    Создает новую заявку на работу в базе данных.
-    """
     return await create_record_and_return(
         table=work_requests,
         data_to_insert=work_request.model_dump(),
-        current_user=current_user,
-        response_model=WorkRequestInDB
+        response_model=WorkRequestInDB,
+        current_user=current_user
     )
 
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
@@ -287,42 +290,37 @@ async def read_work_requests(city_id: Optional[int] = None):
     if city_id is not None:
         query = query.where(work_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
-    # ✅ ИСПРАВЛЕНИЕ: Преобразуем данные в Pydantic-модели
     return [WorkRequestInDB(**request._mapping) for request in requests]
 
 @api_router.post("/work-requests/{request_id}/take")
 async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
-    # Логика для того, чтобы "взять" заявку
-    # В реальном приложении здесь будет проверка, что пользователь имеет право взять заявку,
-    # что она еще не взята и т.д.
-    # Простая реализация:
     return {"message": f"Request {request_id} taken by user {current_user.id}"}
 
 @api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
 async def create_machinery_request(machinery_request: MachineryRequestCreate, current_user: UserInDB = Depends(get_current_user)):
     return await create_record_and_return(
         table=machinery_requests,
-        data_to_insert=machinery_request.model_dump(),  # ✅ ИСПРАВЛЕНИЕ: изменили 'data' на 'data_to_insert'
-        current_user=current_user,
-        response_model=MachineryRequestInDB
+        data_to_insert=machinery_request.model_dump(),
+        response_model=MachineryRequestInDB,
+        current_user=current_user
     )
 
 @api_router.post("/tool-requests", response_model=ToolRequestInDB)
 async def create_tool_request(tool_request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
     return await create_record_and_return(
         table=tool_requests,
-        data_to_insert=tool_request.model_dump(),  # ✅ ИСПРАВЛЕНИЕ: изменили 'data' на 'data_to_insert'
-        current_user=current_user,
-        response_model=ToolRequestInDB
+        data_to_insert=tool_request.model_dump(),
+        response_model=ToolRequestInDB,
+        current_user=current_user
     )
 
 @api_router.post("/material-ads", response_model=MaterialAdInDB)
 async def create_material_ad(ad: MaterialAdCreate, current_user: UserInDB = Depends(get_current_user)):
     return await create_record_and_return(
         table=material_ads,
-        data_to_insert=ad.model_dump(),  # ✅ ИСПРАВЛЕНИЕ: изменили 'data' на 'data_to_insert'
-        current_user=current_user,
-        response_model=MaterialAdInDB
+        data_to_insert=ad.model_dump(),
+        response_model=MaterialAdInDB,
+        current_user=current_user
     )
 
 @api_router.get("/material-ads", response_model=List[MaterialAdInDB])
@@ -332,7 +330,6 @@ async def read_material_ads(city_id: Optional[int] = None):
         query = query.where(material_ads.c.city_id == city_id)
     
     ads = await database.fetch_all(query)
-    # ✅ ИСПРАВЛЕНИЕ: Преобразуем данные в Pydantic-модели
     return [MaterialAdInDB(**ad._mapping) for ad in ads]
 
 @api_router.get("/cities")
