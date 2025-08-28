@@ -6,7 +6,7 @@
     <title>СМЗ.РФ - Рабочие и спецтехника</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Общие стили */
+        /* Общие стили и сброс */
         * {
             margin: 0;
             padding: 0;
@@ -59,6 +59,7 @@
             display: flex;
         }
 
+        /* Хедер с городом и профилем */
         .header {
             width: 100%;
             display: flex;
@@ -67,7 +68,6 @@
             padding: 0 10px;
             z-index: 10;
         }
-
         .city-select {
             display: flex;
             align-items: center;
@@ -75,20 +75,16 @@
             cursor: pointer;
             color: #ccc;
         }
-        .city-select:hover {
-            color: #fff;
-        }
-
         .user-profile {
             cursor: pointer;
             color: #ccc;
             font-size: 16px;
         }
-        .user-profile:hover {
+        .city-select:hover, .user-profile:hover {
             color: #fff;
         }
 
-        /* Стиль для модального окна выбора города */
+        /* Модальное окно */
         .city-modal-overlay {
             position: fixed;
             top: 0;
@@ -104,12 +100,10 @@
             visibility: hidden;
             transition: opacity 0.3s ease;
         }
-
         .city-modal-overlay.active {
             opacity: 1;
             visibility: visible;
         }
-
         .city-modal-content {
             background-color: #333;
             padding: 20px;
@@ -118,11 +112,7 @@
             max-width: 400px;
             text-align: center;
         }
-
-        .city-modal-content h2 {
-            margin-bottom: 20px;
-        }
-
+        .city-modal-content h2 { margin-bottom: 20px; }
         .city-modal-content select {
             width: 100%;
             padding: 10px;
@@ -132,7 +122,6 @@
             background-color: #555;
             color: #fff;
         }
-
         .city-modal-content button {
             width: 100%;
             padding: 10px;
@@ -148,7 +137,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
-            margin-top: 100px; /* Отступ сверху для кнопок */
+            margin-top: 100px;
             width: 90%;
             max-width: 600px;
         }
@@ -168,12 +157,10 @@
             transition: background-color 0.3s ease, transform 0.2s ease;
             text-align: center;
         }
-
         .main-button:hover {
             background-color: rgba(80, 80, 80, 0.9);
             transform: scale(1.05);
         }
-
         .main-button i {
             font-size: 48px;
             margin-bottom: 10px;
@@ -188,21 +175,12 @@
             padding: 20px;
             border-radius: 10px;
         }
-
         .form-container h2 {
             margin-bottom: 20px;
             text-align: center;
         }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-        }
-
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
         .form-group input, .form-group select, .form-group textarea {
             width: 100%;
             padding: 10px;
@@ -211,7 +189,6 @@
             background-color: #555;
             color: white;
         }
-
         .form-container button {
             width: 100%;
             padding: 12px;
@@ -222,25 +199,15 @@
             cursor: pointer;
             font-size: 16px;
         }
-
-        .form-container button:hover {
-            background-color: #0056b3;
-        }
-        
+        .form-container button:hover { background-color: #0056b3; }
         .message {
             margin-top: 10px;
             padding: 10px;
             border-radius: 5px;
             text-align: center;
         }
-
-        .success {
-            background-color: #28a745;
-        }
-
-        .error {
-            background-color: #dc3545;
-        }
+        .success { background-color: #28a745; }
+        .error { background-color: #dc3545; }
         .back-button {
             background-color: transparent;
             border: 1px solid white;
@@ -260,9 +227,7 @@
             padding: 20px;
             border-radius: 10px;
         }
-        .profile-info {
-            line-height: 1.6;
-        }
+        .profile-info { line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -338,7 +303,7 @@
         </div>
     </div>
 
-    <div class="page" id="buttonContainer">
+    <div class="page" id="customerHomePage">
         <div class="button-grid">
             <button id="showWorkRequests" class="main-button">
                 <i class="fas fa-tools"></i>
@@ -359,28 +324,54 @@
         </div>
     </div>
 
+    <div class="page" id="workerHomePage" style="display: none;">
+        <div class="button-grid">
+            <button id="showTakeWork" class="main-button">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Взять заказ</span>
+            </button>
+            <button id="showWorkerMyRequests" class="main-button">
+                <i class="fas fa-star"></i>
+                <span>Мои заказы</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="page" id="machineryOwnerHomePage" style="display: none;">
+        <div class="button-grid">
+            <button id="showTakeMachinery" class="main-button">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Взять заказ</span>
+            </button>
+            <button id="showOwnerMyMachinery" class="main-button">
+                <i class="fas fa-truck-moving"></i>
+                <span>Моя техника</span>
+            </button>
+        </div>
+    </div>
+
     <div class="page" id="workRequestsPage">
         <h2>Заявки на работы</h2>
-        <div id="requestsList"></div>
-        <button id="backToMainFromWorkRequests" class="back-button">Назад</button>
+        <div id="workRequestsList" style="width: 90%; max-width: 600px; margin-top: 20px;"></div>
+        <button id="backFromWorkRequests" class="back-button">Назад</button>
     </div>
 
     <div class="page" id="machineryRequestsPage">
         <h2>Заявки на спецтехнику</h2>
-        <div id="machineryList"></div>
-        <button id="backToMainFromMachineryRequests" class="back-button">Назад</button>
+        <div id="machineryRequestsList" style="width: 90%; max-width: 600px; margin-top: 20px;"></div>
+        <button id="backFromMachineryRequests" class="back-button">Назад</button>
     </div>
 
     <div class="page" id="toolRequestsPage">
         <h2>Объявления на инструменты</h2>
-        <div id="toolsList"></div>
-        <button id="backToMainFromToolRequests" class="back-button">Назад</button>
+        <div id="toolRequestsList" style="width: 90%; max-width: 600px; margin-top: 20px;"></div>
+        <button id="backFromToolRequests" class="back-button">Назад</button>
     </div>
 
     <div class="page" id="materialAdsPage">
         <h2>Объявления на материалы</h2>
-        <div id="materialsList"></div>
-        <button id="backToMainFromMaterialAds" class="back-button">Назад</button>
+        <div id="materialAdsList" style="width: 90%; max-width: 600px; margin-top: 20px;"></div>
+        <button id="backFromMaterialAds" class="back-button">Назад</button>
     </div>
 
     <div class="page" id="profilePage">
@@ -395,23 +386,58 @@
             </div>
             <button id="logoutButton" style="background-color: #dc3545; margin-top: 20px;">Выйти</button>
         </div>
-        <button id="backToMainFromProfile" class="back-button">Назад</button>
+        <button id="backFromProfile" class="back-button">Назад</button>
     </div>
+
+    <div id="toast-container" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000;"></div>
 
     <script>
         const API_URL = window.location.origin + "/api";
         let accessToken = null;
-        let lastSelectedRequestId = null;
+        let currentUser = null;
         let cities = [];
         let specializations = [];
-        let machineryTypes = [];
-        let toolTypes = [];
-        let currentUser = null;
 
         const cityModal = document.getElementById('cityModal');
         const citySelect = document.getElementById('citySelect');
         const saveCityButton = document.getElementById('saveCityButton');
         const cityNameEl = document.getElementById('cityName');
+        const toastContainer = document.getElementById('toast-container');
+
+        // Вспомогательная функция для всплывающих уведомлений
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `message ${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                min-width: 250px;
+                background-color: ${type === 'success' ? '#28a745' : '#dc3545'};
+                color: white;
+                text-align: center;
+                border-radius: 8px;
+                padding: 16px;
+                position: absolute;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 9999;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            `;
+            toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Анимация для уведомлений
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 20px; opacity: 1; } }
+            @keyframes fadeout { from { bottom: 20px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+        `;
+        document.head.appendChild(style);
+
 
         function getSelectedCity() {
             const city = localStorage.getItem('selectedCity');
@@ -424,7 +450,7 @@
             });
             document.getElementById(pageId).classList.add('active-page');
         }
-
+        
         async function fetchCities() {
             try {
                 const response = await fetch(`${API_URL}/cities`);
@@ -457,24 +483,6 @@
                 console.error("Ошибка при получении списка специализаций:", error);
             }
         }
-        
-        async function fetchMachineryTypes() {
-            try {
-                const response = await fetch(`${API_URL}/machinery-types`);
-                machineryTypes = await response.json();
-            } catch (error) {
-                console.error("Ошибка при получении типов спецтехники:", error);
-            }
-        }
-        
-        async function fetchToolTypes() {
-            try {
-                const response = await fetch(`${API_URL}/tool-types`);
-                toolTypes = await response.json();
-            } catch (error) {
-                console.error("Ошибка при получении типов инструментов:", error);
-            }
-        }
 
         async function fetchProfile() {
             if (!accessToken) return;
@@ -489,6 +497,20 @@
                     document.getElementById('profileSpecialization').textContent = currentUser.specialization || 'Не указана';
                     const userCity = cities.find(c => c.id === currentUser.city_id);
                     document.getElementById('profileCity').textContent = userCity ? userCity.name : 'Не указан';
+                    // Переключаем главную страницу в зависимости от типа пользователя
+                    switch (currentUser.user_type) {
+                        case 'Заказчик':
+                            showPage('customerHomePage');
+                            break;
+                        case 'Исполнитель':
+                            showPage('workerHomePage');
+                            break;
+                        case 'Владелец спецтехники':
+                            showPage('machineryOwnerHomePage');
+                            break;
+                        default:
+                            showPage('customerHomePage'); // По умолчанию для неизвестных типов
+                    }
                 } else {
                     console.error("Ошибка при получении профиля:", await response.json());
                     logout();
@@ -510,34 +532,77 @@
             accessToken = localStorage.getItem('accessToken');
             if (accessToken) {
                 fetchProfile();
-                showPage('buttonContainer');
             } else {
                 showPage('loginPage');
             }
         }
+        
+        async function fetchWorkRequests() {
+            const city = getSelectedCity();
+            if (!city) {
+                showToast('Пожалуйста, выберите город.', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/work-requests?city_id=${city.id}`);
+                const requests = await response.json();
+                const listEl = document.getElementById('workRequestsList');
+                listEl.innerHTML = '<h3>Доступные заявки на работы</h3>';
+                requests.forEach(req => {
+                    const specializationName = specializations.find(s => s === req.specialization);
+                    const card = document.createElement('div');
+                    card.style.cssText = `background-color: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px;`;
+                    card.innerHTML = `
+                        <h4>${req.title}</h4>
+                        <p><strong>Специализация:</strong> ${specializationName || 'Не указана'}</p>
+                        <p><strong>Описание:</strong> ${req.description}</p>
+                        <p><strong>Бюджет:</strong> ${req.budget || 'Не указан'} руб.</p>
+                        <p><strong>Контакт:</strong> ${req.contact_info}</p>
+                    `;
+                    listEl.appendChild(card);
+                });
+            } catch (error) {
+                showToast('Ошибка при загрузке заявок.', 'error');
+                console.error(error);
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Event listeners for main menu buttons
-            document.getElementById('showWorkRequests').addEventListener('click', () => { showPage('workRequestsPage'); });
-            document.getElementById('showMachineryRequests').addEventListener('click', () => { showPage('machineryRequestsPage'); });
-            document.getElementById('showToolRequests').addEventListener('click', () => { showPage('toolRequestsPage'); });
-            document.getElementById('showMaterialAds').addEventListener('click', () => { showPage('materialAdsPage'); });
+            // Event listeners
+            document.getElementById('citySelector').addEventListener('click', () => { cityModal.classList.add('active'); });
+            saveCityButton.addEventListener('click', () => {
+                const selectedCityId = citySelect.value;
+                const selectedCityName = citySelect.options[citySelect.selectedIndex].text;
+                localStorage.setItem('selectedCity', JSON.stringify({ id: selectedCityId, name: selectedCityName }));
+                cityNameEl.textContent = selectedCityName;
+                cityModal.classList.remove('active');
+            });
 
-            // Back buttons
-            document.getElementById('backToMainFromWorkRequests').addEventListener('click', () => { showPage('buttonContainer'); });
-            document.getElementById('backToMainFromMachineryRequests').addEventListener('click', () => { showPage('buttonContainer'); });
-            document.getElementById('backToMainFromToolRequests').addEventListener('click', () => { showPage('buttonContainer'); });
-            document.getElementById('backToMainFromMaterialAds').addEventListener('click', () => { showPage('buttonContainer'); });
-            document.getElementById('backToMainFromProfile').addEventListener('click', () => { showPage('buttonContainer'); });
-            
-            // Other buttons
             document.getElementById('showRegisterPage').addEventListener('click', (e) => { e.preventDefault(); showPage('registerPage'); });
             document.getElementById('showLoginPage').addEventListener('click', (e) => { e.preventDefault(); showPage('loginPage'); });
             document.getElementById('loginButton').addEventListener('click', loginUser);
             document.getElementById('registerButton').addEventListener('click', registerUser);
             document.getElementById('logoutButton').addEventListener('click', logout);
             document.getElementById('userProfileButton').addEventListener('click', () => { showPage('profilePage'); });
+            
+            // Кнопки для Заказчика
+            document.getElementById('showWorkRequests').addEventListener('click', () => { fetchWorkRequests(); showPage('workRequestsPage'); });
+            // Другие кнопки будут вызывать соответствующие функции fetch...
 
+            // Кнопки для Исполнителя
+            document.getElementById('showTakeWork').addEventListener('click', () => { fetchWorkRequests(); showPage('workRequestsPage'); });
+
+            // Кнопки для Владельца спецтехники
+            document.getElementById('showTakeMachinery').addEventListener('click', () => { /* Логика для загрузки заявок на технику */ showPage('machineryRequestsPage'); });
+
+            // Кнопки "Назад"
+            document.getElementById('backFromWorkRequests').addEventListener('click', () => { fetchProfile(); });
+            document.getElementById('backFromMachineryRequests').addEventListener('click', () => { fetchProfile(); });
+            document.getElementById('backFromToolRequests').addEventListener('click', () => { fetchProfile(); });
+            document.getElementById('backFromMaterialAds').addEventListener('click', () => { fetchProfile(); });
+            document.getElementById('backFromProfile').addEventListener('click', () => { fetchProfile(); });
+
+            // Переключение поля специализации при регистрации
             document.getElementById('registerUserType').addEventListener('change', (e) => {
                 const specializationGroup = document.getElementById('specializationGroup');
                 if (e.target.value === 'Исполнитель') {
@@ -547,23 +612,9 @@
                 }
             });
 
-            // City Modal logic
-            document.getElementById('citySelector').addEventListener('click', () => {
-                cityModal.classList.add('active');
-            });
-
-            saveCityButton.addEventListener('click', () => {
-                const selectedCityId = citySelect.value;
-                const selectedCityName = citySelect.options[citySelect.selectedIndex].text;
-                localStorage.setItem('selectedCity', JSON.stringify({ id: selectedCityId, name: selectedCityName }));
-                cityNameEl.textContent = selectedCityName;
-                cityModal.classList.remove('active');
-            });
-            
             async function loginUser() {
                 const username = document.getElementById('loginUsername').value;
                 const password = document.getElementById('loginPassword').value;
-                const statusEl = document.getElementById('loginStatus');
                 const form = new URLSearchParams();
                 form.append('username', username);
                 form.append('password', password);
@@ -571,25 +622,19 @@
                     const response = await fetch(`${API_URL}/token`, {
                         method: 'POST',
                         body: form,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        }
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
                     const data = await response.json();
                     if (response.ok) {
                         localStorage.setItem('accessToken', data.access_token);
                         accessToken = data.access_token;
-                        statusEl.textContent = 'Вход успешен!';
-                        statusEl.className = 'message success';
+                        showToast('Вход успешен!', 'success');
                         fetchProfile();
-                        setTimeout(() => showPage('buttonContainer'), 1000);
                     } else {
-                        statusEl.textContent = data.detail || 'Неправильные логин или пароль';
-                        statusEl.className = 'message error';
+                        showToast(data.detail || 'Неправильные логин или пароль', 'error');
                     }
                 } catch (error) {
-                    statusEl.textContent = 'Ошибка сети. Попробуйте позже.';
-                    statusEl.className = 'message error';
+                    showToast('Ошибка сети. Попробуйте позже.', 'error');
                 }
             }
 
@@ -600,11 +645,9 @@
                 const userType = document.getElementById('registerUserType').value;
                 const specialization = (userType === 'Исполнитель') ? document.getElementById('registerSpecialization').value : null;
                 const city = getSelectedCity();
-                const statusEl = document.getElementById('registerStatus');
 
                 if (!city) {
-                    statusEl.textContent = 'Пожалуйста, выберите город.';
-                    statusEl.className = 'message error';
+                    showToast('Пожалуйста, выберите город.', 'error');
                     return;
                 }
 
@@ -623,24 +666,19 @@
                     });
                     const data = await response.json();
                     if (response.ok) {
-                        statusEl.textContent = 'Регистрация успешна! Теперь вы можете войти.';
-                        statusEl.className = 'message success';
+                        showToast('Регистрация успешна! Теперь вы можете войти.', 'success');
                         setTimeout(() => showPage('loginPage'), 2000);
                     } else {
-                        statusEl.textContent = data.detail || 'Ошибка регистрации';
-                        statusEl.className = 'message error';
+                        showToast(data.detail || 'Ошибка регистрации', 'error');
                     }
                 } catch (error) {
-                    statusEl.textContent = 'Ошибка сети. Попробуйте позже.';
-                    statusEl.className = 'message error';
+                    showToast('Ошибка сети. Попробуйте позже.', 'error');
                 }
             }
             
+            // Инициализация при загрузке страницы
             fetchCities();
             fetchSpecializations();
-            fetchMachineryTypes();
-            fetchToolTypes();
-
             if (getSelectedCity()) {
                 cityNameEl.textContent = getSelectedCity().name;
                 checkAuthentication();
