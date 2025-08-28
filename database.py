@@ -46,6 +46,16 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
+# Таблица подписок
+subscriptions = sqlalchemy.Table(
+    "subscriptions",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), unique=True),
+    sqlalchemy.Column("active", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("expiry", sqlalchemy.DateTime),
+)
+
 # Таблица заявок на спецтехнику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
