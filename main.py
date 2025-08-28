@@ -177,29 +177,33 @@ async def login_for_access_token(user_data: dict):
 
 @api_router.post("/register")
 async def register_user(user_data: dict):
+    # Проверка на существование пользователя
     query = users.select().where(users.c.username == user_data["username"])
     existing_user = await database.fetch_one(query)
     if existing_user:
         raise HTTPException(status_code=400, detail="Это имя пользователя уже занято.")
 
     hashed_password = get_password_hash(user_data["password"])
+
+    # Правильное преобразование city_id в целое число с обработкой ошибок
+    try:
+        city_id_int = int(user_data["city_id"])
+    except (ValueError, KeyError):
+        raise HTTPException(
+            status_code=400,
+            detail="Некорректный формат ID города или поле отсутствует."
+        )
+
     query = users.insert().values(
         username=user_data["username"],
         password_hash=hashed_password,
         user_name=user_data["user_name"],
         user_type=user_data["user_type"],
-        city_id=user_data["city_id"],
+        city_id=city_id_int, # <-- Исправлено: теперь передается целое число
         specialization=user_data.get("specialization")
     )
     await database.execute(query)
     return {"message": "Пользователь успешно зарегистрирован."}
-
-@api_router.get("/me", response_model=UserInDB)
-async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
-    """
-    Возвращает информацию о текущем авторизованном пользователе.
-    """
-    return current_user
 
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
 async def get_work_requests(city_id: Optional[int] = None):
