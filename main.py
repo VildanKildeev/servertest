@@ -11,6 +11,7 @@ from typing import Optional, List
 from datetime import datetime
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordBearer # <-- Добавлен импорт
 
 import os
 from dotenv import load_dotenv
@@ -47,7 +48,6 @@ async def shutdown():
     await database.disconnect()
 
 # Pydantic models (все классы-модели должны быть здесь)
-# ... (оставляем все ваши модели без изменений)
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -107,8 +107,9 @@ class MaterialAd(BaseModel):
 class MaterialAdInDB(MaterialAd):
     id: int
 
-# Функции для работы с JWT и паролями
-# ... (оставляем без изменений)
+# Определяем oauth2_scheme здесь, ДО функции get_current_user
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
@@ -125,6 +126,7 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+# Теперь get_current_user может использовать oauth2_scheme
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -144,8 +146,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if user is None:
         raise credentials_exception
     return UserInDB(**user._mapping)
-
-oauth2_scheme = Depends(get_current_user)
 
 @api_router.post("/token", response_model=Token)
 async def login_for_access_token(user_data: dict):
@@ -339,9 +339,6 @@ app.include_router(api_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    with open("index.html", "r") as f:
+    with open("static/index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
-
-app.include_router(api_router)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
