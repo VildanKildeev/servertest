@@ -9,18 +9,18 @@ from datetime import timedelta
 from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordBearer # <-- ИСПРАВЛЕНИЕ: Добавлен импорт
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 import asyncio
 
 # Загружаем переменные окружения из файла .env
 load_dotenv()
 
 # Импортируем все из вашего файла database.py
-# Убедитесь, что database.py находится в той же директории
 try:
     from database import users, work_requests, machinery_requests, tool_requests, material_ads, metadata, engine, DATABASE_URL
     database = databases.Database(DATABASE_URL)
@@ -32,6 +32,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# ИСПРАВЛЕНИЕ: Определяем OAuth2-схему для получения токена
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
 # Создаем экземпляр FastAPI
 app = FastAPI(title="СМЗ.РФ API")
@@ -59,24 +62,19 @@ async def shutdown():
     await database.disconnect()
 
 # =========================================================================
-# ИСПРАВЛЕНИЕ: Правильная настройка для обслуживания статических файлов
+# Правильная настройка для обслуживания статических файлов
 # =========================================================================
 
 # Монтируем директорию "static" для обслуживания статических файлов
-# Это позволяет клиенту запрашивать файлы, такие как CSS, JS, изображения,
-# по пути "/static/..."
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Определяем корневой маршрут, который будет возвращать index.html
 @app.get("/")
 async def serve_index():
-    # FileResponse - это надежный способ вернуть файл из указанного пути.
-    # Он автоматически обрабатывает ошибки "файл не найден" и устанавливает
-    # правильный Content-Type.
     return FileResponse("static/index.html")
 
 # =========================================================================
-# ВАШИ API-ЭНДПОЙНТЫ
+# ВАШИ API-ЭНДПОЙНТЫ И Pydantic МОДЕЛИ
 # =========================================================================
 
 # Pydantic модели
