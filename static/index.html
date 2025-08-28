@@ -674,23 +674,31 @@
             }
         }
 
-        async function fetchProfile() {
-            try {
-                const response = await fetch(`${API_URL}/profile`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    profileData = await response.json();
-                    updateProfileInfo();
-                } else {
-                    console.error("Ошибка при загрузке профиля:", await response.json());
-                    logout();
-                }
-            } catch (error) {
-                console.error("Ошибка сети при загрузке профиля:", error);
-                logout();
-            }
+       async function fetchProfile() {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+        // Обработка случая, когда токен отсутствует
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/profile`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        
+        if (response.ok) {
+            profileData = await response.json();
+            updateProfileInfo();
+        } else {
+            console.error("Ошибка при загрузке профиля:", await response.json());
+            logout();
         }
+    } catch (error) {
+        console.error("Ошибка сети при загрузке профиля:", error);
+        logout();
+    }
+}
         
         function updateProfileInfo() {
             const profileInfoEl = el('profileInfo');
