@@ -36,24 +36,13 @@ work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("work_type", sqlalchemy.String),
+    sqlalchemy.Column("title", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("price", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
+    sqlalchemy.Column("specialization", sqlalchemy.String),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-)
-
-# Таблица подписок
-subscriptions = sqlalchemy.Table(
-    "subscriptions",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), unique=True),
-    sqlalchemy.Column("active", sqlalchemy.Boolean, default=False),
-    sqlalchemy.Column("expiry", sqlalchemy.DateTime),
 )
 
 # Таблица заявок на спецтехнику
@@ -61,8 +50,21 @@ machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    # ✅ ИСПРАВЛЕНИЕ: Изменено на "machinery_type"
     sqlalchemy.Column("machinery_type", sqlalchemy.String),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("rental_price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+)
+
+# Таблица заявок на инструменты (tool_requests)
+tool_requests = sqlalchemy.Table(
+    "tool_requests",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("tool_name", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
@@ -79,20 +81,6 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("material_type", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("price", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-)
-
-# Таблица заявок на инструменты (tool_requests)
-tool_requests = sqlalchemy.Table(
-    "tool_requests",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("tool_name", sqlalchemy.String),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("rental_price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
