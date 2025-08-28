@@ -385,7 +385,4 @@ async def get_material_ads(city_id: Optional[int] = None, material_type: Optiona
     return [MaterialAdInDB(**ad._mapping) for ad in ads]
 
 app.include_router(api_router)
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
