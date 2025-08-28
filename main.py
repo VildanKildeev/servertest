@@ -194,6 +194,13 @@ async def register_user(user_data: dict):
     await database.execute(query)
     return {"message": "Пользователь успешно зарегистрирован."}
 
+@api_router.get("/me", response_model=UserInDB)
+async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
+    """
+    Возвращает информацию о текущем авторизованном пользователе.
+    """
+    return current_user
+
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
 async def get_work_requests(city_id: Optional[int] = None):
     query = work_requests.select()
