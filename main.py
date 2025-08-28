@@ -9,13 +9,12 @@ from datetime import timedelta
 from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from fastapi.security import OAuth2PasswordBearer # <-- ИСПРАВЛЕНИЕ: Добавлен импорт
+from fastapi.staticfiles import StaticFiles # <-- Исправлено: Импорт для обслуживания статических файлов
+from fastapi.responses import FileResponse # <-- Исправлено: Импорт для возврата файла
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-import asyncio
 
 # Загружаем переменные окружения из файла .env
 load_dotenv()
@@ -33,7 +32,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# ИСПРАВЛЕНИЕ: Определяем OAuth2-схему для получения токена
+# Исправлено: Определяем OAuth2-схему для получения токена
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
 # Создаем экземпляр FastAPI
@@ -65,10 +64,12 @@ async def shutdown():
 # Правильная настройка для обслуживания статических файлов
 # =========================================================================
 
-# Монтируем директорию "static" для обслуживания статических файлов
+# Монтируем директорию "static" для обслуживания статических файлов (CSS, JS, и т.д.)
+# Это позволит вашим HTML-файлам ссылаться на `/static/style.css` и т.п.
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Определяем корневой маршрут, который будет возвращать index.html
+# Мы используем FileResponse, так как это наиболее прямой и эффективный способ.
 @app.get("/")
 async def serve_index():
     return FileResponse("static/index.html")
