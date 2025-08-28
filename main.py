@@ -357,6 +357,8 @@ async def get_material_types():
 
 app.include_router(api_router)
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_app():
-    return HTMLResponse(content=open("index.html", encoding="utf-8").read(), status_code=200)
+    return HTMLResponse(content=open("static/index.html", encoding="utf-8").read())
