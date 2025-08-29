@@ -381,6 +381,8 @@ async def create_material_ad(ad: MaterialAd, current_user: UserInDB = Depends(ge
 
 app.include_router(api_router)
 
-@app.get("/{catchall:path}", response_class=HTMLResponse)
-async def serve_index_html():
-    return HTMLResponse(content=open("index.html", "r", encoding="utf-8").read())
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    with open("static/index.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
