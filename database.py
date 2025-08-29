@@ -36,7 +36,7 @@ work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("title", sqlalchemy.String), # <--- ДОБАВЬТЕ ЭТУ СТРОКУ
+    sqlalchemy.Column("title", sqlalchemy.String),
     sqlalchemy.Column("specialization", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("price", sqlalchemy.Float),

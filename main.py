@@ -62,6 +62,7 @@ class Token(BaseModel):
     token_type: str
 
 class WorkRequestIn(BaseModel):
+    title: str
     description: Optional[str] = None
     contact_info: str
     city_id: int
@@ -268,15 +269,17 @@ async def get_material_types():
 @api_router.post("/work-requests", response_model=WorkRequestInDB)
 async def create_work_request(request: WorkRequestIn, current_user: UserInDB = Depends(get_current_user)):
     query = work_requests.insert().values(
+        title=request.title,
+        specialization=request.specialization,
         description=request.description,
         contact_info=request.contact_info,
         city_id=request.city_id,
-        specialization=request.specialization,
-        is_public=request.is_public,
-        user_id=current_user.id
+        user_id=current_user.id,
+        is_public=request.is_public
     )
     last_record_id = await database.execute(query)
-    return WorkRequestInDB(id=last_record_id, **request.dict(), user_id=current_user.id)
+    
+    return {**request.dict(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.utcnow()}
 
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
 async def get_work_requests(city_id: Optional[int] = None):
