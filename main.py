@@ -146,7 +146,7 @@ def get_password_hash(password):
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Недействительные учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -159,9 +159,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     
     query = users.select().where(users.c.username == username)
     user = await database.fetch_one(query)
+    
     if user is None:
         raise credentials_exception
     return UserInDB(**user._mapping)
+
+@api_router.get("/profile", response_model=UserInDB)
+async def get_profile(current_user: UserInDB = Depends(get_current_user)):
+    return current_user
 
 @api_router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
