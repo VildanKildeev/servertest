@@ -9,6 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
+from pydantic import BaseModel
+from typing import Optional
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer # <-- Добавлен импорт
@@ -55,6 +60,17 @@ class Token(BaseModel):
     user_name: str
     user_type: str
     city_id: int
+    specialization: Optional[str] = None
+
+class User(BaseModel):
+    username: str
+    password: str
+
+class UserInDB(User):
+    id: int
+    user_name: Optional[str] = None
+    user_type: Optional[str] = None
+    city_id: Optional[int] = None
     specialization: Optional[str] = None
 
 class UserInDB(BaseModel):
@@ -142,10 +158,54 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     
     query = users.select().where(users.c.username == username)
-    user = await database.fetch_one(query)
+    user = await database.fetch_one(query)м
     if user is None:
         raise credentials_exception
     return UserInDB(**user._mapping)
+
+@api_router.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+async def authenticate_user(username: str, password: str):
+    """
+    Проверяет учетные данные пользователя в базе данных.
+    """
+    query = users.select().where(users.c.username == username)
+    user = await database.fetch_one(query)
+    
+    if not user:
+        return None
+    
+    # Проверка хэшированного пароля
+    if not pwd_context.verify(password, user.password_hash):
+        return None
+    
+    return UserInDB(**user._mapping)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """
+    Создает JWT-токен.
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 @api_router.post("/token", response_model=Token)
 async def login_for_access_token(user_data: dict):
