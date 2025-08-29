@@ -102,6 +102,7 @@ class MachineryRequest(BaseModel):
 
 class MachineryRequestInDB(MachineryRequest):
     id: int
+    user_id: int
 
 class ToolRequest(BaseModel):
     tool_name: str
@@ -376,7 +377,7 @@ async def get_machinery_requests(city_id: Optional[int] = None):
 @api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
 async def create_machinery_request(request: MachineryRequest, current_user: UserInDB = Depends(get_current_user)):
     query = machinery_requests.insert().values(
-        machinery_type=request.machinery_type,
+        machinery_name=request.machinery_name,
         description=request.description,
         rental_price=request.rental_price,
         contact_info=request.contact_info,
