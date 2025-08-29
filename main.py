@@ -324,21 +324,39 @@ async def get_cities():
 @api_router.get("/specializations")
 async def get_specializations():
     specializations = [
-        "Отделочник", "Сантехник", "Электрик", "Мастер по мебели", "Мастер на час", "Уборка", "Проектирование"
+        {"id": 1, "name": "Отделочник"},
+        {"id": 2, "name": "Сантехник"},
+        {"id": 3, "name": "Электрик"},
+        {"id": 4, "name": "Мастер по мебели"},
+        {"id": 5, "name": "Мастер на час"},
+        {"id": 6, "name": "Уборка"},
+        {"id": 7, "name": "Проектирование"}
     ]
     return specializations
 
 @api_router.get("/machinery-types")
 async def get_machinery_types():
     machinery_types = [
-        "Экскаватор", "Бульдозер", "Автокран", "Самосвал", "Ямобур", "Манипулятор", "Погрузчик", "Эвакуатор"
+        {"id": 1, "name": "Экскаватор"},
+        {"id": 2, "name": "Бульдозер"},
+        {"id": 3, "name": "Автокран"},
+        {"id": 4, "name": "Самосвал"},
+        {"id": 5, "name": "Ямобур"},
+        {"id": 6, "name": "Манипулятор"},
+        {"id": 7, "name": "Погрузчик"},
+        {"id": 8, "name": "Эвакуатор"}
     ]
     return machinery_types
 
 @api_router.get("/tool-types")
 async def get_tool_types():
     tool_types = [
-        "Отбойный молоток", "Вибратор для бетона", "Компрессор", "Сварочный аппарат", "Генератор", "Бетономешалка"
+        {"id": 1, "name": "Отбойный молоток"},
+        {"id": 2, "name": "Вибратор для бетона"},
+        {"id": 3, "name": "Компрессор"},
+        {"id": 4, "name": "Сварочный аппарат"},
+        {"id": 5, "name": "Генератор"},
+        {"id": 6, "name": "Бетономешалка"}
     ]
     return tool_types
 
