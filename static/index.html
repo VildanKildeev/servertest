@@ -774,6 +774,16 @@
             materialTypes: null,
         };
         
+function checkAuthentication() {
+    accessToken = localStorage.getItem('accessToken');
+    if (accessToken) {
+        fetchProfile();
+        showPage('buttonContainer');
+    } else {
+        showPage('loginPage');
+    }
+}
+
         async function fetchCities() {
             if (cache.cities) return cache.cities;
             const response = await fetch(`${API_URL}/cities`);
