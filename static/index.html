@@ -859,21 +859,36 @@ function checkAuthentication() {
         }
 
         async function fetchProfile() {
-            try {
-                const response = await fetch(`${API_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (!response.ok) throw new Error('Ошибка получения профиля');
-                const user = await response.json();
-                localStorage.setItem('user', JSON.stringify(user));
-                el('welcomeMessage').textContent = `Привет, ${user.user_name}!`;
-            } catch (error) {
-                console.error(error);
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('user');
-                showPage('loginPage');
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+        showPage('loginPage'); // Перенаправляем на страницу входа, если токена нет
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/profile`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
             }
+        });
+
+        if (response.ok) {
+            const user = await response.json();
+            localStorage.setItem('userProfile', JSON.stringify(user));
+            // Здесь ваш код для обновления интерфейса
+            el('profileUsername').textContent = user.username;
+        } else if (response.status === 401) {
+            // Токен недействителен или просрочен
+            console.error("Ошибка авторизации: токен недействителен.");
+            localStorage.removeItem('accessToken');
+            showPage('loginPage');
+        } else {
+            console.error("Ошибка получения профиля:", response.status, await response.text());
         }
+    } catch (error) {
+        console.error("Ошибка сети при получении профиля:", error);
+    }
+}
         
         async function login() {
             const username = el('loginUsername').value;
