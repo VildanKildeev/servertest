@@ -94,9 +94,9 @@ class WorkRequestInDB(WorkRequest):
     id: int
 
 class MachineryRequest(BaseModel):
-    machinery_type: str
+    machinery_name: str
     description: Optional[str] = None
-    rental_price: float
+    rental_price: Optional[float] = None
     contact_info: str
     city_id: int
 
