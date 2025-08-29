@@ -104,6 +104,20 @@ class MachineryRequestInDB(MachineryRequest):
     id: int
     user_id: int
 
+@api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
+async def create_machinery_request(request: MachineryRequest, current_user: UserInDB = Depends(get_current_user)):
+    query = machinery_requests.insert().values(
+        machinery_name=request.machinery_name,
+        description=request.description,
+        rental_price=request.rental_price,
+        contact_info=request.contact_info,
+        city_id=request.city_id,
+        user_id=current_user.id
+    )
+    last_record_id = await database.execute(query)
+    return MachineryRequestInDB(id=last_record_id, **request.dict(), user_id=current_user.id)
+
+
 class ToolRequest(BaseModel):
     tool_name: str
     description: Optional[str] = None
@@ -365,6 +379,18 @@ async def get_tool_types():
         {"id": 6, "name": "Бетономешалка"}
     ]
     return tool_types
+
+@api_router.get("/material-types")
+async def get_material_types():
+    material_types = [
+        {"id": 1, "name": "Кирпич"},
+        {"id": 2, "name": "Цемент"},
+        {"id": 3, "name": "Гипсокартон"},
+        {"id": 4, "name": "Пиломатериалы"},
+        {"id": 5, "name": "Металлопрокат"},
+        {"id": 6, "name": "Лакокрасочные материалы"}
+    ]
+    return material_types
 
 @api_router.get("/machinery-requests", response_model=List[MachineryRequestInDB])
 async def get_machinery_requests(city_id: Optional[int] = None):
