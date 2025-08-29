@@ -773,7 +773,17 @@
             toolsList: null,
             materialTypes: null,
         };
-        
+
+const el = (id) => document.getElementById(id);
+    const API_URL = 'https://servertest2-0.onrender.com/api';
+    let accessToken = null;   
+
+let citiesCache = [];
+    let specializationsCache = [];
+    let machineryTypesCache = [];
+    let toolTypesCache = [];
+    let materialTypesCache = [];     
+
 function checkAuthentication() {
     accessToken = localStorage.getItem('accessToken');
     if (accessToken) {
@@ -784,45 +794,59 @@ function checkAuthentication() {
     }
 }
 
-        async function fetchCities() {
-            if (cache.cities) return cache.cities;
-            const response = await fetch(`${API_URL}/cities`);
-            const data = await response.json();
-            cache.cities = data;
-            return data;
-        }
+async function fetchCities() {
+    try {
+        const response = await fetch(`${API_URL}/cities`);
+        const data = await response.json();
+        citiesCache = data; // <--- Сохраняем данные в кэш
+        populateSelect(el('citySelect'), data);
+    } catch (error) {
+        console.error("Ошибка получения городов:", error);
+    }
 
-        async function fetchSpecializations() {
-            if (cache.specializations) return cache.specializations;
-            const response = await fetch(`${API_URL}/specializations`);
-            const data = await response.json();
-            cache.specializations = data;
-            return data;
-        }
+async function fetchSpecializations() {
+    try {
+        const response = await fetch(`${API_URL}/specializations`);
+        const data = await response.json();
+        specializationsCache = data; // <--- Сохраняем данные
+        populateSelect(el('regSpecialization'), data);
+    } catch (error) {
+        console.error("Ошибка получения специализаций:", error);
+    }
+}
         
-        async function fetchMachineryTypes() {
-            if (cache.machineryTypes) return cache.machineryTypes;
-            const response = await fetch(`${API_URL}/machinery-types`);
-            const data = await response.json();
-            cache.machineryTypes = data;
-            return data;
-        }
-        
-        async function fetchToolsList() {
-            if (cache.toolsList) return cache.toolsList;
-            const response = await fetch(`${API_URL}/tool-types`);
-            const data = await response.json();
-            cache.toolsList = data;
-            return data;
-        }
+async function fetchMachineryTypes() {
+    try {
+        const response = await fetch(`${API_URL}/machinery-types`);
+        const data = await response.json();
+        machineryTypesCache = data; // <--- Сохраняем данные
+        populateSelect(el('machineryTypeSelect'), data);
+    } catch (error) {
+        console.error("Ошибка получения типов спецтехники:", error);
+    }
+}        
 
-        async function fetchMaterialTypes() {
-            if (cache.materialTypes) return cache.materialTypes;
-            const response = await fetch(`${API_URL}/material-types`);
-            const data = await response.json();
-            cache.materialTypes = data;
-            return data;
-        }
+async function fetchToolsList() {
+    try {
+        const response = await fetch(`${API_URL}/tool-types`);
+        const data = await response.json();
+        toolTypesCache = data; // <--- Сохраняем данные
+        populateSelect(el('toolTypeSelect'), data);
+    } catch (error) {
+        console.error("Ошибка получения типов инструментов:", error);
+    }
+}
+
+async function fetchMaterialTypes() {
+    try {
+        const response = await fetch(`${API_URL}/material-types`);
+        const data = await response.json();
+        materialTypesCache = data; // <--- Сохраняем данные
+        populateSelect(el('materialTypeSelect'), data);
+    } catch (error) {
+        console.error("Ошибка получения типов материалов:", error);
+    }
+}
 
         function getSelectedCity() {
             const city = localStorage.getItem('selectedCity');
@@ -889,7 +913,32 @@ function checkAuthentication() {
         console.error("Ошибка сети при получении профиля:", error);
     }
 }
-        
+      
+function getCityNameById(id) {
+    const city = citiesCache.find(c => c.id === id);
+    return city ? city.name : 'Неизвестный город';
+}
+
+function getSpecializationNameById(id) {
+    const specialization = specializationsCache.find(s => s.id === id);
+    return specialization ? specialization.name : 'Неизвестная специализация';
+}
+
+function getMachineryNameById(id) {
+    const machinery = machineryTypesCache.find(m => m.id === id);
+    return machinery ? machinery.name : 'Неизвестный тип';
+}
+
+function getToolNameById(id) {
+    const tool = toolTypesCache.find(t => t.id === id);
+    return tool ? tool.name : 'Неизвестный инструмент';
+}
+
+function getMaterialNameById(id) {
+    const material = materialTypesCache.find(m => m.id === id);
+    return material ? material.name : 'Неизвестный материал';
+}
+  
         async function login() {
             const username = el('loginUsername').value;
             const password = el('loginPassword').value;
