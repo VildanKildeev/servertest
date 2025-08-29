@@ -158,7 +158,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     
     query = users.select().where(users.c.username == username)
-    user = await database.fetch_one(query)м
+    user = await database.fetch_one(query)
     if user is None:
         raise credentials_exception
     return UserInDB(**user._mapping)
