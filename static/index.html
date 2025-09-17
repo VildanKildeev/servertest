@@ -81,8 +81,14 @@
             <input type="text" id="regUsername" placeholder="Username">
             <input type="password" id="regPassword" placeholder="Password">
             <input type="text" id="regUserName" placeholder="Имя">
-            <input type="text" id="regUserType" placeholder="Тип (КЛИЕНТ/ИСПОЛНИТЕЛЬ)">
-            <input type="number" id="regCityId" placeholder="ID Города">
+            <select id="regUserType">
+                <option value="ЗАКАЗЧИК">Заказчик</option>
+                <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
+            </select>
+            <select id="regCityName"></select>
+            <div id="specializationContainer" style="display:none;">
+                <select id="regSpecialization"></select>
+            </div>
             <button onclick="registerUser()">Зарегистрироваться</button>
             <p id="regStatus"></p>
             <p>Уже есть аккаунт? <a href="#" onclick="showPage('loginPage')">Войти</a></p>
@@ -176,7 +182,7 @@
         <section id="marketplacePage" class="tab-content">
             <button onclick="showPage('buttonContainer')">Назад</button>
             <h2>Биржа заявок</h2>
-            <details class="requests-block" open>
+            <details id="workMarketplace" class="requests-block" open>
                 <summary>Заявки на работу <i class="fas fa-caret-right"></i></summary>
                 <div class="input-group">
                     <label for="filterSpecialization">Специализация:</label>
@@ -185,17 +191,17 @@
                 <div id="workRequestsList"></div>
             </details>
 
-            <details class="requests-block">
+            <details id="machineryMarketplace" class="requests-block">
                 <summary>Заявки на спецтехнику <i class="fas fa-caret-right"></i></summary>
                 <div id="machineryRequestsList"></div>
             </details>
 
-            <details class="requests-block">
+            <details id="toolsMarketplace" class="requests-block">
                 <summary>Заявки на инструменты <i class="fas fa-caret-right"></i></summary>
                 <div id="toolsRequestsList"></div>
             </details>
 
-            <details class="requests-block">
+            <details id="materialsMarketplace" class="requests-block">
                 <summary>Объявления о материалах <i class="fas fa-caret-right"></i></summary>
                 <div id="materialsAdsList"></div>
             </details>
@@ -244,10 +250,13 @@
         let currentUser = null;
         let lastSelectedRequestId = null;
         let citiesMap = {};
+        let citiesMapByName = {};
 
         const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityNameEl');
+        const regUserTypeSelect = document.getElementById('regUserType');
+        const specializationContainer = document.getElementById('specializationContainer');
 
         function showPage(pageId) {
             pages.forEach(id => {
@@ -274,20 +283,28 @@
             }
         }
 
-        // Новая функция для отображения формы заявки
         function showRequestForm(tabId) {
             showPage('requestPage');
             showTab(tabId);
         }
 
-        // Новая функция для отображения вкладки биржи
         function showMarketplaceTab(tabId) {
             showPage('marketplacePage');
             const tabs = document.querySelectorAll('#marketplacePage .requests-block');
             tabs.forEach(tab => tab.removeAttribute('open'));
-            const activeTab = document.querySelector(`#${tabId}`);
+            const activeTab = document.getElementById(tabId);
             if (activeTab) {
                 activeTab.setAttribute('open', '');
+            }
+            // Вызываем fetch-функцию для активной вкладки
+            if (tabId === 'workMarketplace') {
+                fetchWorkRequests();
+            } else if (tabId === 'machineryMarketplace') {
+                fetchMachineryRequests();
+            } else if (tabId === 'toolsMarketplace') {
+                fetchToolsRequests();
+            } else if (tabId === 'materialsMarketplace') {
+                fetchMaterialsAds();
             }
         }
 
@@ -342,18 +359,29 @@
             const response = await fetch(`${API_URL}/cities`);
             const cities = await response.json();
             const cityGrid = document.getElementById('cityGrid');
+            const regCitySelect = document.getElementById('regCityName');
+            
             cityGrid.innerHTML = '';
+            regCitySelect.innerHTML = '';
+            
             cities.forEach(city => {
                 citiesMap[city.id] = city.name;
-                const button = document.createElement('button');
-                button.textContent = city.name;
-                button.className = 'city-button';
-                button.onclick = () => {
+                citiesMapByName[city.name] = city.id;
+
+                const gridButton = document.createElement('button');
+                gridButton.textContent = city.name;
+                gridButton.className = 'city-button';
+                gridButton.onclick = () => {
                     saveSelectedCity(city);
                     cityModal.classList.remove('active');
                     checkAuthentication();
                 };
-                cityGrid.appendChild(button);
+                cityGrid.appendChild(gridButton);
+
+                const selectOption = document.createElement('option');
+                selectOption.value = city.name;
+                selectOption.textContent = city.name;
+                regCitySelect.appendChild(selectOption);
             });
         }
 
@@ -363,15 +391,17 @@
             const selectEl = document.getElementById('workSpecialization');
             const profileSelectEl = document.getElementById('specializationSelect');
             const filterSpecializationEl = document.getElementById('filterSpecialization');
+            const regSpecializationSelect = document.getElementById('regSpecialization');
 
             selectEl.innerHTML = '';
             profileSelectEl.innerHTML = '';
+            regSpecializationSelect.innerHTML = '';
 
             const allOption = document.createElement('option');
             allOption.value = "";
             allOption.textContent = "Все специализации";
             filterSpecializationEl.appendChild(allOption);
-
+            
             specializations.forEach(spec => {
                 const option = document.createElement('option');
                 option.value = spec;
@@ -379,6 +409,7 @@
                 selectEl.appendChild(option);
                 profileSelectEl.appendChild(option.cloneNode(true));
                 filterSpecializationEl.appendChild(option.cloneNode(true));
+                regSpecializationSelect.appendChild(option.cloneNode(true));
             });
         }
 
@@ -408,17 +439,28 @@
             });
         }
 
+        // Обработчик для отображения/скрытия специализации
+        regUserTypeSelect.addEventListener('change', (event) => {
+            if (event.target.value === 'ИСПОЛНИТЕЛЬ') {
+                specializationContainer.style.display = 'block';
+            } else {
+                specializationContainer.style.display = 'none';
+            }
+        });
+
         async function registerUser() {
             const username = document.getElementById('regUsername').value;
             const password = document.getElementById('regPassword').value;
             const user_name = document.getElementById('regUserName').value;
-            const user_type = document.getElementById('regUserType').value;
-            const city_id = parseInt(document.getElementById('regCityId').value);
+            const user_type = regUserTypeSelect.value;
+            const city_name = document.getElementById('regCityName').value;
+            const city_id = citiesMapByName[city_name];
+            const specialization = user_type === 'ИСПОЛНИТЕЛЬ' ? document.getElementById('regSpecialization').value : null;
 
             const response = await fetch(`${API_URL}/users/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, user_name, user_type, city_id })
+                body: JSON.stringify({ username, password, user_name, user_type, city_id, specialization })
             });
 
             const statusEl = document.getElementById('regStatus');
