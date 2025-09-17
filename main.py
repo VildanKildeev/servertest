@@ -48,7 +48,7 @@ api_router = APIRouter(prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "null"],
+    allow_origins=["*"],  # Временно разрешаем все домены
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
