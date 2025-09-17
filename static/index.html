@@ -100,17 +100,17 @@
             <div class="main-menu-grid">
                 <div class="main-menu-col">
                     <h3>Разместить заявку</h3>
-                    <button class="main-menu-button" onclick="showRequestForm('workRequestForm')">Работа</button>
-                    <button class="main-menu-button" onclick="showRequestForm('machineryRequestForm')">Спецтехника</button>
-                    <button class="main-menu-button" onclick="showRequestForm('toolsRequestForm')">Инструменты</button>
-                    <button class="main-menu-button" onclick="showRequestForm('materialsRequestForm')">Материалы</button>
+                    <button class="main-menu-button" onclick="showPage('workRequestPage')">Работа</button>
+                    <button class="main-menu-button" onclick="showPage('machineryRequestPage')">Спецтехника</button>
+                    <button class="main-menu-button" onclick="showPage('toolsRequestPage')">Инструменты</button>
+                    <button class="main-menu-button" onclick="showPage('materialsRequestPage')">Материалы</button>
                 </div>
                 <div class="main-menu-col">
                     <h3>Биржа заявок</h3>
-                    <button class="main-menu-button" onclick="showMarketplaceTab('workMarketplace')">Работа</button>
-                    <button class="main-menu-button" onclick="showMarketplaceTab('machineryMarketplace')">Спецтехника</button>
-                    <button class="main-menu-button" onclick="showMarketplaceTab('toolsMarketplace')">Инструменты</button>
-                    <button class="main-menu-button" onclick="showMarketplaceTab('materialsMarketplace')">Материалы</button>
+                    <button class="main-menu-button" onclick="showPage('workMarketplacePage')">Работа</button>
+                    <button class="main-menu-button" onclick="showPage('machineryMarketplacePage')">Спецтехника</button>
+                    <button class="main-menu-button" onclick="showPage('toolsMarketplacePage')">Инструменты</button>
+                    <button class="main-menu-button" onclick="showPage('materialsMarketplacePage')">Материалы</button>
                 </div>
             </div>
             <button class="main-menu-button" style="margin-top: 20px;" onclick="showPage('profilePage')">
@@ -132,16 +132,10 @@
             <button onclick="showPage('buttonContainer')">На главную</button>
         </section>
 
-        <section id="requestPage" class="tab-content">
+        <section id="workRequestPage" class="tab-content">
             <button onclick="showPage('buttonContainer')">Назад</button>
-            <h2>Разместить заявку</h2>
-            <div class="tabs">
-                <button class="tab-button active" onclick="showTab('workRequestForm')">Работа</button>
-                <button class="tab-button" onclick="showTab('machineryRequestForm')">Спецтехника</button>
-                <button class="tab-button" onclick="showTab('toolsRequestForm')">Инструменты</button>
-                <button class="tab-button" onclick="showTab('materialsRequestForm')">Материалы</button>
-            </div>
-            <div id="workRequestForm" class="request-form active tab-pane">
+            <h2>Разместить заявку: Работа</h2>
+            <div id="workRequestForm" class="request-form active">
                 <h3>Заявка на работу</h3>
                 <input type="text" id="workDescription" placeholder="Описание работы">
                 <input type="number" id="workBudget" placeholder="Бюджет">
@@ -150,7 +144,12 @@
                 <button onclick="createWorkRequest()">Разместить</button>
                 <p id="workStatus" class="message"></p>
             </div>
-            <div id="machineryRequestForm" class="request-form tab-pane">
+        </section>
+
+        <section id="machineryRequestPage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Разместить заявку: Спецтехника</h2>
+            <div id="machineryRequestForm" class="request-form active">
                 <h3>Заявка на спецтехнику</h3>
                 <select id="machineryType"></select>
                 <input type="text" id="machineryDescription" placeholder="Описание">
@@ -159,7 +158,12 @@
                 <button onclick="createMachineryRequest()">Разместить</button>
                 <p id="machineryStatus" class="message"></p>
             </div>
-            <div id="toolsRequestForm" class="request-form tab-pane">
+        </section>
+
+        <section id="toolsRequestPage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Разместить заявку: Инструменты</h2>
+            <div id="toolsRequestForm" class="request-form active">
                 <h3>Заявка на инструменты</h3>
                 <select id="toolsList"></select>
                 <input type="text" id="toolsDescription" placeholder="Описание">
@@ -168,7 +172,12 @@
                 <button onclick="createToolRequest()">Разместить</button>
                 <p id="toolsStatus" class="message"></p>
             </div>
-            <div id="materialsRequestForm" class="request-form tab-pane">
+        </section>
+
+        <section id="materialsRequestPage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Разместить объявление: Материалы</h2>
+            <div id="materialsRequestForm" class="request-form active">
                 <h3>Объявление о материалах</h3>
                 <input type="text" id="materialType" placeholder="Тип материала">
                 <input type="text" id="materialDescription" placeholder="Описание">
@@ -179,36 +188,48 @@
             </div>
         </section>
 
-        <section id="marketplacePage" class="tab-content">
+        <section id="workMarketplacePage" class="tab-content">
             <button onclick="showPage('buttonContainer')">Назад</button>
-            <h2>Биржа заявок</h2>
-            <details id="workMarketplace" class="requests-block" open>
-                <summary>Заявки на работу <i class="fas fa-caret-right"></i></summary>
+            <h2>Биржа заявок: Работа</h2>
+            <div class="requests-block">
+                <h3>Заявки на работу</h3>
                 <div class="input-group">
                     <label for="filterSpecialization">Специализация:</label>
                     <select id="filterSpecialization" onchange="fetchWorkRequests()"></select>
                 </div>
                 <div id="workRequestsList"></div>
-            </details>
+            </div>
+        </section>
 
-            <details id="machineryMarketplace" class="requests-block">
-                <summary>Заявки на спецтехнику <i class="fas fa-caret-right"></i></summary>
+        <section id="machineryMarketplacePage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Биржа заявок: Спецтехника</h2>
+            <div class="requests-block">
+                <h3>Заявки на спецтехнику</h3>
                 <div id="machineryRequestsList"></div>
-            </details>
+            </div>
+        </section>
 
-            <details id="toolsMarketplace" class="requests-block">
-                <summary>Заявки на инструменты <i class="fas fa-caret-right"></i></summary>
+        <section id="toolsMarketplacePage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Биржа заявок: Инструменты</h2>
+            <div class="requests-block">
+                <h3>Заявки на инструменты</h3>
                 <div id="toolsRequestsList"></div>
-            </details>
+            </div>
+        </section>
 
-            <details id="materialsMarketplace" class="requests-block">
-                <summary>Объявления о материалах <i class="fas fa-caret-right"></i></summary>
+        <section id="materialsMarketplacePage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Биржа заявок: Материалы</h2>
+            <div class="requests-block">
+                <h3>Объявления о материалах</h3>
                 <div id="materialsAdsList"></div>
-            </details>
+            </div>
         </section>
 
         <section id="takeOrderPage" class="tab-content">
-            <button onclick="showPage('marketplacePage')">Назад</button>
+            <button onclick="showPage('workMarketplacePage')">Назад</button>
             <h2>Принять заявку</h2>
             <p id="takeOrderDetails"></p>
             <button onclick="takeWorkRequest()">Принять</button>
@@ -252,7 +273,7 @@
         let citiesMap = {};
         let citiesMapByName = {};
 
-        const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
+        const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'workRequestPage', 'machineryRequestPage', 'toolsRequestPage', 'materialsRequestPage', 'workMarketplacePage', 'machineryMarketplacePage', 'toolsMarketplacePage', 'materialsMarketplacePage', 'takeOrderPage', 'myRequestsPage'];
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityNameEl');
         const regUserTypeSelect = document.getElementById('regUserType');
@@ -269,10 +290,13 @@
             if (currentPage) {
                 currentPage.classList.add('active');
             }
-            if (pageId === 'marketplacePage') {
+            if (pageId === 'workMarketplacePage') {
                 fetchWorkRequests();
+            } else if (pageId === 'machineryMarketplacePage') {
                 fetchMachineryRequests();
+            } else if (pageId === 'toolsMarketplacePage') {
                 fetchToolsRequests();
+            } else if (pageId === 'materialsMarketplacePage') {
                 fetchMaterialsAds();
             }
             if (pageId === 'myRequestsPage') {
@@ -280,47 +304,6 @@
             }
             if (pageId === 'profilePage') {
                 fetchProfile();
-            }
-        }
-
-        function showRequestForm(tabId) {
-            showPage('requestPage');
-            showTab(tabId);
-        }
-
-        function showMarketplaceTab(tabId) {
-            showPage('marketplacePage');
-            const tabs = document.querySelectorAll('#marketplacePage .requests-block');
-            tabs.forEach(tab => tab.removeAttribute('open'));
-            const activeTab = document.getElementById(tabId);
-            if (activeTab) {
-                activeTab.setAttribute('open', '');
-            }
-            // Вызываем fetch-функцию для активной вкладки
-            if (tabId === 'workMarketplace') {
-                fetchWorkRequests();
-            } else if (tabId === 'machineryMarketplace') {
-                fetchMachineryRequests();
-            } else if (tabId === 'toolsMarketplace') {
-                fetchToolsRequests();
-            } else if (tabId === 'materialsMarketplace') {
-                fetchMaterialsAds();
-            }
-        }
-
-        function showTab(tabId) {
-            const tabs = document.querySelectorAll('#requestPage .tabs .tab-button');
-            tabs.forEach(tab => tab.classList.remove('active'));
-            const tabPanes = document.querySelectorAll('#requestPage .tab-pane');
-            tabPanes.forEach(tab => tab.classList.remove('active'));
-
-            const activeTab = document.querySelector(`#requestPage .tabs button[onclick="showTab('${tabId}')"]`);
-            if (activeTab) {
-                activeTab.classList.add('active');
-            }
-            const activePane = document.getElementById(tabId);
-            if (activePane) {
-                activePane.classList.add('active');
             }
         }
 
