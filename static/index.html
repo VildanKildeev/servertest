@@ -6,49 +6,34 @@
     <title>СМЗ.РФ - Рабочие и спецтехника</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Общие стили */
+        /* Ваши стили */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; color: white; overflow: hidden; background: black; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        
-        /* Фон */
         .background-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
-        
-        /* Основное содержимое и навигация */
-        .main-content { position: relative; z-index: 1; padding: 20px; width: 100%; max-width: 600px; height: 100vh; display: none; flex-direction: column; }
-        .main-content.active { display: flex; }
-        .main-content-scroll { overflow-y: auto; flex-grow: 1; }
-        
-        /* Заголовки и текст */
+        .selected-city { margin-top: 12px; font-size: 16px; color: #fff; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap; }
+        .main-content { position: relative; z-index: 1; padding: 20px; width: 100%; max-width: 600px; overflow-y: auto; height: 100vh; display: none; }
+        .main-content.active { display: block; }
         h1, h2, h3 { color: #fff; margin-bottom: 10px; }
         p { color: #ccc; margin-bottom: 10px; }
-        
-        /* Модальные окна */
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); padding-top: 60px; }
         .modal.active { display: block; }
         .modal-content { background-color: #333; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 10px; text-align: center; }
         .modal-content button { margin-top: 10px; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; background: #555; color: white; }
         .modal-content button:hover { background: #777; }
-        
-        /* Городской селектор */
         .city-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .city-button { padding: 10px; background: #444; color: white; border: none; border-radius: 5px; cursor: pointer; }
         .city-button.selected { background: #007bff; }
         .city-button:hover { background: #555; }
-        
-        /* Стили формы */
-        input, select { padding: 10px; border-radius: 5px; border: 1px solid #555; background: #222; color: white; width: 100%; margin-bottom: 10px; }
-        input::placeholder { color: #aaa; }
-        .profile-page input, .profile-page select, .request-form input, .request-form select { margin-top: 10px; }
-        button { padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; background: #007bff; color: white; width: 100%; margin-top: 10px; }
-        button:hover { background: #0056b3; }
-        
-        /* Разное */
-        .selected-city { margin-top: 12px; font-size: 16px; color: #fff; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap; }
         .logo-placeholder { font-size: 32px; font-weight: bold; margin-bottom: 20px; text-align: center; color: #fff; }
+        .button-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .action-button { background: #007bff; color: white; padding: 15px; border-radius: 8px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
         .action-button:hover { background: #0056b3; }
+        .profile-info, .request-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
         .request-item { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
         .request-item h3 { margin-bottom: 5px; }
+        .profile-page input, .profile-page select, .request-form input, .request-form select { padding: 10px; border-radius: 5px; border: 1px solid #555; background: #222; color: white; }
+        .profile-page button, .request-form button { padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; background: #007bff; color: white; }
+        .profile-page button:hover, .request-form button:hover { background: #0056b3; }
         .message { margin-top: 10px; padding: 10px; border-radius: 5px; text-align: center; }
         .success { background-color: #d4edda; color: #155724; }
         .error { background-color: #f8d7da; color: #721c24; }
@@ -57,18 +42,6 @@
         .tabs { display: flex; justify-content: space-around; margin-bottom: 20px; }
         .tab-button { padding: 10px 15px; border-radius: 5px 5px 0 0; border: none; cursor: pointer; background: #444; color: white; }
         .tab-button.active { background: #007bff; }
-        
-        /* Стили новой навигации */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around; background-color: #222; padding: 10px 0; border-top: 1px solid #444; z-index: 50; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: white; text-decoration: none; font-size: 12px; }
-        .nav-item i { font-size: 24px; margin-bottom: 5px; }
-        .nav-item.active { color: #007bff; }
-        .nav-hidden { display: none; }
-        
-        /* Стили для формы фильтрации */
-        .filter-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-        .filter-form input, .filter-form select { width: 100%; }
-        .filter-form button { margin-top: 0; }
     </style>
 </head>
 <body>
@@ -80,183 +53,166 @@
     <div id="cityModal" class="modal">
         <div class="modal-content">
             <h2>Выберите свой город</h2>
-            <input type="text" id="citySearch" placeholder="Поиск города">
             <div id="cityGrid" class="city-grid"></div>
         </div>
     </div>
 
-    <main id="mainContent" class="main-content">
-        <p class="selected-city">Ваш город: <span id="cityNameEl"></span> <a href="#" onclick="changeCity()">Изменить</a></p>
+    <main id="mainContent" class="main-content active">
 
-        <div id="mainContentScroll" class="main-content-scroll">
-            <section id="loginPage" class="tab-content active">
-                <div class="logo-placeholder">СМЗ.РФ</div>
-                <h2>Вход</h2>
-                <input type="text" id="loginUsername" placeholder="Username">
-                <input type="password" id="loginPassword" placeholder="Password">
-                <button onclick="loginUser()">Войти</button>
-                <p id="loginStatus" class="message"></p>
-                <p>Нет аккаунта? <a href="#" onclick="showPage('registerPage')">Зарегистрироваться</a></p>
-            </section>
+        <section id="loginPage" class="tab-content active">
+            <h2>Вход</h2>
+            <input type="text" id="loginUsername" placeholder="Username">
+            <input type="password" id="loginPassword" placeholder="Password">
+            <button onclick="loginUser()">Войти</button>
+            <p id="loginStatus"></p>
+            <p>Нет аккаунта? <a href="#" onclick="showPage('registerPage')">Зарегистрироваться</a></p>
+        </section>
 
-            <section id="registerPage" class="tab-content">
-                <div class="logo-placeholder">СМЗ.РФ</div>
-                <h2>Регистрация</h2>
-                <input type="text" id="regUsername" placeholder="Username">
-                <input type="password" id="regPassword" placeholder="Password">
-                <input type="text" id="regUserName" placeholder="Имя">
-                <select id="regUserType">
-                    <option value="" disabled selected>Выберите тип пользователя</option>
-                    <option value="КЛИЕНТ">КЛИЕНТ</option>
-                    <option value="ИСПОЛНИТЕЛЬ">ИСПОЛНИТЕЛЬ</option>
-                    <option value="ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ">ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ</option>
-                </select>
-                <select id="regCityId"></select>
-                <button onclick="registerUser()">Зарегистрироваться</button>
-                <p id="regStatus" class="message"></p>
-                <p>Уже есть аккаунт? <a href="#" onclick="showPage('loginPage')">Войти</a></p>
-            </section>
+        <section id="registerPage" class="tab-content">
+            <h2>Регистрация</h2>
+            <input type="text" id="regUsername" placeholder="Username">
+            <input type="password" id="regPassword" placeholder="Password">
+            <input type="text" id="regUserName" placeholder="Имя">
+            <input type="text" id="regUserType" placeholder="Тип (КЛИЕНТ/ИСПОЛНИТЕЛЬ)">
+            <input type="number" id="regCityId" placeholder="ID Города">
+            <button onclick="registerUser()">Зарегистрироваться</button>
+            <p id="regStatus"></p>
+            <p>Уже есть аккаунт? <a href="#" onclick="showPage('loginPage')">Войти</a></p>
+        </section>
 
-            <section id="profilePage" class="tab-content">
-                <h2>Профиль</h2>
-                <div id="profileInfo" class="profile-info"></div>
-                <div id="specializationUpdate" style="display:none;">
-                    <h3>Обновить специализацию</h3>
-                    <select id="specializationSelect"></select>
-                    <button onclick="updateUserSpecialization()">Сохранить</button>
-                </div>
-                <p><a href="#" onclick="logout()">Выйти</a></p>
-                <button onclick="showPage('myRequestsPage')">Мои заявки</button>
-            </section>
+        <section id="buttonContainer" class="tab-content">
+            <p class="selected-city">Ваш город: <span id="cityNameEl"></span> <a href="#" onclick="changeCity()">Изменить</a></p>
+            <div class="logo-placeholder">СМЗ.РФ</div>
+            <div class="button-grid">
+                <button class="action-button" onclick="showPage('requestPage')">Разместить заявку</button>
+                <button class="action-button" onclick="showPage('marketplacePage')">Биржа заявок</button>
+                <button class="action-button" onclick="showPage('profilePage')">Профиль</button>
+            </div>
+        </section>
 
-            <section id="requestPage" class="tab-content">
-                <h2>Разместить заявку</h2>
-                <div class="tabs">
-                    <button class="tab-button active" onclick="showTab('workRequestForm')">Работа</button>
-                    <button class="tab-button" onclick="showTab('machineryRequestForm')">Спецтехника</button>
-                    <button class="tab-button" onclick="showTab('toolsRequestForm')">Инструменты</button>
-                    <button class="tab-button" onclick="showTab('materialsRequestForm')">Материалы</button>
-                </div>
-                <div id="workRequestForm" class="request-form active tab-pane">
-                    <h3>Заявка на работу</h3>
-                    <input type="text" id="workDescription" placeholder="Описание работы">
-                    <input type="number" id="workBudget" placeholder="Бюджет">
-                    <input type="text" id="workContact" placeholder="Контакты">
-                    <select id="workSpecialization"></select>
-                    <button onclick="createWorkRequest()">Разместить</button>
-                    <p id="workStatus" class="message"></p>
-                </div>
-                <div id="machineryRequestForm" class="request-form tab-pane">
-                    <h3>Заявка на спецтехнику</h3>
-                    <select id="machineryType"></select>
-                    <input type="text" id="machineryDescription" placeholder="Описание">
-                    <input type="number" id="machineryPrice" placeholder="Цена аренды">
-                    <input type="text" id="machineryContact" placeholder="Контакты">
-                    <button onclick="createMachineryRequest()">Разместить</button>
-                    <p id="machineryStatus" class="message"></p>
-                </div>
-                <div id="toolsRequestForm" class="request-form tab-pane">
-                    <h3>Заявка на инструменты</h3>
-                    <select id="toolsList"></select>
-                    <input type="text" id="toolsDescription" placeholder="Описание">
-                    <input type="number" id="toolsPrice" placeholder="Цена аренды">
-                    <input type="text" id="toolsContact" placeholder="Контакты">
-                    <button onclick="createToolRequest()">Разместить</button>
-                    <p id="toolsStatus" class="message"></p>
-                </div>
-                <div id="materialsRequestForm" class="request-form tab-pane">
-                    <h3>Объявление о материалах</h3>
-                    <input type="text" id="materialType" placeholder="Тип материала">
-                    <input type="text" id="materialDescription" placeholder="Описание">
-                    <input type="number" id="materialPrice" placeholder="Цена">
-                    <input type="text" id="materialContact" placeholder="Контакты">
-                    <button onclick="createMaterialAd()">Разместить</button>
-                    <p id="materialsStatus" class="message"></p>
-                </div>
-            </section>
+        <section id="profilePage" class="tab-content">
+            <p class="selected-city">Ваш город: <span id="cityNameEl"></span> <a href="#" onclick="changeCity()">Изменить</a></p>
+            <h2>Профиль</h2>
+            <div id="profileInfo" class="profile-info"></div>
+            <div id="specializationUpdate" style="display:none;">
+                <h3>Обновить специализацию</h3>
+                <select id="specializationSelect"></select>
+                <button onclick="updateUserSpecialization()">Сохранить</button>
+            </div>
+            <p><a href="#" onclick="logout()">Выйти</a></p>
+            <button onclick="showPage('myRequestsPage')">Мои заявки</button>
+            <button onclick="showPage('buttonContainer')">На главную</button>
+        </section>
 
-            <section id="marketplacePage" class="tab-content">
-                <h2>Биржа заявок</h2>
-                <div class="filter-form">
-                    <input type="text" id="filterSearch" placeholder="Поиск по описанию">
-                    <select id="filterSpecialization">
-                        <option value="">Все специализации</option>
-                    </select>
-                    <button onclick="applyFilters()">Применить фильтры</button>
-                </div>
-                <div class="tabs">
-                    <button class="tab-button active" onclick="showMarketplaceTab('workMarketplace')">Работа</button>
-                    <button class="tab-button" onclick="showMarketplaceTab('machineryMarketplace')">Спецтехника</button>
-                    <button class="tab-button" onclick="showMarketplaceTab('toolsMarketplace')">Инструменты</button>
-                    <button class="tab-button" onclick="showMarketplaceTab('materialsMarketplace')">Материалы</button>
-                </div>
-                <div id="workMarketplace" class="tab-pane active">
-                    <h3>Заявки на работу</h3>
-                    <div id="workRequestsList"></div>
-                </div>
-                <div id="machineryMarketplace" class="tab-pane">
-                    <h3>Заявки на спецтехнику</h3>
-                    <div id="machineryRequestsList"></div>
-                </div>
-                <div id="toolsMarketplace" class="tab-pane">
-                    <h3>Заявки на инструменты</h3>
-                    <div id="toolsRequestsList"></div>
-                </div>
-                <div id="materialsMarketplace" class="tab-pane">
-                    <h3>Объявления о материалах</h3>
-                    <div id="materialsAdsList"></div>
-                </div>
-            </section>
+        <section id="requestPage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Разместить заявку</h2>
+            <div class="tabs">
+                <button class="tab-button active" onclick="showTab('workRequestForm')">Работа</button>
+                <button class="tab-button" onclick="showTab('machineryRequestForm')">Спецтехника</button>
+                <button class="tab-button" onclick="showTab('toolsRequestForm')">Инструменты</button>
+                <button class="tab-button" onclick="showTab('materialsRequestForm')">Материалы</button>
+            </div>
+            <div id="workRequestForm" class="request-form active tab-pane">
+                <h3>Заявка на работу</h3>
+                <input type="text" id="workDescription" placeholder="Описание работы">
+                <input type="number" id="workBudget" placeholder="Бюджет">
+                <input type="text" id="workContact" placeholder="Контакты">
+                <select id="workSpecialization"></select>
+                <button onclick="createWorkRequest()">Разместить</button>
+                <p id="workStatus" class="message"></p>
+            </div>
+            <div id="machineryRequestForm" class="request-form tab-pane">
+                <h3>Заявка на спецтехнику</h3>
+                <select id="machineryType"></select>
+                <input type="text" id="machineryDescription" placeholder="Описание">
+                <input type="number" id="machineryPrice" placeholder="Цена аренды">
+                <input type="text" id="machineryContact" placeholder="Контакты">
+                <button onclick="createMachineryRequest()">Разместить</button>
+                <p id="machineryStatus" class="message"></p>
+            </div>
+            <div id="toolsRequestForm" class="request-form tab-pane">
+                <h3>Заявка на инструменты</h3>
+                <select id="toolsList"></select>
+                <input type="text" id="toolsDescription" placeholder="Описание">
+                <input type="number" id="toolsPrice" placeholder="Цена аренды">
+                <input type="text" id="toolsContact" placeholder="Контакты">
+                <button onclick="createToolRequest()">Разместить</button>
+                <p id="toolsStatus" class="message"></p>
+            </div>
+            <div id="materialsRequestForm" class="request-form tab-pane">
+                <h3>Объявление о материалах</h3>
+                <input type="text" id="materialType" placeholder="Тип материала">
+                <input type="text" id="materialDescription" placeholder="Описание">
+                <input type="number" id="materialPrice" placeholder="Цена">
+                <input type="text" id="materialContact" placeholder="Контакты">
+                <button onclick="createMaterialAd()">Разместить</button>
+                <p id="materialsStatus" class="message"></p>
+            </div>
+        </section>
 
-            <section id="takeOrderPage" class="tab-content">
-                <h2>Принять заявку</h2>
-                <p id="takeOrderDetails"></p>
-                <button onclick="takeWorkRequest()">Принять</button>
-                <p id="takeOrderStatus" class="message"></p>
-            </section>
-            
-            <section id="myRequestsPage" class="tab-content">
-                <h2>Мои заявки</h2>
-                <div class="tabs">
-                    <button class="tab-button active" onclick="showMyRequestsTab('myWorkRequests')">Работа</button>
-                    <button class="tab-button" onclick="showMyRequestsTab('myMachineryRequests')">Спецтехника</button>
-                    <button class="tab-button" onclick="showMyRequestsTab('myToolRequests')">Инструменты</button>
-                    <button class="tab-button" onclick="showMyRequestsTab('myMaterialAds')">Материалы</button>
-                </div>
-                <div id="myWorkRequests" class="tab-pane active">
-                    <h3>Заявки на работу</h3>
-                    <div id="myWorkRequestsList"></div>
-                </div>
-                <div id="myMachineryRequests" class="tab-pane">
-                    <h3>Заявки на спецтехнику</h3>
-                    <div id="myMachineryRequestsList"></div>
-                </div>
-                <div id="myToolRequests" class="tab-pane">
-                    <h3>Заявки на инструменты</h3>
-                    <div id="myToolRequestsList"></div>
-                </div>
-                <div id="myMaterialAds" class="tab-pane">
-                    <h3>Объявления о материалах</h3>
-                    <div id="myMaterialAdsList"></div>
-                </div>
-            </section>
-        </div>
+        <section id="marketplacePage" class="tab-content">
+            <button onclick="showPage('buttonContainer')">Назад</button>
+            <h2>Биржа заявок</h2>
+            <div class="tabs">
+                <button class="tab-button active" onclick="showMarketplaceTab('workMarketplace')">Работа</button>
+                <button class="tab-button" onclick="showMarketplaceTab('machineryMarketplace')">Спецтехника</button>
+                <button class="tab-button" onclick="showMarketplaceTab('toolsMarketplace')">Инструменты</button>
+                <button class="tab-button" onclick="showMarketplaceTab('materialsMarketplace')">Материалы</button>
+            </div>
+            <div id="workMarketplace" class="tab-pane active">
+                <h3>Заявки на работу</h3>
+                <div id="workRequestsList"></div>
+            </div>
+            <div id="machineryMarketplace" class="tab-pane">
+                <h3>Заявки на спецтехнику</h3>
+                <div id="machineryRequestsList"></div>
+            </div>
+            <div id="toolsMarketplace" class="tab-pane">
+                <h3>Заявки на инструменты</h3>
+                <div id="toolsRequestsList"></div>
+            </div>
+            <div id="materialsMarketplace" class="tab-pane">
+                <h3>Объявления о материалах</h3>
+                <div id="materialsAdsList"></div>
+            </div>
+        </section>
+
+        <section id="takeOrderPage" class="tab-content">
+            <button onclick="showPage('marketplacePage')">Назад</button>
+            <h2>Принять заявку</h2>
+            <p id="takeOrderDetails"></p>
+            <button onclick="takeWorkRequest()">Принять</button>
+            <p id="takeOrderStatus" class="message"></p>
+        </section>
+        
+        <section id="myRequestsPage" class="tab-content">
+            <button onclick="showPage('profilePage')">Назад</button>
+            <h2>Мои заявки</h2>
+            <div class="tabs">
+                <button class="tab-button active" onclick="showMyRequestsTab('myWorkRequests')">Работа</button>
+                <button class="tab-button" onclick="showMyRequestsTab('myMachineryRequests')">Спецтехника</button>
+                <button class="tab-button" onclick="showMyRequestsTab('myToolRequests')">Инструменты</button>
+                <button class="tab-button" onclick="showMyRequestsTab('myMaterialAds')">Материалы</button>
+            </div>
+            <div id="myWorkRequests" class="tab-pane active">
+                <h3>Заявки на работу</h3>
+                <div id="myWorkRequestsList"></div>
+            </div>
+            <div id="myMachineryRequests" class="tab-pane">
+                <h3>Заявки на спецтехнику</h3>
+                <div id="myMachineryRequestsList"></div>
+            </div>
+            <div id="myToolRequests" class="tab-pane">
+                <h3>Заявки на инструменты</h3>
+                <div id="myToolRequestsList"></div>
+            </div>
+            <div id="myMaterialAds" class="tab-pane">
+                <h3>Объявления о материалах</h3>
+                <div id="myMaterialAdsList"></div>
+            </div>
+        </section>
     </main>
-
-    <nav id="bottomNav" class="bottom-nav nav-hidden">
-        <a href="#" class="nav-item" onclick="showPage('requestPage')">
-            <i class="fas fa-plus-circle"></i>
-            <span>Разместить</span>
-        </a>
-        <a href="#" class="nav-item" onclick="showPage('marketplacePage')">
-            <i class="fas fa-list-ul"></i>
-            <span>Биржа</span>
-        </a>
-        <a href="#" class="nav-item" onclick="showPage('profilePage')">
-            <i class="fas fa-user"></i>
-            <span>Профиль</span>
-        </a>
-    </nav>
 
     <script>
         const API_URL = "/api";
@@ -265,10 +221,9 @@
         let currentUser = null;
         let lastSelectedRequestId = null;
 
-        const pages = ['loginPage', 'registerPage', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
+        const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityNameEl');
-        const bottomNav = document.getElementById('bottomNav');
 
         function showPage(pageId) {
             pages.forEach(id => {
@@ -281,33 +236,20 @@
             if (currentPage) {
                 currentPage.classList.add('active');
             }
-            // ИСПРАВЛЕНИЕ: Скрываем навигацию на страницах входа/регистрации
-            if (pageId === 'loginPage' || pageId === 'registerPage') {
-                bottomNav.classList.add('nav-hidden');
-                document.getElementById('mainContent').classList.remove('active');
-            } else {
-                bottomNav.classList.remove('nav-hidden');
-                document.getElementById('mainContent').classList.add('active');
-            }
-            
-            // ИСПРАВЛЕНИЕ: Обновляем активный пункт навигации
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            const activeNavItem = document.querySelector(`.nav-item[onclick="showPage('${pageId}')"]`);
-            if (activeNavItem) {
-                activeNavItem.classList.add('active');
-            }
-
-            // Загрузка данных для соответствующих страниц
             if (pageId === 'marketplacePage') {
-                applyFilters();
-            } else if (pageId === 'myRequestsPage') {
+                fetchWorkRequests();
+                fetchMachineryRequests();
+                fetchToolsRequests();
+                fetchMaterialsAds();
+            }
+            if (pageId === 'myRequestsPage') {
                 fetchMyRequests();
-            } else if (pageId === 'profilePage') {
+            }
+            if (pageId === 'profilePage') {
                 fetchProfile();
             }
         }
-        
-        // Функции для переключения вкладок
+
         function showTab(tabId) {
             const tabs = document.querySelectorAll('#requestPage .tabs .tab-button');
             tabs.forEach(tab => tab.classList.remove('active'));
@@ -369,45 +311,13 @@
 
         function changeCity() {
             cityModal.classList.add('active');
-            document.getElementById('citySearch').value = '';
-            fetchCities();
         }
-        
-        // ИСПРАВЛЕНИЕ: Объединяем логику загрузки городов для модального окна и формы регистрации
-        async function fetchAndPopulateCities(targetElementId) {
+
+        async function fetchCities() {
             const response = await fetch(`${API_URL}/cities`);
             const cities = await response.json();
-            const targetEl = document.getElementById(targetElementId);
-            targetEl.innerHTML = '';
-            
-            if (targetElementId === 'cityGrid') {
-                // Логика для модального окна выбора города
-                const citySearch = document.getElementById('citySearch');
-                citySearch.oninput = () => {
-                    const searchTerm = citySearch.value.toLowerCase();
-                    const filteredCities = cities.filter(city => city.name.toLowerCase().includes(searchTerm));
-                    populateCityButtons(filteredCities, targetEl);
-                };
-                populateCityButtons(cities, targetEl);
-            } else {
-                // Логика для выпадающего списка в форме регистрации
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = 'Выберите город';
-                defaultOption.disabled = true;
-                defaultOption.selected = true;
-                targetEl.appendChild(defaultOption);
-                cities.forEach(city => {
-                    const option = document.createElement('option');
-                    option.value = city.id;
-                    option.textContent = city.name;
-                    targetEl.appendChild(option);
-                });
-            }
-        }
-        
-        function populateCityButtons(cities, container) {
-            container.innerHTML = '';
+            const cityGrid = document.getElementById('cityGrid');
+            cityGrid.innerHTML = '';
             cities.forEach(city => {
                 const button = document.createElement('button');
                 button.textContent = city.name;
@@ -417,7 +327,7 @@
                     cityModal.classList.remove('active');
                     checkAuthentication();
                 };
-                container.appendChild(button);
+                cityGrid.appendChild(button);
             });
         }
 
@@ -426,36 +336,48 @@
             const specializations = await response.json();
             const selectEl = document.getElementById('workSpecialization');
             const profileSelectEl = document.getElementById('specializationSelect');
-            const filterSelectEl = document.getElementById('filterSpecialization');
-            
-            const specializationOptions = specializations.map(spec => `<option value="${spec}">${spec}</option>`).join('');
-            
-            selectEl.innerHTML = specializationOptions;
-            profileSelectEl.innerHTML = specializationOptions;
-            filterSelectEl.innerHTML = `<option value="">Все специализации</option>` + specializationOptions;
+            selectEl.innerHTML = '';
+            profileSelectEl.innerHTML = '';
+            specializations.forEach(spec => {
+                const option = document.createElement('option');
+                option.value = spec;
+                option.textContent = spec;
+                selectEl.appendChild(option);
+                profileSelectEl.appendChild(option.cloneNode(true));
+            });
         }
         
         async function fetchMachineryTypes() {
             const response = await fetch(`${API_URL}/machinery-types`);
             const types = await response.json();
             const selectEl = document.getElementById('machineryType');
-            selectEl.innerHTML = types.map(type => `<option value="${type}">${type}</option>`).join('');
+            selectEl.innerHTML = '';
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                selectEl.appendChild(option);
+            });
         }
 
         async function fetchToolsList() {
             const response = await fetch(`${API_URL}/tools-list`);
             const tools = await response.json();
             const selectEl = document.getElementById('toolsList');
-            selectEl.innerHTML = tools.map(tool => `<option value="${tool}">${tool}</option>`).join('');
+            selectEl.innerHTML = '';
+            tools.forEach(tool => {
+                const option = document.createElement('option');
+                option.value = tool;
+                option.textContent = tool;
+                selectEl.appendChild(option);
+            });
         }
 
         async function registerUser() {
             const username = document.getElementById('regUsername').value;
             const password = document.getElementById('regPassword').value;
             const user_name = document.getElementById('regUserName').value;
-            // ИСПРАВЛЕНИЕ: Получаем значение из select
             const user_type = document.getElementById('regUserType').value;
-            // ИСПРАВЛЕНИЕ: Получаем значение из select
             const city_id = parseInt(document.getElementById('regCityId').value);
 
             const response = await fetch(`${API_URL}/users/`, {
@@ -497,7 +419,7 @@
                 statusEl.textContent = `Вход успешен.`;
                 statusEl.className = 'message success';
                 await fetchProfile();
-                showPage('requestPage'); // Переходим на главную после входа
+                showPage('buttonContainer');
             } else {
                 statusEl.textContent = `Ошибка входа: ${data.detail}`;
                 statusEl.className = 'message error';
@@ -530,7 +452,6 @@
                     <p><strong>Город ID:</strong> ${currentUser.city_id}</p>
                     <p><strong>Специализация:</strong> ${currentUser.specialization || 'Не указана'}</p>
                 `;
-                // ИСПРАВЛЕНИЕ: Логика отображения формы обновления специализации
                 if (currentUser.user_type === "ИСПОЛНИТЕЛЬ" || currentUser.user_type === "ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ") {
                     specializationUpdateEl.style.display = 'block';
                 } else {
@@ -594,7 +515,8 @@
             }
         }
         
-        async function createMachineryRequest() {
+async function createMachineryRequest() {
+            // ✅ ИСПРАВЛЕНО: Правильное имя переменной
             const machinery_type = document.getElementById('machineryType').value;
             const description = document.getElementById('machineryDescription').value;
             const rental_price = parseFloat(document.getElementById('machineryPrice').value);
@@ -617,6 +539,7 @@
             const response = await fetch(`${API_URL}/machinery-requests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                // ✅ ИСПРАВЛЕНО: Используем правильную переменную
                 body: JSON.stringify({ machinery_type, description, rental_price, contact_info, city_id: city.id })
             });
 
@@ -701,20 +624,8 @@
                 statusEl.className = 'message error';
             }
         }
-
-        // ИСПРАВЛЕНИЕ: Новая функция для применения фильтров на бирже
-        function applyFilters() {
-            const searchTerm = document.getElementById('filterSearch').value.toLowerCase();
-            const specialization = document.getElementById('filterSpecialization').value;
-            
-            fetchWorkRequests(searchTerm, specialization);
-            // TODO: Добавить фильтрацию для других типов заявок, если бэкенд будет поддерживать
-            fetchMachineryRequests();
-            fetchToolsRequests();
-            fetchMaterialsAds();
-        }
         
-        async function fetchWorkRequests(searchTerm = '', specialization = '') {
+        async function fetchWorkRequests() {
             const listEl = document.getElementById('workRequestsList');
             listEl.innerHTML = 'Загрузка...';
             const city = getSelectedCity();
@@ -722,9 +633,7 @@
                 listEl.innerHTML = '<p class="error">Пожалуйста, выберите город.</p>';
                 return;
             }
-            // ИСПРАВЛЕНИЕ: Передача параметров фильтрации в API
-            const url = `${API_URL}/work-requests?city_id=${city.id}&search=${searchTerm}&specialization=${specialization}`;
-            const response = await fetch(url);
+            const response = await fetch(`${API_URL}/work-requests?city_id=${city.id}`);
             if (response.ok) {
                 const requests = await response.json();
                 listEl.innerHTML = '';
@@ -748,7 +657,7 @@
                 listEl.innerHTML = '<p class="error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>';
             }
         }
-        
+
         async function fetchMachineryRequests() {
             const listEl = document.getElementById('machineryRequestsList');
             listEl.innerHTML = 'Загрузка...';
@@ -768,7 +677,7 @@
                         const item = document.createElement('div');
                         item.className = 'request-item';
                         item.innerHTML = `
-                            <h3>${req.machinery_type}</h3>
+                            <h3>${req.machine_type}</h3>
                             <p><strong>Описание:</strong> ${req.description}</p>
                             <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
                             <p><strong>Контакты:</strong> ${req.contact_info}</p>
@@ -876,7 +785,7 @@
                             `;
                         } else if (itemType === 'заявок на спецтехнику') {
                             item.innerHTML = `
-                                <h3>${req.machinery_type}</h3>
+                                <h3>${req.machine_type}</h3>
                                 <p><strong>Описание:</strong> ${req.description}</p>
                                 <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
                                 <p><strong>Контакты:</strong> ${req.contact_info}</p>
@@ -915,6 +824,7 @@
         function prepareTakeRequest(requestId, requestType) {
             lastSelectedRequestId = requestId;
             document.getElementById('takeOrderDetails').textContent = `ID заявки: ${requestId}`;
+            // Дополнительная логика, если нужно отобразить детали
             showPage('takeOrderPage');
         }
 
@@ -947,15 +857,14 @@
             accessToken = localStorage.getItem('accessToken');
             if (accessToken) {
                 fetchProfile();
-                showPage('requestPage'); // Переход на главную после проверки
+                showPage('buttonContainer');
             } else {
                 showPage('loginPage');
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            fetchAndPopulateCities('cityGrid');
-            fetchAndPopulateCities('regCityId');
+            fetchCities();
             fetchSpecializations();
             fetchMachineryTypes();
             fetchToolsList();
