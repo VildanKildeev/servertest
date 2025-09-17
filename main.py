@@ -291,10 +291,12 @@ async def create_work_request(request: WorkRequestCreate, current_user: UserInDB
     )
 
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
-async def read_work_requests(city_id: Optional[int] = None):
+async def read_work_requests(city_id: Optional[int] = None, specialization: Optional[str] = None):
     query = work_requests.select()
     if city_id is not None:
         query = query.where(work_requests.c.city_id == city_id)
+    if specialization:
+        query = query.where(work_requests.c.specialization == specialization)
         
     requests = await database.fetch_all(query)
     # ✅ ИСПРАВЛЕНИЕ: Преобразуем данные в Pydantic-модели
