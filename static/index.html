@@ -25,10 +25,6 @@
         .city-button.selected { background: #ff6600; }
         .city-button:hover { background: #ff7711; }
         .logo-placeholder { font-size: 32px; font-weight: bold; margin-bottom: 20px; text-align: center; color: #ff6600; }
-        .button-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        /* Новые стили для кнопок с иконками */
-        .action-button { background: #ff6600; color: white; padding: 15px; border-radius: 8px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .action-button:hover { background: #cc5200; }
         .profile-info, .request-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
         .request-item { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
         .request-item h3 { margin-bottom: 5px; }
@@ -43,13 +39,17 @@
         .tabs { display: flex; justify-content: space-around; margin-bottom: 20px; }
         .tab-button { padding: 10px 15px; border-radius: 5px 5px 0 0; border: none; cursor: pointer; background: #383838; color: #f0f0f0; }
         .tab-button.active { background: #ff6600; }
-
-        /* Новые стили для блоков заявок */
         .requests-block { background-color: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .requests-block summary { font-size: 1.2em; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
         .requests-block summary i { transition: transform 0.3s; }
         .requests-block[open] summary i { transform: rotate(90deg); }
         .requests-block h3 { margin-top: 0; }
+        /* Новые стили для главного меню в 2 столбца */
+        .main-menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .main-menu-col { display: flex; flex-direction: column; gap: 10px; }
+        .main-menu-col h3 { color: #ff6600; border-bottom: 2px solid #ff6600; padding-bottom: 5px; margin-bottom: 15px; }
+        .main-menu-button { background: #383838; color: #f0f0f0; padding: 15px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; text-align: center; }
+        .main-menu-button:hover { background: #555; }
     </style>
 </head>
 <body>
@@ -91,11 +91,25 @@
         <section id="buttonContainer" class="tab-content">
             <p class="selected-city">Ваш город: <span id="cityNameEl"></span> <a href="#" onclick="changeCity()">Изменить</a></p>
             <div class="logo-placeholder">СМЗ.РФ</div>
-            <div class="button-grid">
-                <button class="action-button" onclick="showPage('requestPage')"><i class="fas fa-plus-circle"></i> Разместить заявку</button>
-                <button class="action-button" onclick="showPage('marketplacePage')"><i class="fas fa-warehouse"></i> Биржа заявок</button>
-                <button class="action-button" onclick="showPage('profilePage')"><i class="fas fa-user-circle"></i> Профиль</button>
+            <div class="main-menu-grid">
+                <div class="main-menu-col">
+                    <h3>Разместить заявку</h3>
+                    <button class="main-menu-button" onclick="showRequestForm('workRequestForm')">Работа</button>
+                    <button class="main-menu-button" onclick="showRequestForm('machineryRequestForm')">Спецтехника</button>
+                    <button class="main-menu-button" onclick="showRequestForm('toolsRequestForm')">Инструменты</button>
+                    <button class="main-menu-button" onclick="showRequestForm('materialsRequestForm')">Материалы</button>
+                </div>
+                <div class="main-menu-col">
+                    <h3>Биржа заявок</h3>
+                    <button class="main-menu-button" onclick="showMarketplaceTab('workMarketplace')">Работа</button>
+                    <button class="main-menu-button" onclick="showMarketplaceTab('machineryMarketplace')">Спецтехника</button>
+                    <button class="main-menu-button" onclick="showMarketplaceTab('toolsMarketplace')">Инструменты</button>
+                    <button class="main-menu-button" onclick="showMarketplaceTab('materialsMarketplace')">Материалы</button>
+                </div>
             </div>
+            <button class="main-menu-button" style="margin-top: 20px;" onclick="showPage('profilePage')">
+                <i class="fas fa-user-circle"></i> Профиль
+            </button>
         </section>
 
         <section id="profilePage" class="tab-content">
@@ -162,7 +176,6 @@
         <section id="marketplacePage" class="tab-content">
             <button onclick="showPage('buttonContainer')">Назад</button>
             <h2>Биржа заявок</h2>
-
             <details class="requests-block" open>
                 <summary>Заявки на работу <i class="fas fa-caret-right"></i></summary>
                 <div class="input-group">
@@ -195,7 +208,7 @@
             <button onclick="takeWorkRequest()">Принять</button>
             <p id="takeOrderStatus" class="message"></p>
         </section>
-        
+
         <section id="myRequestsPage" class="tab-content">
             <button onclick="showPage('profilePage')">Назад</button>
             <h2>Мои заявки</h2>
@@ -230,7 +243,7 @@
         let selectedCity = null;
         let currentUser = null;
         let lastSelectedRequestId = null;
-        let citiesMap = {}; // Объект для хранения пар ID-название города
+        let citiesMap = {};
 
         const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
         const cityModal = document.getElementById('cityModal');
@@ -261,6 +274,23 @@
             }
         }
 
+        // Новая функция для отображения формы заявки
+        function showRequestForm(tabId) {
+            showPage('requestPage');
+            showTab(tabId);
+        }
+
+        // Новая функция для отображения вкладки биржи
+        function showMarketplaceTab(tabId) {
+            showPage('marketplacePage');
+            const tabs = document.querySelectorAll('#marketplacePage .requests-block');
+            tabs.forEach(tab => tab.removeAttribute('open'));
+            const activeTab = document.querySelector(`#${tabId}`);
+            if (activeTab) {
+                activeTab.setAttribute('open', '');
+            }
+        }
+
         function showTab(tabId) {
             const tabs = document.querySelectorAll('#requestPage .tabs .tab-button');
             tabs.forEach(tab => tab.classList.remove('active'));
@@ -276,29 +306,13 @@
                 activePane.classList.add('active');
             }
         }
-        
-        function showMarketplaceTab(tabId) {
-            const tabs = document.querySelectorAll('#marketplacePage .tabs .tab-button');
-            tabs.forEach(tab => tab.classList.remove('active'));
-            const tabPanes = document.querySelectorAll('#marketplacePage .tab-pane');
-            tabPanes.forEach(tab => tab.classList.remove('active'));
-            
-            const activeTab = document.querySelector(`#marketplacePage .tabs button[onclick="showMarketplaceTab('${tabId}')"]`);
-            if (activeTab) {
-                activeTab.classList.add('active');
-            }
-            const activePane = document.getElementById(tabId);
-            if (activePane) {
-                activePane.classList.add('active');
-            }
-        }
 
         function showMyRequestsTab(tabId) {
             const tabs = document.querySelectorAll('#myRequestsPage .tabs .tab-button');
             tabs.forEach(tab => tab.classList.remove('active'));
             const tabPanes = document.querySelectorAll('#myRequestsPage .tab-pane');
             tabPanes.forEach(tab => tab.classList.remove('active'));
-            
+
             const activeTab = document.querySelector(`#myRequestsPage .tabs button[onclick="showMyRequestsTab('${tabId}')"]`);
             if (activeTab) {
                 activeTab.classList.add('active');
@@ -330,7 +344,7 @@
             const cityGrid = document.getElementById('cityGrid');
             cityGrid.innerHTML = '';
             cities.forEach(city => {
-                citiesMap[city.id] = city.name; // Заполняем карту городов
+                citiesMap[city.id] = city.name;
                 const button = document.createElement('button');
                 button.textContent = city.name;
                 button.className = 'city-button';
@@ -348,11 +362,11 @@
             const specializations = await response.json();
             const selectEl = document.getElementById('workSpecialization');
             const profileSelectEl = document.getElementById('specializationSelect');
-            const filterSpecializationEl = document.getElementById('filterSpecialization'); // Новый элемент
-            
+            const filterSpecializationEl = document.getElementById('filterSpecialization');
+
             selectEl.innerHTML = '';
             profileSelectEl.innerHTML = '';
-            
+
             const allOption = document.createElement('option');
             allOption.value = "";
             allOption.textContent = "Все специализации";
@@ -367,7 +381,7 @@
                 filterSpecializationEl.appendChild(option.cloneNode(true));
             });
         }
-        
+
         async function fetchMachineryTypes() {
             const response = await fetch(`${API_URL}/machinery-types`);
             const types = await response.json();
@@ -463,7 +477,7 @@
             });
             const profileInfoEl = document.getElementById('profileInfo');
             const specializationUpdateEl = document.getElementById('specializationUpdate');
-            
+
             if (response.ok) {
                 currentUser = await response.json();
                 const cityName = citiesMap[currentUser.city_id] || 'Неизвестный город';
@@ -484,7 +498,7 @@
                 logout();
             }
         }
-        
+
         async function updateUserSpecialization() {
             const specialization = document.getElementById('specializationSelect').value;
             const response = await fetch(`${API_URL}/users/update-specialization`, {
@@ -508,7 +522,7 @@
             const specialization = document.getElementById('workSpecialization').value;
             const statusEl = document.getElementById('workStatus');
             const city = getSelectedCity();
-            
+
             if (!accessToken) {
                 statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
                 statusEl.className = 'message error';
@@ -536,7 +550,7 @@
                 statusEl.className = 'message error';
             }
         }
-        
+
         async function createMachineryRequest() {
             const machinery_type = document.getElementById('machineryType').value;
             const description = document.getElementById('machineryDescription').value;
@@ -544,7 +558,7 @@
             const contact_info = document.getElementById('machineryContact').value;
             const statusEl = document.getElementById('machineryStatus');
             const city = getSelectedCity();
-            
+
             if (!accessToken) {
                 statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
                 statusEl.className = 'message error';
@@ -580,7 +594,7 @@
             const contact_info = document.getElementById('toolsContact').value;
             const statusEl = document.getElementById('toolsStatus');
             const city = getSelectedCity();
-            
+
             if (!accessToken) {
                 statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
                 statusEl.className = 'message error';
@@ -616,7 +630,7 @@
             const contact_info = document.getElementById('materialContact').value;
             const statusEl = document.getElementById('materialsStatus');
             const city = getSelectedCity();
-            
+
             if (!accessToken) {
                 statusEl.textContent = 'Ошибка: Вы не авторизованы. Пожалуйста, войдите.';
                 statusEl.className = 'message error';
@@ -644,7 +658,7 @@
                 statusEl.className = 'message error';
             }
         }
-        
+
         async function fetchWorkRequests() {
             const listEl = document.getElementById('workRequestsList');
             listEl.innerHTML = 'Загрузка...';
@@ -653,13 +667,11 @@
                 listEl.innerHTML = '<p class="error">Пожалуйста, выберите город.</p>';
                 return;
             }
-            const specialization = document.getElementById('filterSpecialization').value; // Получаем выбранную специализацию
-            
+            const specialization = document.getElementById('filterSpecialization').value;
             let url = `${API_URL}/work-requests?city_id=${city.id}`;
             if (specialization) {
                 url += `&specialization=${encodeURIComponent(specialization)}`;
             }
-
             const response = await fetch(url);
             if (response.ok) {
                 const requests = await response.json();
@@ -780,20 +792,20 @@
                 listEl.innerHTML = '<p class="error">Не удалось загрузить объявления. Пожалуйста, попробуйте позже.</p>';
             }
         }
-        
+
         async function fetchMyRequests() {
             if (!accessToken) {
                 showPage('loginPage');
                 return;
             }
-            
+
             const response = await fetch(`${API_URL}/users/my-requests`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
-            
+
             const data = await response.json();
-            
+
             function renderRequests(requests, elementId, itemType) {
                 const listEl = document.getElementById(elementId);
                 listEl.innerHTML = '';
@@ -836,7 +848,7 @@
                     });
                 }
             }
-            
+
             if (response.ok) {
                 renderRequests(data.work_requests, 'myWorkRequestsList', 'заявок на работу');
                 renderRequests(data.machinery_requests, 'myMachineryRequestsList', 'заявок на спецтехнику');
@@ -847,11 +859,10 @@
                 logout();
             }
         }
-        
+
         function prepareTakeRequest(requestId, requestType) {
             lastSelectedRequestId = requestId;
             document.getElementById('takeOrderDetails').textContent = `ID заявки: ${requestId}`;
-            // Дополнительная логика, если нужно отобразить детали
             showPage('takeOrderPage');
         }
 
@@ -895,7 +906,6 @@
             fetchSpecializations();
             fetchMachineryTypes();
             fetchToolsList();
-
             if (getSelectedCity()) {
                 cityNameEl.textContent = getSelectedCity().name;
                 checkAuthentication();
