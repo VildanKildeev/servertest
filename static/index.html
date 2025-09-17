@@ -155,14 +155,12 @@
             cursor: pointer;
         }
 
-        /* КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ДОБАВЛЕНИЕ СТИЛЕЙ ДЛЯ ПРОКРУТКИ */
         #cityGrid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             gap: 12px;
             width: 100%;
             margin-bottom: 20px;
-            /* Стили для прокрутки */
             max-height: 70vh;
             overflow-y: auto;
         }
@@ -222,6 +220,7 @@
             border-radius: 8px;
             margin-bottom: 16px;
             text-align: center;
+            display: none;
         }
         
         .message.error {
@@ -232,6 +231,11 @@
         .message.success {
             background-color: rgba(60, 122, 93, 0.2);
             color: var(--accent-color);
+        }
+        
+        .message.info {
+            background-color: rgba(191, 161, 126, 0.2);
+            color: var(--yellow-accent);
         }
 
         .input-group {
@@ -422,7 +426,6 @@
             width: 100%;
             margin-top: 16px;
         }
-
     </style>
 </head>
 <body>
@@ -771,7 +774,7 @@
                 const cityGrid = el('cityGrid');
                 cityGrid.innerHTML = '';
                 if (cities.length === 0) {
-                    showMessage('cityStatus', 'Список городов пуст.', 'error');
+                    showMessage('cityStatus', 'Список городов пуст.', 'info');
                     return;
                 }
                 cities.forEach(city => {
@@ -808,12 +811,12 @@
                 workSpecEl.innerHTML = '';
                 specializations.forEach(spec => {
                     const option = document.createElement('option');
-                    option.value = spec.id;
+                    option.value = spec.name;
                     option.textContent = spec.name;
                     selectEl.appendChild(option);
 
                     const optionReg = document.createElement('option');
-                    optionReg.value = spec.id;
+                    optionReg.value = spec.name;
                     optionReg.textContent = spec.name;
                     selectRegEl.appendChild(optionReg);
                     
@@ -838,7 +841,7 @@
                     el('welcomeMessage').textContent = `Привет, ${userData.user_name || userData.username}!`;
                     el('profileUsername').textContent = userData.username;
                     el('profileUserType').textContent = userData.user_type === 'worker' ? 'Работник' : 'Компания';
-                    el('profileSpecialization').textContent = userData.specialization ? specializations.find(s => s.id === userData.specialization)?.name || 'Не указана' : 'Не указана';
+                    el('profileSpecialization').textContent = userData.specialization || 'Не указана';
                     el('profileCity').textContent = getSelectedCity()?.name || 'Не указан';
                 } else {
                     localStorage.removeItem('accessToken');
@@ -865,7 +868,7 @@
                 const list = el('workRequestsList');
                 list.innerHTML = '';
                 if (requests.length === 0) {
-                    showMessage('workRequestStatus', 'Нет доступных заявок на работы в вашем городе.', 'success');
+                    showMessage('workRequestStatus', 'Нет доступных заявок на работы в вашем городе.', 'info');
                     return;
                 }
                 
@@ -876,7 +879,7 @@
                         <h4>${req.title}</h4>
                         <p><strong>Описание:</strong> ${req.description}</p>
                         <p><strong>Цена:</strong> ${req.price} руб.</p>
-                        <p><strong>Специализация:</strong> ${specializations.find(s => s.id === req.specialization_id)?.name || 'Не указана'}</p>
+                        <p><strong>Специализация:</strong> ${req.specialization}</p>
                         <p><strong>Контакты:</strong> ${req.contact_info}</p>
                         ${req.executor_id ? '<p><strong>Статус:</strong> <span style="color:red;">Заявка принята</span></p>' : ''}
                         <button class="take-request-btn" data-id="${req.id}" ${req.executor_id ? 'disabled' : ''}>${req.executor_id ? 'Принято' : 'Принять заявку'}</button>
@@ -923,7 +926,7 @@
                 const list = el('machineryAdsList');
                 list.innerHTML = '';
                 if (ads.length === 0) {
-                    showMessage('machineryStatus', 'Нет объявлений о спецтехнике в вашем городе.', 'success');
+                    showMessage('machineryStatus', 'Нет объявлений о спецтехнике в вашем городе.', 'info');
                     return;
                 }
                 ads.forEach(ad => {
@@ -973,7 +976,7 @@
                 const list = el('toolsAdsList');
                 list.innerHTML = '';
                 if (ads.length === 0) {
-                    showMessage('toolsStatus', 'Нет объявлений об инструментах в вашем городе.', 'success');
+                    showMessage('toolsStatus', 'Нет объявлений об инструментах в вашем городе.', 'info');
                     return;
                 }
                 ads.forEach(ad => {
@@ -1023,7 +1026,7 @@
                 const list = el('materialsAdsList');
                 list.innerHTML = '';
                 if (ads.length === 0) {
-                    showMessage('materialsStatus', 'Нет объявлений о материалах в вашем городе.', 'success');
+                    showMessage('materialsStatus', 'Нет объявлений о материалах в вашем городе.', 'info');
                     return;
                 }
                 ads.forEach(ad => {
@@ -1076,7 +1079,7 @@
             const password = el('registerPassword').value;
             const name = el('registerName').value;
             const userType = el('registerUserType').value;
-            const specializationId = el('specializationSelectRegister').value;
+            const specialization = el('specializationSelectRegister').value;
             const city = getSelectedCity();
             
             const payload = {
@@ -1087,7 +1090,7 @@
                 city_id: city.id
             };
             if (userType === 'worker') {
-                payload.specialization_id = parseInt(specializationId);
+                payload.specialization = specialization;
             }
 
             try {
@@ -1099,6 +1102,7 @@
                 const data = await response.json();
                 if (response.ok) {
                     showMessage('registerMessage', 'Регистрация прошла успешно! Теперь вы можете войти.', 'success');
+                    document.getElementById('registerForm').reset();
                     showPage('loginPage');
                 } else {
                     showMessage('registerMessage', data.detail || 'Ошибка регистрации. Попробуйте другой логин.', 'error');
