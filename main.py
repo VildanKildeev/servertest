@@ -12,12 +12,28 @@ from datetime import datetime
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy import join
+import sqlalchemy
 
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import users, work_requests, machinery_requests, tool_requests, material_ads, metadata, engine, DATABASE_URL
+from database import (
+    users, 
+    work_requests, 
+    machinery_requests, 
+    tool_requests, 
+    material_ads, 
+    metadata, 
+    engine, 
+    DATABASE_URL,
+    cities,
+    specializations,
+    machinery_types,
+    tool_types,
+    material_types
+)
 
 database = databases.Database(DATABASE_URL)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -47,7 +63,11 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
-# --- Исправлено: Модели Pydantic для данных из базы данных ---
+# Pydantic models (только изменения и дополнения)
+class DynamicData(BaseModel):
+    id: int
+    name: str
+
 class UserInDB(BaseModel):
     id: int
     username: str
@@ -55,7 +75,7 @@ class UserInDB(BaseModel):
     user_name: str
     user_type: str
     city_id: int
-    specialization: Optional[str] = None
+    specialization_id: Optional[int] = None
 
 class Token(BaseModel):
     access_token: str
@@ -66,7 +86,7 @@ class WorkRequestIn(BaseModel):
     description: Optional[str] = None
     contact_info: str
     city_id: int
-    specialization: str
+    specialization_id: int
     is_public: bool
 
 class WorkRequestInDB(WorkRequestIn):
@@ -76,44 +96,55 @@ class WorkRequestInDB(WorkRequestIn):
     is_taken: bool = False
     executor_id: Optional[int] = None
 
-class MachineryRequest(BaseModel):
-    machinery_name: str
+class WorkRequestOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    contact_info: str
+    city: str
+    specialization: str
+    is_public: bool
+    created_at: datetime
+    is_taken: bool
+    user_name: str
+    executor_name: Optional[str]
+
+class MachineryRequestIn(BaseModel):
+    machinery_type_id: int
     description: Optional[str] = None
     rental_price: Optional[float] = None
     contact_info: str
     city_id: int
 
-class MachineryRequestInDB(MachineryRequest):
+class MachineryRequestInDB(MachineryRequestIn):
     id: int
     user_id: int
     created_at: datetime
 
-class ToolRequest(BaseModel):
-    tool_name: str
+class ToolRequestIn(BaseModel):
+    tool_type_id: int
     description: Optional[str] = None
     rental_price: Optional[float] = None
     contact_info: str
     city_id: int
 
-class ToolRequestInDB(ToolRequest):
+class ToolRequestInDB(ToolRequestIn):
     id: int
     user_id: int
     created_at: datetime
 
-class MaterialAd(BaseModel):
-    material_type: str
+class MaterialAdIn(BaseModel):
+    material_type_id: int
     description: Optional[str] = None
     price: Optional[float] = None
     contact_info: str
     city_id: int
 
-class MaterialAdInDB(MaterialAd):
+class MaterialAdInDB(MaterialAdIn):
     id: int
     user_id: int
     created_at: datetime
 
-
-# --- Исправлено: Функция get_current_user перемещена наверх ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
 def verify_password(plain_password, hashed_password):
@@ -132,7 +163,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# Эта функция должна быть ПЕРЕД всеми маршрутами, которые ее используют
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -154,7 +184,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return UserInDB(**user._mapping)
 
-# --- Ваши API-маршруты ---
 @api_router.post("/register")
 async def register_user(
     username: str, 
@@ -162,7 +191,7 @@ async def register_user(
     user_name: str, 
     user_type: str, 
     city_id: int, 
-    specialization: Optional[str] = None
+    specialization_id: Optional[int] = None
 ):
     query = users.select().where(users.c.username == username)
     existing_user = await database.fetch_one(query)
@@ -176,7 +205,7 @@ async def register_user(
         user_name=user_name,
         user_type=user_type,
         city_id=city_id,
-        specialization=specialization
+        specialization_id=specialization_id
     )
     await database.execute(insert_query)
     return {"message": "Пользователь успешно зарегистрирован"}
@@ -202,75 +231,36 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def get_profile(current_user: UserInDB = Depends(get_current_user)):
     return current_user
 
-# --- Исправлено: Маршруты для получения списков с правильным форматом данных ---
-@api_router.get("/cities")
+@api_router.get("/cities", response_model=List[DynamicData])
 async def get_cities():
-    cities = [
-        {"id": 1, "name": "Москва"},
-        {"id": 2, "name": "Санкт-Петербург"},
-        {"id": 3, "name": "Казань"},
-        {"id": 4, "name": "Екатеринбург"},
-        {"id": 5, "name": "Новосибирск"},
-    ]
-    return cities
+    query = cities.select()
+    return await database.fetch_all(query)
 
-@api_router.get("/specializations")
+@api_router.get("/specializations", response_model=List[DynamicData])
 async def get_specializations():
-    specializations = [
-        {"id": 1, "name": "Отделочник"},
-        {"id": 2, "name": "Сантехник"},
-        {"id": 3, "name": "Электрик"},
-        {"id": 4, "name": "Мастер по мебели"},
-        {"id": 5, "name": "Мастер на час"},
-        {"id": 6, "name": "Уборка"},
-        {"id": 7, "name": "Проектирование"}
-    ]
-    return specializations
+    query = specializations.select()
+    return await database.fetch_all(query)
 
-@api_router.get("/machinery-types")
+@api_router.get("/machinery-types", response_model=List[DynamicData])
 async def get_machinery_types():
-    machinery_types = [
-        {"id": 1, "name": "Экскаватор"},
-        {"id": 2, "name": "Бульдозер"},
-        {"id": 3, "name": "Автокран"},
-        {"id": 4, "name": "Самосвал"},
-        {"id": 5, "name": "Ямобур"},
-        {"id": 6, "name": "Манипулятор"},
-        {"id": 7, "name": "Погрузчик"},
-        {"id": 8, "name": "Эвакуатор"}
-    ]
-    return machinery_types
+    query = machinery_types.select()
+    return await database.fetch_all(query)
 
-@api_router.get("/tool-types")
+@api_router.get("/tool-types", response_model=List[DynamicData])
 async def get_tool_types():
-    tool_types = [
-        {"id": 1, "name": "Отбойный молоток"},
-        {"id": 2, "name": "Вибратор для бетона"},
-        {"id": 3, "name": "Компрессор"},
-        {"id": 4, "name": "Сварочный аппарат"},
-        {"id": 5, "name": "Генератор"},
-        {"id": 6, "name": "Бетономешалка"}
-    ]
-    return tool_types
+    query = tool_types.select()
+    return await database.fetch_all(query)
 
-@api_router.get("/material-types")
+@api_router.get("/material-types", response_model=List[DynamicData])
 async def get_material_types():
-    material_types = [
-        {"id": 1, "name": "Кирпич"},
-        {"id": 2, "name": "Цемент"},
-        {"id": 3, "name": "Гипсокартон"},
-        {"id": 4, "name": "Пиломатериалы"},
-        {"id": 5, "name": "Металлопрокат"},
-        {"id": 6, "name": "Лакокрасочные материалы"}
-    ]
-    return material_types
+    query = material_types.select()
+    return await database.fetch_all(query)
 
-# --- Ваши API-маршруты для создания и получения заявок ---
 @api_router.post("/work-requests", response_model=WorkRequestInDB)
 async def create_work_request(request: WorkRequestIn, current_user: UserInDB = Depends(get_current_user)):
     query = work_requests.insert().values(
         title=request.title,
-        specialization=request.specialization,
+        specialization_id=request.specialization_id,
         description=request.description,
         contact_info=request.contact_info,
         city_id=request.city_id,
@@ -281,13 +271,32 @@ async def create_work_request(request: WorkRequestIn, current_user: UserInDB = D
     
     return {**request.dict(), "id": last_record_id, "user_id": current_user.id, "created_at": datetime.utcnow()}
 
-@api_router.get("/work-requests", response_model=List[WorkRequestInDB])
+@api_router.get("/work-requests", response_model=List[WorkRequestOut])
 async def get_work_requests(city_id: Optional[int] = None):
-    query = work_requests.select()
+    j = join(work_requests, specializations, work_requests.c.specialization_id == specializations.c.id)
+    j = join(j, cities, work_requests.c.city_id == cities.c.id)
+    j = join(j, users.alias('creator'), work_requests.c.user_id == users.alias('creator').c.id)
+    j = j.outerjoin(users.alias('executor'), work_requests.c.executor_id == users.alias('executor').c.id)
+
+    query = sqlalchemy.select([
+        work_requests.c.id,
+        work_requests.c.title,
+        work_requests.c.description,
+        work_requests.c.contact_info,
+        work_requests.c.is_public,
+        work_requests.c.created_at,
+        work_requests.c.is_taken,
+        cities.c.name.label('city'),
+        specializations.c.name.label('specialization'),
+        users.alias('creator').c.user_name.label('user_name'),
+        users.alias('executor').c.user_name.label('executor_name')
+    ]).select_from(j)
+
     if city_id:
         query = query.where(work_requests.c.city_id == city_id)
+        
     requests = await database.fetch_all(query)
-    return [WorkRequestInDB(**req._mapping) for req in requests]
+    return [WorkRequestOut(**req._mapping) for req in requests]
 
 @api_router.post("/work-requests/{request_id}/take", response_model=WorkRequestInDB)
 async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
@@ -296,9 +305,12 @@ async def take_work_request(request_id: int, current_user: UserInDB = Depends(ge
 
     if not request:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
+    
+    if current_user.user_type != 'executor':
+        raise HTTPException(status_code=403, detail="Только исполнители могут брать заявки.")
 
-    if request.executor_id is not None:
-        raise HTTPException(status_code=400, detail="Эта заявка уже принята другим исполнителем.")
+    if request.is_taken:
+        raise HTTPException(status_code=400, detail="Эта заявка уже принята.")
     
     update_query = work_requests.update().where(work_requests.c.id == request_id).values(executor_id=current_user.id, is_taken=True)
     await database.execute(update_query)
@@ -318,11 +330,10 @@ async def get_user_taken_requests(current_user: UserInDB = Depends(get_current_u
     requests = await database.fetch_all(query)
     return [WorkRequestInDB(**req._mapping) for req in requests]
 
-
 @api_router.post("/machinery-requests", response_model=MachineryRequestInDB)
-async def create_machinery_request(request: MachineryRequest, current_user: UserInDB = Depends(get_current_user)):
+async def create_machinery_request(request: MachineryRequestIn, current_user: UserInDB = Depends(get_current_user)):
     query = machinery_requests.insert().values(
-        machinery_name=request.machinery_name,
+        machinery_type_id=request.machinery_type_id,
         description=request.description,
         rental_price=request.rental_price,
         contact_info=request.contact_info,
@@ -330,7 +341,7 @@ async def create_machinery_request(request: MachineryRequest, current_user: User
         user_id=current_user.id
     )
     last_record_id = await database.execute(query)
-    return MachineryRequestInDB(id=last_record_id, **request.dict(), user_id=current_user.id)
+    return MachineryRequestInDB(id=last_record_id, **request.dict(), user_id=current_user.id, created_at=datetime.utcnow())
 
 @api_router.get("/machinery-requests", response_model=List[MachineryRequestInDB])
 async def get_machinery_requests(city_id: Optional[int] = None):
@@ -341,9 +352,9 @@ async def get_machinery_requests(city_id: Optional[int] = None):
     return [MachineryRequestInDB(**req._mapping) for req in requests]
 
 @api_router.post("/tool-requests", response_model=ToolRequestInDB)
-async def create_tool_request(request: ToolRequest, current_user: UserInDB = Depends(get_current_user)):
+async def create_tool_request(request: ToolRequestIn, current_user: UserInDB = Depends(get_current_user)):
     query = tool_requests.insert().values(
-        tool_name=request.tool_name,
+        tool_type_id=request.tool_type_id,
         description=request.description,
         rental_price=request.rental_price,
         contact_info=request.contact_info,
@@ -351,7 +362,7 @@ async def create_tool_request(request: ToolRequest, current_user: UserInDB = Dep
         user_id=current_user.id
     )
     last_record_id = await database.execute(query)
-    return ToolRequestInDB(id=last_record_id, **request.dict(), user_id=current_user.id)
+    return ToolRequestInDB(id=last_record_id, **request.dict(), user_id=current_user.id, created_at=datetime.utcnow())
 
 @api_router.get("/tool-requests", response_model=List[ToolRequestInDB])
 async def get_tool_requests(city_id: Optional[int] = None):
@@ -370,9 +381,9 @@ async def get_material_ads(city_id: Optional[int] = None):
     return [MaterialAdInDB(**ad._mapping) for ad in ads]
 
 @api_router.post("/material-ads", response_model=MaterialAdInDB)
-async def create_material_ad(ad: MaterialAd, current_user: UserInDB = Depends(get_current_user)):
+async def create_material_ad(ad: MaterialAdIn, current_user: UserInDB = Depends(get_current_user)):
     query = material_ads.insert().values(
-        material_type=ad.material_type,
+        material_type_id=ad.material_type_id,
         description=ad.description,
         price=ad.price,
         contact_info=ad.contact_info,
@@ -380,7 +391,7 @@ async def create_material_ad(ad: MaterialAd, current_user: UserInDB = Depends(ge
         user_id=current_user.id
     )
     last_record_id = await database.execute(query)
-    return MaterialAdInDB(id=last_record_id, **ad.dict(), user_id=current_user.id)
+    return MaterialAdInDB(id=last_record_id, **ad.dict(), user_id=current_user.id, created_at=datetime.utcnow())
 
 app.include_router(api_router)
 
@@ -389,3 +400,6 @@ async def read_root():
     with open("static/index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
