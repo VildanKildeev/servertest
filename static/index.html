@@ -162,6 +162,10 @@
             </div>
             <div id="workMarketplace" class="tab-pane active">
                 <h3>Заявки на работу</h3>
+                <div class="input-group">
+                    <label for="filterSpecialization">Специализация:</label>
+                    <select id="filterSpecialization" onchange="fetchWorkRequests()"></select>
+                </div>
                 <div id="workRequestsList"></div>
             </div>
             <div id="machineryMarketplace" class="tab-pane">
@@ -220,6 +224,7 @@
         let selectedCity = null;
         let currentUser = null;
         let lastSelectedRequestId = null;
+        let citiesMap = {}; // Объект для хранения пар ID-название города
 
         const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
         const cityModal = document.getElementById('cityModal');
@@ -319,6 +324,7 @@
             const cityGrid = document.getElementById('cityGrid');
             cityGrid.innerHTML = '';
             cities.forEach(city => {
+                citiesMap[city.id] = city.name; // Заполняем карту городов
                 const button = document.createElement('button');
                 button.textContent = city.name;
                 button.className = 'city-button';
@@ -336,14 +342,23 @@
             const specializations = await response.json();
             const selectEl = document.getElementById('workSpecialization');
             const profileSelectEl = document.getElementById('specializationSelect');
+            const filterSpecializationEl = document.getElementById('filterSpecialization'); // Новый элемент
+            
             selectEl.innerHTML = '';
             profileSelectEl.innerHTML = '';
+            
+            const allOption = document.createElement('option');
+            allOption.value = "";
+            allOption.textContent = "Все специализации";
+            filterSpecializationEl.appendChild(allOption);
+
             specializations.forEach(spec => {
                 const option = document.createElement('option');
                 option.value = spec;
                 option.textContent = spec;
                 selectEl.appendChild(option);
                 profileSelectEl.appendChild(option.cloneNode(true));
+                filterSpecializationEl.appendChild(option.cloneNode(true));
             });
         }
         
@@ -445,11 +460,12 @@
             
             if (response.ok) {
                 currentUser = await response.json();
+                const cityName = citiesMap[currentUser.city_id] || 'Неизвестный город';
                 profileInfoEl.innerHTML = `
                     <p><strong>Имя:</strong> ${currentUser.user_name}</p>
                     <p><strong>Username:</strong> ${currentUser.username}</p>
                     <p><strong>Тип:</strong> ${currentUser.user_type}</p>
-                    <p><strong>Город ID:</strong> ${currentUser.city_id}</p>
+                    <p><strong>Город:</strong> ${cityName}</p>
                     <p><strong>Специализация:</strong> ${currentUser.specialization || 'Не указана'}</p>
                 `;
                 if (currentUser.user_type === "ИСПОЛНИТЕЛЬ" || currentUser.user_type === "ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ") {
@@ -515,8 +531,7 @@
             }
         }
         
-async function createMachineryRequest() {
-            // ✅ ИСПРАВЛЕНО: Правильное имя переменной
+        async function createMachineryRequest() {
             const machinery_type = document.getElementById('machineryType').value;
             const description = document.getElementById('machineryDescription').value;
             const rental_price = parseFloat(document.getElementById('machineryPrice').value);
@@ -539,7 +554,6 @@ async function createMachineryRequest() {
             const response = await fetch(`${API_URL}/machinery-requests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                // ✅ ИСПРАВЛЕНО: Используем правильную переменную
                 body: JSON.stringify({ machinery_type, description, rental_price, contact_info, city_id: city.id })
             });
 
@@ -633,7 +647,14 @@ async function createMachineryRequest() {
                 listEl.innerHTML = '<p class="error">Пожалуйста, выберите город.</p>';
                 return;
             }
-            const response = await fetch(`${API_URL}/work-requests?city_id=${city.id}`);
+            const specialization = document.getElementById('filterSpecialization').value; // Получаем выбранную специализацию
+            
+            let url = `${API_URL}/work-requests?city_id=${city.id}`;
+            if (specialization) {
+                url += `&specialization=${encodeURIComponent(specialization)}`;
+            }
+
+            const response = await fetch(url);
             if (response.ok) {
                 const requests = await response.json();
                 listEl.innerHTML = '';
@@ -677,7 +698,7 @@ async function createMachineryRequest() {
                         const item = document.createElement('div');
                         item.className = 'request-item';
                         item.innerHTML = `
-                            <h3>${req.machine_type}</h3>
+                            <h3>${req.machinery_type}</h3>
                             <p><strong>Описание:</strong> ${req.description}</p>
                             <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
                             <p><strong>Контакты:</strong> ${req.contact_info}</p>
@@ -785,7 +806,7 @@ async function createMachineryRequest() {
                             `;
                         } else if (itemType === 'заявок на спецтехнику') {
                             item.innerHTML = `
-                                <h3>${req.machine_type}</h3>
+                                <h3>${req.machinery_type}</h3>
                                 <p><strong>Описание:</strong> ${req.description}</p>
                                 <p><strong>Цена аренды:</strong> ${req.rental_price} руб.</p>
                                 <p><strong>Контакты:</strong> ${req.contact_info}</p>
