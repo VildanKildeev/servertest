@@ -26,7 +26,8 @@
         .city-button:hover { background: #ff7711; }
         .logo-placeholder { font-size: 32px; font-weight: bold; margin-bottom: 20px; text-align: center; color: #ff6600; }
         .button-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .action-button { background: #ff6600; color: white; padding: 15px; border-radius: 8px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+        /* Новые стили для кнопок с иконками */
+        .action-button { background: #ff6600; color: white; padding: 15px; border-radius: 8px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .action-button:hover { background: #cc5200; }
         .profile-info, .request-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
         .request-item { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
@@ -42,6 +43,13 @@
         .tabs { display: flex; justify-content: space-around; margin-bottom: 20px; }
         .tab-button { padding: 10px 15px; border-radius: 5px 5px 0 0; border: none; cursor: pointer; background: #383838; color: #f0f0f0; }
         .tab-button.active { background: #ff6600; }
+
+        /* Новые стили для блоков заявок */
+        .requests-block { background-color: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .requests-block summary { font-size: 1.2em; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
+        .requests-block summary i { transition: transform 0.3s; }
+        .requests-block[open] summary i { transform: rotate(90deg); }
+        .requests-block h3 { margin-top: 0; }
     </style>
 </head>
 <body>
@@ -84,9 +92,9 @@
             <p class="selected-city">Ваш город: <span id="cityNameEl"></span> <a href="#" onclick="changeCity()">Изменить</a></p>
             <div class="logo-placeholder">СМЗ.РФ</div>
             <div class="button-grid">
-                <button class="action-button" onclick="showPage('requestPage')">Разместить заявку</button>
-                <button class="action-button" onclick="showPage('marketplacePage')">Биржа заявок</button>
-                <button class="action-button" onclick="showPage('profilePage')">Профиль</button>
+                <button class="action-button" onclick="showPage('requestPage')"><i class="fas fa-plus-circle"></i> Разместить заявку</button>
+                <button class="action-button" onclick="showPage('marketplacePage')"><i class="fas fa-warehouse"></i> Биржа заявок</button>
+                <button class="action-button" onclick="showPage('profilePage')"><i class="fas fa-user-circle"></i> Профиль</button>
             </div>
         </section>
 
@@ -154,32 +162,30 @@
         <section id="marketplacePage" class="tab-content">
             <button onclick="showPage('buttonContainer')">Назад</button>
             <h2>Биржа заявок</h2>
-            <div class="tabs">
-                <button class="tab-button active" onclick="showMarketplaceTab('workMarketplace')">Работа</button>
-                <button class="tab-button" onclick="showMarketplaceTab('machineryMarketplace')">Спецтехника</button>
-                <button class="tab-button" onclick="showMarketplaceTab('toolsMarketplace')">Инструменты</button>
-                <button class="tab-button" onclick="showMarketplaceTab('materialsMarketplace')">Материалы</button>
-            </div>
-            <div id="workMarketplace" class="tab-pane active">
-                <h3>Заявки на работу</h3>
+
+            <details class="requests-block" open>
+                <summary>Заявки на работу <i class="fas fa-caret-right"></i></summary>
                 <div class="input-group">
                     <label for="filterSpecialization">Специализация:</label>
                     <select id="filterSpecialization" onchange="fetchWorkRequests()"></select>
                 </div>
                 <div id="workRequestsList"></div>
-            </div>
-            <div id="machineryMarketplace" class="tab-pane">
-                <h3>Заявки на спецтехнику</h3>
+            </details>
+
+            <details class="requests-block">
+                <summary>Заявки на спецтехнику <i class="fas fa-caret-right"></i></summary>
                 <div id="machineryRequestsList"></div>
-            </div>
-            <div id="toolsMarketplace" class="tab-pane">
-                <h3>Заявки на инструменты</h3>
+            </details>
+
+            <details class="requests-block">
+                <summary>Заявки на инструменты <i class="fas fa-caret-right"></i></summary>
                 <div id="toolsRequestsList"></div>
-            </div>
-            <div id="materialsMarketplace" class="tab-pane">
-                <h3>Объявления о материалах</h3>
+            </details>
+
+            <details class="requests-block">
+                <summary>Объявления о материалах <i class="fas fa-caret-right"></i></summary>
                 <div id="materialsAdsList"></div>
-            </div>
+            </details>
         </section>
 
         <section id="takeOrderPage" class="tab-content">
