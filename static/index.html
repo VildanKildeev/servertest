@@ -1193,42 +1193,27 @@
         };
         // --- EVENT LISTENERS ---
         const setupEventListeners = () => {
-            // Кнопки навигации
-            const citySelector = el('citySelector');
-            if (citySelector) citySelector.addEventListener('click', () => showPage('cityModal'));
+        // Кнопка для отображения страницы регистрации
+        const showRegisterBtn = document.getElementById('showRegisterBtn');
+        if (showRegisterBtn) {
+            showRegisterBtn.addEventListener('click', (e) => {
+                e.preventDefault(); // Предотвращаем стандартное поведение кнопки, если оно есть
+                showPage('registerPage');
+            });
+        } else {
+            console.error('Элемент с ID "showRegisterBtn" не найден.');
+        }
 
-            const showRegisterBtn = el('showRegisterBtn');
-            if (showRegisterBtn) showRegisterBtn.addEventListener('click', () => showPage('registerPage'));
-
-            const showLoginBtn = el('showLoginBtn');
-            if (showLoginBtn) showLoginBtn.addEventListener('click', () => showPage('loginPage'));
-
-            const showFindWorkBtn = el('showFindWorkBtn');
-            if (showFindWorkBtn) showFindWorkBtn.addEventListener('click', () => { showPage('findWorkPage'); fetchWorkRequests(); });
-
-            const showCreateWorkBtn = el('showCreateWorkBtn');
-            if (showCreateWorkBtn) showCreateWorkBtn.addEventListener('click', () => showPage('createWorkPage'));
-
-            const showProfileBtn = el('showProfileBtn');
-            if (showProfileBtn) showProfileBtn.addEventListener('click', () => showPage('profilePage'));
-
-            const showMachineryBtn = el('showMachineryBtn');
-            if (showMachineryBtn) showMachineryBtn.addEventListener('click', () => { showPage('machineryPage'); fetchMachineryAds(); });
-
-            const showToolsBtn = el('showToolsBtn');
-            if (showToolsBtn) showToolsBtn.addEventListener('click', () => { showPage('toolsPage'); fetchToolsAds(); });
-
-            const showMaterialsBtn = el('showMaterialsBtn');
-            if (showMaterialsBtn) showMaterialsBtn.addEventListener('click', () => { showPage('materialsPage'); fetchMaterialsAds(); });
-
-            const showCreateMachineryBtn = el('showCreateMachineryBtn');
-            if (showCreateMachineryBtn) showCreateMachineryBtn.addEventListener('click', () => showPage('createMachineryPage'));
-
-            const showCreateToolBtn = el('showCreateToolBtn');
-            if (showCreateToolBtn) showCreateToolBtn.addEventListener('click', () => showPage('createToolPage'));
-
-            const showCreateMaterialBtn = el('showCreateMaterialBtn');
-            if (showCreateMaterialBtn) showCreateMaterialBtn.addEventListener('click', () => showPage('createMaterialPage'));
+        // Кнопка для отображения страницы входа
+        const showLoginBtn = document.getElementById('showLoginBtn');
+        if (showLoginBtn) {
+            showLoginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                showPage('loginPage');
+            });
+        } else {
+            console.error('Элемент с ID "showLoginBtn" не найден.');
+        }
 
             // Отправка форм
             const loginForm = el('loginForm');
