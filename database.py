@@ -39,14 +39,16 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("description", sqlalchemy.String),
     sqlalchemy.Column("budget", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("specialization", sqlalchemy.String),
+    sqlalchemy.Column("contact_info", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица заявок на технику
+# Таблица заявок на спецтехнику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
@@ -82,6 +84,8 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("tool_name", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
+    sqlalchemy.Column("count", sqlalchemy.Integer, nullable=True),
+    sqlalchemy.Column("rental_period", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
