@@ -253,7 +253,8 @@ async def create_work_request(request: WorkRequestCreate, current_user: UserInDB
         is_premium=current_user.is_premium
     )
     request_id = await database.execute(query)
-    return await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
+    created_request = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
+    return WorkRequestInDB(**created_request._mapping)
 
 @api_router.get("/work-requests", response_model=List[WorkRequestInDB])
 async def get_work_requests(current_user: UserInDB = Depends(get_current_user)):
@@ -330,7 +331,8 @@ async def create_machinery_request(request: MachineryRequestCreate, current_user
         user_id=current_user.id
     )
     request_id = await database.execute(query)
-    return await database.fetch_one(machinery_requests.select().where(machinery_requests.c.id == request_id))
+    created_request = await database.fetch_one(machinery_requests.select().where(machinery_requests.c.id == request_id))
+    return MachineryRequestInDB(**created_request._mapping)
 
 @api_router.get("/machinery-requests", response_model=List[MachineryRequestInDB])
 async def get_machinery_requests(current_user: UserInDB = Depends(get_current_user)):
@@ -350,7 +352,8 @@ async def create_tool_request(request: ToolRequestCreate, current_user: UserInDB
         user_id=current_user.id
     )
     request_id = await database.execute(query)
-    return await database.fetch_one(tool_requests.select().where(tool_requests.c.id == request_id))
+    created_request = await database.fetch_one(tool_requests.select().where(tool_requests.c.id == request_id))
+    return ToolRequestInDB(**created_request._mapping)
 
 @api_router.get("/tool-requests", response_model=List[ToolRequestInDB])
 async def get_tool_requests(current_user: UserInDB = Depends(get_current_user)):
@@ -368,7 +371,8 @@ async def create_material_ad(ad: MaterialAdCreate, current_user: UserInDB = Depe
         user_id=current_user.id
     )
     ad_id = await database.execute(query)
-    return await database.fetch_one(material_ads.select().where(material_ads.c.id == ad_id))
+    created_ad = await database.fetch_one(material_ads.select().where(material_ads.c.id == ad_id))
+    return MaterialAdInDB(**created_ad._mapping)
 
 @api_router.get("/material-ads", response_model=List[MaterialAdInDB])
 async def get_material_ads(current_user: UserInDB = Depends(get_current_user)):
