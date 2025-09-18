@@ -271,8 +271,12 @@
                         <input type="number" id="toolCount" value="1" min="1" required>
                     </div>
                     <div class="input-group">
-                        <label for="toolRentalPeriod">Срок аренды:</label>
-                        <input type="text" id="toolRentalPeriod" placeholder="Например: 2 дня или 1 неделя">
+                        <label for="toolRentalStartDate">Срок аренды (Начало):</label>
+                        <input type="date" id="toolRentalStartDate" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalEndDate">Срок аренды (Окончание):</label>
+                        <input type="date" id="toolRentalEndDate" required>
                     </div>
                     <div class="input-group">
                         <label for="toolContact">Контакт:</label>
@@ -789,7 +793,9 @@
                     description: e.target.toolDescription.value,
                     rental_price: parseFloat(e.target.toolRentalPrice.value),
                     count: parseInt(e.target.toolCount.value),
-                    rental_period: e.target.toolRentalPeriod.value,
+                    // ОБНОВЛЕНО: Отправляем новые поля с датами
+                    rental_start_date: e.target.toolRentalStartDate.value,
+                    rental_end_date: e.target.toolRentalEndDate.value,
                     contact_info: e.target.toolContact.value
                 })
             });
@@ -825,7 +831,7 @@
                         <p>${req.description}</p>
                         <p>Цена аренды: ${req.rental_price} руб.</p>
                         ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
-                        ${req.rental_period ? `<p>Срок аренды: ${req.rental_period}</p>` : ''}
+                        ${req.rental_start_date && req.rental_end_date ? `<p>Срок аренды: ${req.rental_start_date} - ${req.rental_end_date}</p>` : ''}
                         <p class="contact">Контакт: ${req.contact_info}</p>
                     `;
                     toolRequestsList.appendChild(item);
@@ -941,7 +947,7 @@
                                 <p>${req.description}</p>
                                 <p>Цена аренды: ${req.rental_price} руб.</p>
                                 ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
-                                ${req.rental_period ? `<p>Срок аренды: ${req.rental_period}</p>` : ''}
+                                ${req.rental_start_date && req.rental_end_date ? `<p>Срок аренды: ${req.rental_start_date} - ${req.rental_end_date}</p>` : ''}
                                 <p class="contact">Контакт: ${req.contact_info}</p>`;
                                 break;
                             case 'объявлений о материалах':
