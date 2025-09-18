@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
@@ -399,8 +400,11 @@ async def get_material_ads():
 
 app.include_router(api_router)
 
-# Обслуживаем главную страницу index.html
+# Монтируем папку 'static' для обслуживания статических файлов
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Обслуживаем главную страницу index.html, находящуюся в папке 'static'
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
-    with open("index.html", "r", encoding="utf-8") as f:
+    with open("static/index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
