@@ -225,6 +225,18 @@
         const pages = ['loginPage', 'registerPage', 'buttonContainer', 'profilePage', 'requestPage', 'marketplacePage', 'takeOrderPage', 'myRequestsPage'];
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityNameEl');
+        
+        // Cities map
+        let citiesMap = {};
+
+        async function fetchAndMapCities() {
+            const response = await fetch(`${API_URL}/cities`);
+            const cities = await response.json();
+            cities.forEach(city => {
+                citiesMap[city.id] = city.name;
+            });
+            checkAuthentication();
+        }
 
         function showPage(pageId) {
             pages.forEach(id => {
@@ -875,20 +887,6 @@
                 statusEl.className = 'message error';
             }
         }
-
-        // Cities map
-        let citiesMap = {};
-
-        async function fetchAndMapCities() {
-            const response = await fetch(`${API_URL}/cities`);
-            const cities = await response.json();
-            cities.forEach(city => {
-                citiesMap[city.id] = city.name;
-            });
-            // Теперь, когда citiesMap заполнен, можно вызывать fetchProfile
-            checkAuthentication();
-        }
-
 
         function checkAuthentication() {
             accessToken = localStorage.getItem('accessToken');
