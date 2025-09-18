@@ -267,6 +267,14 @@
                         <input type="number" id="toolRentalPrice" required>
                     </div>
                     <div class="input-group">
+                        <label for="toolCount">Количество:</label>
+                        <input type="number" id="toolCount" value="1" min="1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalPeriod">Срок аренды:</label>
+                        <input type="text" id="toolRentalPeriod" placeholder="Например: 2 дня или 1 неделя">
+                    </div>
+                    <div class="input-group">
                         <label for="toolContact">Контакт:</label>
                         <input type="text" id="toolContact" required>
                     </div>
@@ -644,8 +652,8 @@
                 body: JSON.stringify({
                     description: e.target.workDescription.value,
                     budget: parseFloat(e.target.workBudget.value),
-                    contact_info: e.target.workContact.value,
-                    specialization: e.target.workSpecialization.value
+                    specialization: e.target.workSpecialization.value,
+                    contact_info: e.target.workContact.value
                 })
             });
             const data = await response.json();
@@ -663,7 +671,9 @@
             const workRequestsList = document.getElementById('workRequestsList');
             workRequestsList.innerHTML = '<p>Загрузка заявок...</p>';
             try {
-                const response = await fetch(`${API_URL}/work-requests`);
+                const response = await fetch(`${API_URL}/work-requests`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
                 const requests = await response.json();
                 workRequestsList.innerHTML = '';
                 if (requests.length === 0) {
@@ -740,7 +750,9 @@
             const machineryRequestsList = document.getElementById('machineryRequestsList');
             machineryRequestsList.innerHTML = '<p>Загрузка заявок...</p>';
             try {
-                const response = await fetch(`${API_URL}/machinery-requests`);
+                const response = await fetch(`${API_URL}/machinery-requests`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
                 const requests = await response.json();
                 machineryRequestsList.innerHTML = '';
                 if (requests.length === 0) {
@@ -776,6 +788,8 @@
                     tool_name: e.target.toolName.value,
                     description: e.target.toolDescription.value,
                     rental_price: parseFloat(e.target.toolRentalPrice.value),
+                    count: parseInt(e.target.toolCount.value),
+                    rental_period: e.target.toolRentalPeriod.value,
                     contact_info: e.target.toolContact.value
                 })
             });
@@ -794,7 +808,9 @@
             const toolRequestsList = document.getElementById('toolRequestsList');
             toolRequestsList.innerHTML = '<p>Загрузка заявок...</p>';
             try {
-                const response = await fetch(`${API_URL}/tool-requests`);
+                const response = await fetch(`${API_URL}/tool-requests`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
                 const requests = await response.json();
                 toolRequestsList.innerHTML = '';
                 if (requests.length === 0) {
@@ -808,6 +824,8 @@
                         <h4>Заявка #${req.id} - ${req.tool_name}</h4>
                         <p>${req.description}</p>
                         <p>Цена аренды: ${req.rental_price} руб.</p>
+                        ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
+                        ${req.rental_period ? `<p>Срок аренды: ${req.rental_period}</p>` : ''}
                         <p class="contact">Контакт: ${req.contact_info}</p>
                     `;
                     toolRequestsList.appendChild(item);
@@ -848,7 +866,9 @@
             const materialAdsList = document.getElementById('materialAdsList');
             materialAdsList.innerHTML = '<p>Загрузка объявлений...</p>';
             try {
-                const response = await fetch(`${API_URL}/material-ads`);
+                const response = await fetch(`${API_URL}/material-ads`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
                 const ads = await response.json();
                 materialAdsList.innerHTML = '';
                 if (ads.length === 0) {
@@ -920,6 +940,8 @@
                                 content = `<h4>Заявка на инструмент #${req.id} - ${req.tool_name}</h4>
                                 <p>${req.description}</p>
                                 <p>Цена аренды: ${req.rental_price} руб.</p>
+                                ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
+                                ${req.rental_period ? `<p>Срок аренды: ${req.rental_period}</p>` : ''}
                                 <p class="contact">Контакт: ${req.contact_info}</p>`;
                                 break;
                             case 'объявлений о материалах':
