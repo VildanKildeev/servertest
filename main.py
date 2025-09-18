@@ -4,7 +4,7 @@ import databases
 from jose import jwt, JWTError
 from datetime import timedelta
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -168,7 +168,7 @@ async def get_current_user(token: str):
     return UserInDB(**user._mapping)
 
 @api_router.post("/token", response_model=Token)
-async def login_for_access_token(username: str = Depends(lambda x: x.get("username")), password: str = Depends(lambda x: x.get("password"))):
+async def login_for_access_token(username: str = Form(), password: str = Form()):
     user = await get_user_by_username(username)
     if not user or not verify_password(password, user._mapping["password_hash"]):
         raise HTTPException(
