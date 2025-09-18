@@ -11,6 +11,7 @@ from typing import Optional, List
 from datetime import datetime
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordBearer
 
 import os
 from dotenv import load_dotenv
@@ -24,6 +25,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# OAuth2PasswordBearer для автоматического извлечения токена из заголовка
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
 app = FastAPI(title="СМЗ.РФ API")
 
@@ -154,7 +158,7 @@ async def get_user_by_username(username: str):
     user = await database.fetch_one(query)
     return user
 
-async def get_current_user(token: str):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
