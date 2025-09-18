@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 import os
 from dotenv import load_dotenv
@@ -371,8 +371,8 @@ async def get_material_ads(current_user: UserInDB = Depends(get_current_user)):
     query = material_ads.select().where(material_ads.c.city_id == current_user.city_id).order_by(material_ads.c.created_at.desc())
     return await database.fetch_all(query)
 
-@app.get("/", response_class=HTMLResponse)
-async def serve_app():
-    return HTMLResponse(content=open(os.path.join("static", "index.html")).read(), status_code=200)
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/static/index.html")
 
 app.include_router(api_router)
