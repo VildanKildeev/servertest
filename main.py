@@ -50,6 +50,7 @@ async def shutdown():
 # Models
 class User(BaseModel):
     username: str
+    password: str
     user_name: str
     user_type: str
     city_id: int
@@ -396,7 +397,6 @@ async def get_material_ads():
     query = material_ads.select().order_by(material_ads.c.created_at.desc())
     ads = await database.fetch_all(query)
     return [MaterialAdInDB(**ad._mapping) for ad in ads]
-
 
 app.include_router(api_router)
 
