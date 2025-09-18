@@ -37,6 +37,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Монтирование директории для статических файлов
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.on_event("startup")
 async def startup():
     metadata.create_all(engine)
@@ -370,6 +373,6 @@ async def get_material_ads(current_user: UserInDB = Depends(get_current_user)):
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_app():
-    return HTMLResponse(content=open("index.html").read(), status_code=200)
+    return HTMLResponse(content=open(os.path.join("static", "index.html")).read(), status_code=200)
 
 app.include_router(api_router)
