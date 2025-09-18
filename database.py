@@ -29,6 +29,7 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("user_type", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
+    # Добавляем столбец is_premium
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
 )
 
@@ -43,7 +44,7 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("contact_info", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, nullable=True),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
@@ -62,20 +63,6 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица объявлений о материалах
-material_ads = sqlalchemy.Table(
-    "material_ads",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("material_type", sqlalchemy.String),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("price", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-)
-
 # Таблица заявок на инструменты (tool_requests)
 tool_requests = sqlalchemy.Table(
     "tool_requests",
@@ -84,8 +71,22 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("tool_name", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
-    sqlalchemy.Column("count", sqlalchemy.Integer, nullable=True),
+    sqlalchemy.Column("count", sqlalchemy.Integer, default=1),
     sqlalchemy.Column("rental_period", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+)
+
+# Таблица объявлений о материалах
+material_ads = sqlalchemy.Table(
+    "material_ads",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("material_type", sqlalchemy.String),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
