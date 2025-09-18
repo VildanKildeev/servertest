@@ -2,7 +2,7 @@ import json
 import uvicorn
 import databases
 from jose import jwt, JWTError
-from datetime import timedelta
+from datetime import timedelta, date
 from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -132,7 +132,9 @@ class ToolRequestCreate(BaseModel):
     description: Optional[str] = None
     rental_price: float
     count: Optional[int] = 1
-    rental_period: Optional[str] = None
+    # ОБНОВЛЕНО: Используем отдельные поля для дат
+    rental_start_date: Optional[date] = None
+    rental_end_date: Optional[date] = None
     contact_info: str
 
 class ToolRequestInDB(BaseModel):
@@ -141,7 +143,9 @@ class ToolRequestInDB(BaseModel):
     description: Optional[str] = None
     rental_price: float
     count: Optional[int] = 1
-    rental_period: Optional[str] = None
+    # ОБНОВЛЕНО: Используем отдельные поля для дат
+    rental_start_date: Optional[date] = None
+    rental_end_date: Optional[date] = None
     contact_info: str
     city_id: int
     user_id: int
@@ -346,7 +350,8 @@ async def create_tool_request(request: ToolRequestCreate, current_user: UserInDB
         description=request.description,
         rental_price=request.rental_price,
         count=request.count,
-        rental_period=request.rental_period,
+        rental_start_date=request.rental_start_date,
+        rental_end_date=request.rental_end_date,
         contact_info=request.contact_info,
         city_id=current_user.city_id,
         user_id=current_user.id

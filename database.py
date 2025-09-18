@@ -71,12 +71,14 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("tool_name", sqlalchemy.String),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
-    sqlalchemy.Column("count", sqlalchemy.Integer, default=1),
-    sqlalchemy.Column("rental_period", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    # ОБНОВЛЕННЫЕ СТОЛБЦЫ:
+    sqlalchemy.Column("count", sqlalchemy.Integer, default=1),
+    sqlalchemy.Column("rental_start_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
 )
 
 # Таблица объявлений о материалах
