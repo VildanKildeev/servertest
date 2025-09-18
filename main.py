@@ -2,22 +2,96 @@ import json
 import uvicorn
 import databases
 from jose import jwt, JWTError
-from datetime import timedelta
+from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from sqlalchemy import exc
+from sqlalchemy import exc, Column, Integer, String, Float, Boolean, ForeignKey, Table, DateTime, MetaData, Date
+from sqlalchemy.orm import relationship
 
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import users, work_requests, machinery_requests, tool_requests, material_ads, metadata, engine, DATABASE_URL
+# --- Database setup (from a separate database.py file or defined here) ---
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@host:port/dbname")
+
+metadata = MetaData()
+
+users = Table(
+    "users",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("username", String, unique=True, nullable=False),
+    Column("password_hash", String, nullable=False),
+    Column("user_name", String),
+    Column("user_type", String),
+    Column("city_id", Integer),
+    Column("specialization", String, nullable=True),
+    Column("is_premium", Boolean, default=False, nullable=False),
+    Column("created_at", DateTime, default=datetime.utcnow),
+)
+
+work_requests = Table(
+    "work_requests",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("description", String, nullable=False),
+    Column("budget", Float),
+    Column("contact_info", String),
+    Column("city_id", Integer, ForeignKey("users.city_id")),
+    Column("specialization", String, nullable=False),
+    Column("created_at", DateTime, default=datetime.utcnow),
+    Column("executor_id", Integer, ForeignKey("users.id"), nullable=True),
+    Column("is_premium", Boolean, default=False, nullable=False), # ✅ ИСПРАВЛЕНИЕ: Добавлена колонка is_premium
+)
+
+machinery_requests = Table(
+    "machinery_requests",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("machinery_type", String, nullable=False),
+    Column("description", String),
+    Column("rental_price", Float),
+    Column("contact_info", String),
+    Column("city_id", Integer, ForeignKey("users.city_id")),
+    Column("created_at", DateTime, default=datetime.utcnow),
+)
+
+tool_requests = Table(
+    "tool_requests",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("tool_name", String, nullable=False),
+    Column("description", String),
+    Column("rental_price", Float),
+    Column("contact_info", String),
+    Column("count", Integer),
+    Column("rental_start_date", Date),
+    Column("rental_end_date", Date),
+    Column("city_id", Integer, ForeignKey("users.city_id")),
+    Column("created_at", DateTime, default=datetime.utcnow),
+)
+
+material_ads = Table(
+    "material_ads",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("material_type", String, nullable=False),
+    Column("description", String),
+    Column("price", Float),
+    Column("contact_info", String),
+    Column("city_id", Integer, ForeignKey("users.city_id")),
+    Column("created_at", DateTime, default=datetime.utcnow),
+)
 
 database = databases.Database(DATABASE_URL)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -40,6 +114,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
+    # Создаем таблицы, если они не существуют
+    # Note: For Render, you might want to handle this with migrations
+    # or ensure tables exist before deployment.
+    # This is a simple solution for a development environment.
+    from sqlalchemy import create_engine
+    engine = create_engine(DATABASE_URL)
     metadata.create_all(engine)
     await database.connect()
 
@@ -69,7 +149,6 @@ class UserInDB(UserBase):
     id: int
     password_hash: str
     created_at: Optional[datetime] = None
-    # ✅ ИСПРАВЛЕНИЕ: Добавлен is_premium в UserInDB
 
 class Token(BaseModel):
     access_token: str
@@ -80,7 +159,6 @@ class WorkRequestCreate(BaseModel):
     budget: float
     contact_info: str
     specialization: Optional[str] = None
-    # ✅ ИСПРАВЛЕНИЕ: Убрал city_id, так как он должен браться из пользователя
     
 class WorkRequestInDB(WorkRequestCreate):
     id: int
@@ -95,7 +173,6 @@ class MachineryRequestCreate(BaseModel):
     description: Optional[str] = None
     rental_price: float
     contact_info: str
-    # ✅ ИСПРАВЛЕНИЕ: Убрал city_id
     
 class MachineryRequestInDB(MachineryRequestCreate):
     id: int
@@ -108,10 +185,9 @@ class ToolRequestCreate(BaseModel):
     description: Optional[str] = None
     rental_price: float
     contact_info: str
-    # ✅ ИСПРАВЛЕНИЕ: Убрал city_id
     count: Optional[int] = None
-    rental_start_date: Optional[str] = None
-    rental_end_date: Optional[str] = None
+    rental_start_date: Optional[date] = None # ✅ ИСПРАВЛЕНИЕ: Изменен тип на date
+    rental_end_date: Optional[date] = None # ✅ ИСПРАВЛЕНИЕ: Изменен тип на date
 
 class ToolRequestInDB(ToolRequestCreate):
     id: int
@@ -124,7 +200,6 @@ class MaterialAdCreate(BaseModel):
     description: Optional[str] = None
     price: float
     contact_info: Optional[str] = None
-    # ✅ ИСПРАВЛЕНИЕ: Убрал city_id
 
 class MaterialAdInDB(MaterialAdCreate):
     id: int
@@ -132,7 +207,6 @@ class MaterialAdInDB(MaterialAdCreate):
     created_at: datetime
     city_id: int
 
-# Теперь, когда все зависимые модели определены, можно определить MyRequestsResponse
 class MyRequestsResponse(BaseModel):
     work_requests: List[WorkRequestInDB]
     machinery_requests: List[MachineryRequestInDB]
@@ -180,7 +254,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user = await database.fetch_one(query)
     if user is None:
         raise credentials_exception
-    # ✅ ИСПРАВЛЕНИЕ: передаем все поля, включая is_premium
     return UserInDB(**user._mapping)
 
 # =======================================================
@@ -188,19 +261,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 # =======================================================
 
 async def create_record_and_return(table, data_to_insert, response_model, current_user=None):
-    """
-    Общая функция для создания записи в базе данных.
-    
-    Args:
-        table: SQLAlchemy таблица.
-        data_to_insert: Словарь с данными для вставки в БД.
-        response_model: Pydantic-модель для ответа API.
-        current_user: Текущий аутентифицированный пользователь.
-    """
     if current_user:
         data_to_insert["user_id"] = current_user.id
         data_to_insert["city_id"] = current_user.city_id
-        
+    
+    # ✅ ИСПРАВЛЕНИЕ: Конвертируем даты в объекты date
+    if "rental_start_date" in data_to_insert and isinstance(data_to_insert["rental_start_date"], str):
+        data_to_insert["rental_start_date"] = datetime.strptime(data_to_insert["rental_start_date"], '%Y-%m-%d').date()
+    if "rental_end_date" in data_to_insert and isinstance(data_to_insert["rental_end_date"], str):
+        data_to_insert["rental_end_date"] = datetime.strptime(data_to_insert["rental_end_date"], '%Y-%m-%d').date()
+
     try:
         query = table.insert().values(**data_to_insert)
         last_record_id = await database.execute(query)
@@ -211,9 +281,7 @@ async def create_record_and_return(table, data_to_insert, response_model, curren
         }
         return response_model(**new_record_data)
     except exc.IntegrityError as e:
-        # ✅ ИСПРАВЛЕНИЕ: Обрабатываем возможные ошибки целостности (например, NULL)
         raise HTTPException(status_code=400, detail=f"Ошибка при создании записи: {str(e)}")
-
 
 # =======================================================
 #               МАРШРУТЫ API
@@ -222,6 +290,8 @@ async def create_record_and_return(table, data_to_insert, response_model, curren
 @api_router.get("/create-tables")
 async def create_tables():
     try:
+        from sqlalchemy import create_engine
+        engine = create_engine(DATABASE_URL)
         metadata.create_all(engine)
         return {"message": "Таблицы успешно созданы."}
     except Exception as e:
@@ -256,7 +326,7 @@ async def create_user(user: UserCreate):
         "user_type": user.user_type,
         "city_id": user.city_id,
         "specialization": user.specialization,
-        "is_premium": user.is_premium # ✅ ИСПРАВЛЕНИЕ: Добавлен is_premium
+        "is_premium": user.is_premium
     }
     
     return await create_record_and_return(
@@ -267,14 +337,11 @@ async def create_user(user: UserCreate):
 
 @api_router.get("/users/me", response_model=UserPublic)
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
-    # ✅ ИСПРАВЛЕНИЕ: Используем .model_dump() для преобразования Pydantic-модели в словарь
-    # Также добавим is_premium в ответ
     user_data = current_user.model_dump()
     return UserPublic(**user_data)
 
 @api_router.put("/users/update-specialization")
 async def update_user_specialization(specialization: str, current_user: UserInDB = Depends(get_current_user)):
-    # Проверяем, что пользователь имеет право обновлять специализацию
     if current_user.user_type != "ИСПОЛНИТЕЛЬ":
         raise HTTPException(status_code=403, detail="Только Исполнители могут обновлять специализацию.")
 
@@ -332,6 +399,7 @@ async def read_work_requests(city_id: Optional[int] = None):
     if city_id is not None:
         query = query.where(work_requests.c.city_id == city_id)
     
+    # ✅ ИСПРАВЛЕНИЕ: Добавлен .desc() для is_premium для правильной сортировки
     requests = await database.fetch_all(query.order_by(work_requests.c.is_premium.desc()))
     return [WorkRequestInDB(**r._mapping) for r in requests]
 
@@ -356,6 +424,12 @@ async def read_machinery_requests(city_id: Optional[int] = None):
 @api_router.post("/tool-requests", response_model=ToolRequestInDB)
 async def create_tool_request(request: ToolRequestCreate, current_user: UserInDB = Depends(get_current_user)):
     data_to_insert = request.model_dump()
+    # ✅ ИСПРАВЛЕНИЕ: Конвертируем строки дат в объекты date
+    if data_to_insert["rental_start_date"]:
+        data_to_insert["rental_start_date"] = date.fromisoformat(data_to_insert["rental_start_date"])
+    if data_to_insert["rental_end_date"]:
+        data_to_insert["rental_end_date"] = date.fromisoformat(data_to_insert["rental_end_date"])
+    
     return await create_record_and_return(
         table=tool_requests,
         data_to_insert=data_to_insert,
@@ -392,22 +466,18 @@ async def read_material_ads(city_id: Optional[int] = None):
 
 @api_router.post("/work-requests/{request_id}/take", response_model=WorkRequestInDB)
 async def take_work_request(request_id: int, current_user: UserInDB = Depends(get_current_user)):
-    # Проверяем, что пользователь является ИСПОЛНИТЕЛЕМ
     if current_user.user_type != "ИСПОЛНИТЕЛЬ":
         raise HTTPException(status_code=403, detail="Только Исполнитель может принять заявку на работу.")
 
-    # Получаем заявку из базы данных
     query = work_requests.select().where(work_requests.c.id == request_id)
     request = await database.fetch_one(query)
 
     if not request:
         raise HTTPException(status_code=404, detail="Заявка не найдена.")
 
-    # Если у заявки уже есть исполнитель, ее нельзя взять
     if request.executor_id is not None:
         raise HTTPException(status_code=400, detail="Эта заявка уже принята другим исполнителем.")
     
-    # Обновляем заявку, присваивая исполнителя
     update_query = work_requests.update().where(work_requests.c.id == request_id).values(executor_id=current_user.id)
     await database.execute(update_query)
 
