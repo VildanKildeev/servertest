@@ -29,6 +29,7 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("user_type", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
 )
 
 # Таблица заявок на работы
