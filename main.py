@@ -17,8 +17,8 @@ import os
 from dotenv import load_dotenv
 
 # --- Database setup ---
-# Импортируем все таблицы и метаданные из файла database.py
-from .database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities
+# Исправлено: убрана точка перед 'database'
+from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities
 
 load_dotenv()
 
