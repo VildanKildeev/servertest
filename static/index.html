@@ -29,6 +29,8 @@
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; margin-bottom: 5px; font-size: 14px; }
         .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #555; background-color: #333; color: white; font-size: 14px; }
+        .input-group input[type="checkbox"] { width: auto; margin-right: 10px; }
+        .input-group label.checkbox-label { display: flex; align-items: center; }
         .btn { width: 100%; padding: 10px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
         .btn-primary { background-color: #007bff; color: white; }
         .btn-primary:hover { background-color: #0056b3; }
@@ -281,6 +283,16 @@
                     <div class="input-group">
                         <label for="toolContact">Контакт:</label>
                         <input type="text" id="toolContact" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="hasDelivery" class="checkbox-label">
+                            <input type="checkbox" id="hasDelivery">
+                            Нужна доставка?
+                        </label>
+                    </div>
+                    <div class="input-group" id="deliveryAddressGroup" style="display: none;">
+                        <label for="deliveryAddress">Адрес доставки:</label>
+                        <input type="text" id="deliveryAddress">
                     </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
@@ -704,7 +716,7 @@
         async function takeWorkRequest(requestId) {
             const statusEl = document.getElementById('takeOrderStatus');
             try {
-                const response = await fetch(`${API_URL}/work-requests/${requestId}/take`, {
+                const response = await fetch(`${API_URL}/work-requests/${requestId}/accept`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
@@ -779,9 +791,22 @@
             }
         }
 
+        // Обработчик для чекбокса "Нужна доставка?"
+        document.getElementById('hasDelivery').addEventListener('change', (e) => {
+            const deliveryAddressGroup = document.getElementById('deliveryAddressGroup');
+            if (e.target.checked) {
+                deliveryAddressGroup.style.display = 'block';
+            } else {
+                deliveryAddressGroup.style.display = 'none';
+            }
+        });
+
         document.getElementById('toolRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const statusEl = document.getElementById('toolRequestStatus');
+            const hasDelivery = e.target.hasDelivery.checked;
+            const deliveryAddress = hasDelivery ? e.target.deliveryAddress.value : null;
+
             const response = await fetch(`${API_URL}/tool-requests`, {
                 method: 'POST',
                 headers: {
@@ -793,10 +818,11 @@
                     description: e.target.toolDescription.value,
                     rental_price: parseFloat(e.target.toolRentalPrice.value),
                     count: parseInt(e.target.toolCount.value),
-                    // ОБНОВЛЕНО: Отправляем новые поля с датами
                     rental_start_date: e.target.toolRentalStartDate.value,
                     rental_end_date: e.target.toolRentalEndDate.value,
-                    contact_info: e.target.toolContact.value
+                    contact_info: e.target.toolContact.value,
+                    has_delivery: hasDelivery,
+                    delivery_address: deliveryAddress
                 })
             });
             const data = await response.json();
@@ -804,6 +830,7 @@
                 statusEl.textContent = 'Заявка на инструмент успешно создана!';
                 statusEl.className = 'message success';
                 e.target.reset();
+                document.getElementById('deliveryAddressGroup').style.display = 'none';
             } else {
                 statusEl.textContent = `Ошибка: ${data.detail}`;
                 statusEl.className = 'message error';
@@ -826,12 +853,14 @@
                 requests.forEach(req => {
                     const item = document.createElement('div');
                     item.className = 'request-item';
+                    let deliveryInfo = req.has_delivery ? `<p><strong>Доставка:</strong> Да, по адресу: ${req.delivery_address || 'не указан'}</p>` : `<p><strong>Доставка:</strong> Нет</p>`;
                     item.innerHTML = `
                         <h4>Заявка #${req.id} - ${req.tool_name}</h4>
                         <p>${req.description}</p>
                         <p>Цена аренды: ${req.rental_price} руб.</p>
                         ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
                         ${req.rental_start_date && req.rental_end_date ? `<p>Срок аренды: ${req.rental_start_date} - ${req.rental_end_date}</p>` : ''}
+                        ${deliveryInfo}
                         <p class="contact">Контакт: ${req.contact_info}</p>
                     `;
                     toolRequestsList.appendChild(item);
@@ -943,11 +972,13 @@
                                 <p class="contact">Контакт: ${req.contact_info}</p>`;
                                 break;
                             case 'заявок на инструмент':
+                                let deliveryInfo = req.has_delivery ? `<p><strong>Доставка:</strong> Да, по адресу: ${req.delivery_address || 'не указан'}</p>` : `<p><strong>Доставка:</strong> Нет</p>`;
                                 content = `<h4>Заявка на инструмент #${req.id} - ${req.tool_name}</h4>
                                 <p>${req.description}</p>
                                 <p>Цена аренды: ${req.rental_price} руб.</p>
                                 ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
                                 ${req.rental_start_date && req.rental_end_date ? `<p>Срок аренды: ${req.rental_start_date} - ${req.rental_end_date}</p>` : ''}
+                                ${deliveryInfo}
                                 <p class="contact">Контакт: ${req.contact_info}</p>`;
                                 break;
                             case 'объявлений о материалах':
