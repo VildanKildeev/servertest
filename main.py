@@ -1,136 +1,41 @@
-Я понимаю, что вы используете city_id для связи с городами, и простое удаление этой колонки кажется неправильным. Ваше беспокойство обосновано.
-
-Проблема не в том, что вам не нужна ссылка на город, а в том, как эта ссылка реализована. Согласно правилам баз данных, внешний ключ (FOREIGN KEY) может ссылаться только на первичный ключ (PRIMARY KEY) или на колонку с уникальным ограничением (UNIQUE). Колонка city_id в таблице users не является уникальной (так как много пользователей могут быть из одного города), что и вызывает ошибку.
-
-Идеальное решение: отдельная таблица для городов
-
-Чтобы правильно связать города с пользователями и заявками, нужно создать отдельную таблицу cities, которая будет хранить информацию о городах. Это лучшая практика в проектировании баз данных.
-
-    Создайте таблицу cities с уникальным идентификатором (id) и названием города (name).
-
-    Добавьте FOREIGN KEY из таблицы users на id в таблице cities.
-
-    Добавьте FOREIGN KEY из таблиц заявок (work_requests, machinery_requests и т.д.) на id в таблице cities.
-
-Обновленный main.py
-
-Для решения проблемы замените определения ваших таблиц в файле main.py на предоставленный ниже код. Я добавил новую таблицу cities и обновил все другие таблицы, чтобы они ссылались на неё.
-Python
-
 import json
 import uvicorn
 import databases
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from sqlalchemy import exc, Column, Integer, String, Float, Boolean, ForeignKey, Table, DateTime, MetaData, Date, UniqueConstraint
+from sqlalchemy import exc
 from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine
 
 import os
 from dotenv import load_dotenv
-load_dotenv()
 
 # --- Database setup ---
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@host:port/dbname")
+# Импортируем все таблицы и метаданные из файла database.py
+from .database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities
 
-metadata = MetaData()
+load_dotenv()
 
-cities = Table(
-    "cities",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String, unique=True, nullable=False),
-)
-
-users = Table(
-    "users",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("username", String, unique=True, nullable=False),
-    Column("password_hash", String, nullable=False),
-    Column("user_name", String),
-    Column("user_type", String),
-    Column("city_id", Integer, ForeignKey("cities.id")),
-    Column("specialization", String, nullable=True),
-    Column("is_premium", Boolean, default=False, nullable=False),
-    Column("created_at", DateTime, default=datetime.utcnow),
-)
-
-work_requests = Table(
-    "work_requests",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id")),
-    Column("description", String, nullable=False),
-    Column("budget", Float),
-    Column("contact_info", String),
-    Column("city_id", Integer, ForeignKey("cities.id")),
-    Column("specialization", String, nullable=False),
-    Column("created_at", DateTime, default=datetime.utcnow),
-    Column("executor_id", Integer, ForeignKey("users.id"), nullable=True),
-    Column("is_premium", Boolean, default=False, nullable=False),
-)
-
-machinery_requests = Table(
-    "machinery_requests",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id")),
-    Column("machinery_type", String, nullable=False),
-    Column("description", String),
-    Column("rental_price", Float),
-    Column("contact_info", String),
-    Column("city_id", Integer, ForeignKey("cities.id")),
-    Column("created_at", DateTime, default=datetime.utcnow),
-)
-
-tool_requests = Table(
-    "tool_requests",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id")),
-    Column("tool_name", String, nullable=False),
-    Column("description", String),
-    Column("rental_price", Float),
-    Column("contact_info", String),
-    Column("count", Integer),
-    Column("rental_start_date", Date),
-    Column("rental_end_date", Date),
-    Column("city_id", Integer, ForeignKey("cities.id")),
-    Column("created_at", DateTime, default=datetime.utcnow),
-)
-
-material_ads = Table(
-    "material_ads",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id")),
-    Column("material_type", String, nullable=False),
-    Column("description", String),
-    Column("price", Float),
-    Column("contact_info", String),
-    Column("city_id", Integer, ForeignKey("cities.id")),
-    Column("created_at", DateTime, default=datetime.utcnow),
-)
-
+# Инициализация базы данных
+DATABASE_URL = os.environ.get("DATABASE_URL")
 database = databases.Database(DATABASE_URL)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Настройки для токенов
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI(title="СМЗ.РФ API")
-
 api_router = APIRouter(prefix="/api")
 
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*", "null"],
@@ -141,7 +46,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    engine = create_engine(DATABASE_URL)
+    # Создаем все таблицы при запуске приложения, используя метаданные из database.py
     metadata.create_all(engine)
     await database.connect()
 
@@ -312,7 +217,6 @@ async def create_record_and_return(table, data_to_insert, response_model, curren
 @api_router.get("/create-tables")
 async def create_tables():
     try:
-        engine = create_engine(DATABASE_URL)
         metadata.create_all(engine)
         return {"message": "Таблицы успешно созданы."}
     except Exception as e:
@@ -505,15 +409,11 @@ async def accept_work_request(request_id: int, current_user: UserInDB = Depends(
     return WorkRequestInDB(**request._mapping)
 
 @api_router.get("/cities")
-async def get_cities():
-    cities = [\
-        {"id": 1, "name": "Москва"},
-        {"id": 2, "name": "Санкт-Петербург"},
-        {"id": 3, "name": "Казань"},
-        {"id": 4, "name": "Екатеринбург"},
-        {"id": 5, "name": "Новосибирск"},
-    ]
-    return cities
+async def get_cities_from_db():
+    query = cities.select()
+    city_list = await database.fetch_all(query)
+    return [{"id": r._mapping["id"], "name": r._mapping["name"]} for r in city_list]
+
 
 @api_router.get("/specializations")
 async def get_specializations():
@@ -538,9 +438,8 @@ async def get_tools_list():
 
 app.include_router(api_router)
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    return HTMLResponse(content=open("index.html", "r").read(), status_code=200)
-    
-app.include_router(api_router)
+# Mount static files
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
