@@ -3,13 +3,20 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.engine import create_engine
 import os
 
-# --- ИСПРАВЛЕНИЕ: НОВЫЙ ИСПРАВЛЕННЫЙ КОД ДЛЯ SSL ---
+# Получаем DATABASE_URL из переменных окружения.
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Проверяем, что переменная установлена, иначе приложение не запустится
+if not DATABASE_URL:
+    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
+
+# --- ИСПРАВЛЕНИЕ: ДОБАВЛЕНИЕ ПАРАМЕТРА SSL ---
 # Добавляем параметр SSL для Render.com, если его нет.
 if "?" in DATABASE_URL:
     DATABASE_URL += "&sslmode=require"
 else:
     DATABASE_URL += "?sslmode=require"
-# ----------------------------------------------------
+# ---------------------------------------------
 
 # ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
 # но SQLAlchemy требует для asyncpg/databases формат postgresql://
@@ -36,7 +43,6 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("password_hash", sqlalchemy.String),
     sqlalchemy.Column("user_name", sqlalchemy.String),
     sqlalchemy.Column("user_type", sqlalchemy.String),
-    # НОВЫЙ СТОЛБЕЦ: email. Он должен быть уникальным.
     sqlalchemy.Column("email", sqlalchemy.String, unique=True, nullable=False),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
@@ -89,7 +95,6 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    # НОВЫЕ СТОЛБЦЫ:
     sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False, nullable=False),
     sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
 )
