@@ -10,6 +10,14 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
 
+# --- ВАЖНО: НОВОЕ ИСПРАВЛЕНИЕ ДЛЯ SSL ---
+# Добавляем параметр SSL для Render.com, если его нет.
+if "?" in DATABASE_URL:
+    DATABASE_URL += "&ssl=require"
+else:
+    DATABASE_URL += "?ssl=require"
+# ----------------------------------------
+
 # ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
 # но SQLAlchemy требует для asyncpg/databases формат postgresql://
 if DATABASE_URL.startswith("postgres://"):
