@@ -3,20 +3,13 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.engine import create_engine
 import os
 
-# Получаем DATABASE_URL из переменных окружения.
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-# Проверяем, что переменная установлена, иначе приложение не запустится
-if not DATABASE_URL:
-    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
-
-# --- ВАЖНО: НОВОЕ ИСПРАВЛЕНИЕ ДЛЯ SSL ---
+# --- ИСПРАВЛЕНИЕ: НОВЫЙ ИСПРАВЛЕННЫЙ КОД ДЛЯ SSL ---
 # Добавляем параметр SSL для Render.com, если его нет.
 if "?" in DATABASE_URL:
-    DATABASE_URL += "&ssl=require"
+    DATABASE_URL += "&sslmode=require"
 else:
-    DATABASE_URL += "?ssl=require"
-# ----------------------------------------
+    DATABASE_URL += "?sslmode=require"
+# ----------------------------------------------------
 
 # ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
 # но SQLAlchemy требует для asyncpg/databases формат postgresql://
