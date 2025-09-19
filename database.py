@@ -6,11 +6,12 @@ import os
 # Получаем DATABASE_URL из переменных окружения.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# Проверяем, что переменная установлена
+# Проверяем, что переменная установлена, иначе приложение не запустится
 if not DATABASE_URL:
     raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
 
-# Исправляем формат URL для asyncpg
+# ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
+# но SQLAlchemy требует для asyncpg/databases формат postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -85,6 +86,9 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    # НОВЫЕ СТОЛБЦЫ:
+    sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False, nullable=False),
+    sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
 )
 
 # Таблица объявлений о материалах

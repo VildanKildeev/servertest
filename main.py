@@ -17,7 +17,7 @@ import os
 from dotenv import load_dotenv
 
 # --- Database setup ---
-# Исправлено: убрана точка перед 'database'
+# Импортируем все таблицы и метаданные из файла database.py
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities
 
 load_dotenv()
@@ -116,12 +116,18 @@ class ToolRequestCreate(BaseModel):
     count: Optional[int] = None
     rental_start_date: Optional[date] = None
     rental_end_date: Optional[date] = None
+    # НОВЫЕ ПОЛЯ:
+    has_delivery: Optional[bool] = False
+    delivery_address: Optional[str] = None
 
 class ToolRequestInDB(ToolRequestCreate):
     id: int
     user_id: int
     created_at: datetime
     city_id: int
+    # НОВЫЕ ПОЛЯ:
+    has_delivery: Optional[bool] = False
+    delivery_address: Optional[str] = None
 
 class MaterialAdCreate(BaseModel):
     material_type: str
