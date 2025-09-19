@@ -6,7 +6,7 @@ from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr # ИМПОРТИРОВАНО: EmailStr
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -65,6 +65,7 @@ class UserBase(BaseModel):
     city_id: int
     specialization: Optional[str] = None
     is_premium: Optional[bool] = False
+    email: EmailStr  # НОВОЕ ПОЛЕ: email
 
 class UserCreate(UserBase):
     password: str
@@ -77,6 +78,7 @@ class UserInDB(UserBase):
     id: int
     password_hash: str
     created_at: Optional[datetime] = None
+    email: str # НОВОЕ ПОЛЕ: email
 
 class Token(BaseModel):
     access_token: str
@@ -246,8 +248,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @api_router.post("/users/", response_model=UserPublic)
 async def create_user(user: UserCreate):
+    # ПРОВЕРКА НА УНИКАЛЬНОСТЬ USERNAME и EMAIL
     if await database.fetch_one(users.select().where(users.c.username == user.username)):
         raise HTTPException(status_code=400, detail="Username already registered")
+    if await database.fetch_one(users.select().where(users.c.email == user.email)):
+        raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = get_password_hash(user.password)
     data_to_insert = {
@@ -257,7 +262,8 @@ async def create_user(user: UserCreate):
         "user_type": user.user_type,
         "city_id": user.city_id,
         "specialization": user.specialization,
-        "is_premium": user.is_premium
+        "is_premium": user.is_premium,
+        "email": user.email # НОВОЕ ПОЛЕ: email
     }
     
     return await create_record_and_return(

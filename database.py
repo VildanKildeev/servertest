@@ -35,6 +35,8 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("password_hash", sqlalchemy.String),
     sqlalchemy.Column("user_name", sqlalchemy.String),
     sqlalchemy.Column("user_type", sqlalchemy.String),
+    # НОВЫЙ СТОЛБЕЦ: email. Он должен быть уникальным.
+    sqlalchemy.Column("email", sqlalchemy.String, unique=True, nullable=False),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False, nullable=False),
