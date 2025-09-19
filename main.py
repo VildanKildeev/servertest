@@ -18,33 +18,9 @@ from dotenv import load_dotenv
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданные из файла database.py
-from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities
+from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database
 
 load_dotenv()
-
-# Инициализация базы данных
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-# --- ВАЖНЫЕ ИЗМЕНЕНИЯ ЗДЕСЬ ---
-# Проверяем, что переменная установлена
-if not DATABASE_URL:
-    raise Exception("Переменная окружения DATABASE_URL не установлена.")
-
-# Добавляем параметр SSL для Render.com, если его нет.
-if "?" in DATABASE_URL:
-    DATABASE_URL += "&sslmode=require"
-else:
-    DATABASE_URL += "?sslmode=require"
-
-# ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
-# но SQLAlchemy требует для asyncpg/databases формат postgresql://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-database = databases.Database(DATABASE_URL)
-# --- КОНЕЦ ИЗМЕНЕНИЙ ---
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Настройки для токенов
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
