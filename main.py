@@ -44,11 +44,11 @@ work_requests = Table(
     Column("description", String, nullable=False),
     Column("budget", Float),
     Column("contact_info", String),
-    Column("city_id", Integer, ForeignKey("users.city_id")),
+    Column("city_id", Integer), # Колонка city_id остается, но без внешнего ключа
     Column("specialization", String, nullable=False),
     Column("created_at", DateTime, default=datetime.utcnow),
     Column("executor_id", Integer, ForeignKey("users.id"), nullable=True),
-    Column("is_premium", Boolean, default=False, nullable=False), # ✅ ИСПРАВЛЕНИЕ: Добавлена колонка is_premium
+    Column("is_premium", Boolean, default=False, nullable=False),
 )
 
 machinery_requests = Table(
