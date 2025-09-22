@@ -13,9 +13,9 @@ from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
-
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
@@ -186,9 +186,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 # --- Маршруты API ---
+
+# Определяем базовый путь
+base_path = Path(__file__).parent
+static_path = base_path / "static"
+
+# Указываем FastAPI, где искать статические файлы
+app.mount("/static", StaticFiles(directory=static_path), name="static")
+
 @app.get("/", response_class=FileResponse)
 async def serve_index():
-    return FileResponse("index.html")
+    return FileResponse(static_path / "index.html")
 
 # Регистрация пользователя
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED)
@@ -390,4 +398,4 @@ def get_material_types():
 app.include_router(api_router)
 
 if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
