@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
@@ -186,11 +186,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 # --- Маршруты API ---
-
-# Установка маршрута для корневой страницы, чтобы она правильно отображалась
 @app.get("/", response_class=FileResponse)
 async def serve_index():
-    return FileResponse("index.html", media_type="text/html")
+    return FileResponse("index.html")
 
 # Регистрация пользователя
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED)
@@ -389,7 +387,7 @@ MATERIAL_TYPES = [
 def get_material_types():
     return MATERIAL_TYPES
 
-@app.include_router(api_router)
+app.include_router(api_router)
 
 if __name__ == '__main__':
     uvicorn.run(app, host="0.0.0.0", port=10000)
