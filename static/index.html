@@ -116,12 +116,31 @@
             <div class="form-container">
                 <h2>Регистрация</h2>
                 <form id="registerForm">
-                    <input type="text" id="registerUsername" name="username" placeholder="Имя пользователя (ник)" required>
-                    <input type="password" id="registerPassword" name="password" placeholder="Пароль" required>
-                    <input type="text" id="registerUserName" name="user_name" placeholder="Ваше имя" required>
-                    <input type="email" id="registerEmail" name="email" placeholder="Email (необязательно)">
+                    <div class="input-group">
+                        <label for="registerUsername">Имя пользователя (ник):</label>
+                        <input type="text" id="registerUsername" name="username" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerPassword">Пароль:</label>
+                        <input type="password" id="registerPassword" name="password" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerUserName">Ваше имя:</label>
+                        <input type="text" id="registerUserName" name="user_name" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerEmail">Email (необязательно):</label>
+                        <input type="email" id="registerEmail" name="email">
+                    </div>
+                    <div class="input-group">
+                        <label for="userType">Тип аккаунта:</label>
+                        <select id="userType" name="user_type" required>
+                            <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
+                            <option value="ЗАКАЗЧИК">Заказчик</option>
+                        </select>
+                    </div>
                     <div class="submit-button-container">
-                        <button type="submit">Зарегистрироваться</button>
+                        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
                     </div>
                     <p class="form-switch-text">Уже есть аккаунт? <a href="#" onclick="showPage('loginPage'); return false;">Войти</a></p>
                 </form>
@@ -320,7 +339,7 @@
 
         <div id="materialAdsPage" class="page">
             <div class="list-container">
-                <h2>Объявления о материалах</h2>
+                <h2>Объявления на материалы</h2>
                 <div id="materialAdsList"></div>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
@@ -416,7 +435,6 @@
             profileInfo.innerHTML = `
                 <p><strong>Имя пользователя:</strong> ${profile.username}</p>
                 <p><strong>Ваше имя:</strong> ${profile.user_name}</p>
-                <p><strong>Email:</strong> ${profile.email || 'Не указан'}</p>
                 <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
                 <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>
                 <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
@@ -603,10 +621,11 @@
             const password = document.getElementById('registerPassword').value;
             const userName = document.getElementById('registerUserName').value;
             const email = document.getElementById('registerEmail').value;
+            const userType = document.getElementById('userType').value;
             const registerStatusEl = document.getElementById('registerStatus');
 
             try {
-                const response = await fetch('https://servertest2-0.onrender.com/api/users/', {
+                const response = await fetch(`${API_URL}/users/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -615,7 +634,8 @@
                         username: username,
                         password: password,
                         user_name: userName,
-                        email: email || null
+                        email: email || null,
+                        user_type: userType
                     })
                 });
 
@@ -628,8 +648,8 @@
                         showPage('loginPage');
                     }, 2000);
                 } else {
-                    let errorMessage = `Ошибка: ${data.detail[0].msg}`;
-                    if (data.detail && data.detail.length > 0) {
+                    let errorMessage = `Ошибка: ${data.detail}`;
+                    if (data.detail && Array.isArray(data.detail) && data.detail.length > 0 && data.detail[0].msg) {
                         errorMessage = `Ошибка: ${data.detail[0].msg}. Место: ${data.detail[0].loc.join(' -> ')}`;
                     }
                     registerStatusEl.textContent = errorMessage;
