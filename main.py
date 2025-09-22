@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
@@ -187,6 +187,11 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # --- Маршруты API ---
 
+# Установка маршрута для корневой страницы, чтобы она правильно отображалась
+@app.get("/", response_class=FileResponse)
+async def serve_index():
+    return FileResponse("index.html", media_type="text/html")
+
 # Регистрация пользователя
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserIn):
@@ -197,7 +202,6 @@ async def create_user(user: UserIn):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
         )
-    
     hashed_password = get_password_hash(user.password)
     query = users.insert().values(
         username=user.username,
@@ -255,6 +259,13 @@ async def create_machinery_request(machinery_request: MachineryRequestIn, curren
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **machinery_request.dict()}
 
+# Получение всех заявок на спецтехнику
+@api_router.get("/machinery_requests/")
+async def get_machinery_requests():
+    query = machinery_requests.select()
+    requests = await database.fetch_all(query)
+    return requests
+
 # Создание заявки на инструмент
 @api_router.post("/tool_requests/", status_code=status.HTTP_201_CREATED)
 async def create_tool_request(tool_request: ToolRequestIn, current_user: dict = Depends(get_current_user)):
@@ -275,6 +286,13 @@ async def create_tool_request(tool_request: ToolRequestIn, current_user: dict = 
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **tool_request.dict()}
 
+# Получение всех заявок на инструмент
+@api_router.get("/tool_requests/")
+async def get_tool_requests():
+    query = tool_requests.select()
+    requests = await database.fetch_all(query)
+    return requests
+
 # Создание объявления о материалах
 @api_router.post("/material_ads/", status_code=status.HTTP_201_CREATED)
 async def create_material_ad(material_ad: MaterialAdIn, current_user: dict = Depends(get_current_user)):
@@ -291,41 +309,6 @@ async def create_material_ad(material_ad: MaterialAdIn, current_user: dict = Dep
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **material_ad.dict()}
 
-# Получение городов
-@api_router.get("/cities/", response_model=List[City])
-async def get_cities():
-    query = cities.select()
-    city_list = await database.fetch_all(query)
-    return city_list
-
-# Добавление города
-@api_router.post("/cities/", status_code=status.HTTP_201_CREATED)
-async def add_city(city_name: str):
-    # Проверка, существует ли город
-    query = cities.select().where(cities.c.name == city_name)
-    existing_city = await database.fetch_one(query)
-    if existing_city:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="City already exists")
-    
-    query = cities.insert().values(name=city_name)
-    last_record_id = await database.execute(query)
-    return {"id": last_record_id, "name": city_name}
-
-
-# Получение всех заявок на спецтехнику
-@api_router.get("/machinery_requests/")
-async def get_machinery_requests():
-    query = machinery_requests.select()
-    requests = await database.fetch_all(query)
-    return requests
-
-# Получение всех заявок на инструмент
-@api_router.get("/tool_requests/")
-async def get_tool_requests():
-    query = tool_requests.select()
-    requests = await database.fetch_all(query)
-    return requests
-
 # Получение всех объявлений о материалах
 @api_router.get("/material_ads/")
 async def get_material_ads():
@@ -333,181 +316,49 @@ async def get_material_ads():
     ads = await database.fetch_all(query)
     return ads
 
-# Обновление заявки на работу
-@api_router.put("/work_requests/{request_id}/")
-async def update_work_request(request_id: int, updated_request: WorkRequestUpdate, current_user: dict = Depends(get_current_user)):
-    query = work_requests.select().where(work_requests.c.id == request_id)
-    existing_request = await database.fetch_one(query)
-    
-    if not existing_request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work request not found")
+# Маршруты для получения списков специализаций, городов, типов техники и инструментов
+@api_router.get("/cities/")
+async def get_cities():
+    query = cities.select()
+    all_cities = await database.fetch_all(query)
+    return all_cities
 
-    # Only the creator of the request can update it
-    if existing_request.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this request")
-
-    update_data = updated_request.dict(exclude_unset=True)
-    if not update_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-
-    update_query = work_requests.update().where(work_requests.c.id == request_id).values(**update_data)
-    await database.execute(update_query)
-    
-    return {"message": "Work request updated successfully"}
-
-# Обновление заявки на спецтехнику
-@api_router.put("/machinery_requests/{request_id}/")
-async def update_machinery_request(request_id: int, updated_request: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
-    query = machinery_requests.select().where(machinery_requests.c.id == request_id)
-    existing_request = await database.fetch_one(query)
-    
-    if not existing_request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machinery request not found")
-
-    if existing_request.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this request")
-        
-    update_data = updated_request.dict(exclude_unset=True)
-    if not update_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-
-    update_query = machinery_requests.update().where(machinery_requests.c.id == request_id).values(**update_data)
-    await database.execute(update_query)
-    
-    return {"message": "Machinery request updated successfully"}
-
-# Обновление заявки на инструмент
-@api_router.put("/tool_requests/{request_id}/")
-async def update_tool_request(request_id: int, updated_request: ToolRequestIn, current_user: dict = Depends(get_current_user)):
-    query = tool_requests.select().where(tool_requests.c.id == request_id)
-    existing_request = await database.fetch_one(query)
-    
-    if not existing_request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tool request not found")
-
-    if existing_request.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this request")
-        
-    update_data = updated_request.dict(exclude_unset=True)
-    if not update_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-
-    update_query = tool_requests.update().where(tool_requests.c.id == request_id).values(**update_data)
-    await database.execute(update_query)
-    
-    return {"message": "Tool request updated successfully"}
-
-# Обновление объявления о материалах
-@api_router.put("/material_ads/{ad_id}/")
-async def update_material_ad(ad_id: int, updated_ad: MaterialAdIn, current_user: dict = Depends(get_current_user)):
-    query = material_ads.select().where(material_ads.c.id == ad_id)
-    existing_ad = await database.fetch_one(query)
-    
-    if not existing_ad:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material ad not found")
-
-    if existing_ad.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this ad")
-        
-    update_data = updated_ad.dict(exclude_unset=True)
-    if not update_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-
-    update_query = material_ads.update().where(material_ads.c.id == ad_id).values(**update_data)
-    await database.execute(update_query)
-    
-    return {"message": "Material ad updated successfully"}
-
-# Удаление заявки на работу
-@api_router.delete("/work_requests/{request_id}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
-    query = work_requests.select().where(work_requests.c.id == request_id)
-    existing_request = await database.fetch_one(query)
-    
-    if not existing_request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work request not found")
-
-    if existing_request.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this request")
-        
-    query = work_requests.delete().where(work_requests.c.id == request_id)
-    await database.execute(query)
-    return
-
-# Удаление заявки на спецтехнику
-@api_router.delete("/machinery_requests/{request_id}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_machinery_request(request_id: int, current_user: dict = Depends(get_current_user)):
-    query = machinery_requests.select().where(machinery_requests.c.id == request_id)
-    existing_request = await database.fetch_one(query)
-    
-    if not existing_request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machinery request not found")
-
-    if existing_request.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this request")
-        
-    query = machinery_requests.delete().where(machinery_requests.c.id == request_id)
-    await database.execute(query)
-    return
-
-# Удаление заявки на инструмент
-@api_router.delete("/tool_requests/{request_id}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_tool_request(request_id: int, current_user: dict = Depends(get_current_user)):
-    query = tool_requests.select().where(tool_requests.c.id == request_id)
-    existing_request = await database.fetch_one(query)
-    
-    if not existing_request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tool request not found")
-
-    if existing_request.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this request")
-        
-    query = tool_requests.delete().where(tool_requests.c.id == request_id)
-    await database.execute(query)
-    return
-
-# Удаление объявления о материалах
-@api_router.delete("/material_ads/{ad_id}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_material_ad(ad_id: int, current_user: dict = Depends(get_current_user)):
-    query = material_ads.select().where(material_ads.c.id == ad_id)
-    existing_ad = await database.fetch_one(query)
-    
-    if not existing_ad:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material ad not found")
-
-    if existing_ad.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this ad")
-        
-    query = material_ads.delete().where(material_ads.c.id == ad_id)
-    await database.execute(query)
-    return
-
-# Список специализаций
 SPECIALIZATIONS = [
-    "Сварщик", "Штукатур", "Маляр", "Электрик", "Сантехник", "Каменщик",
-    "Плотник", "Кровельщик", "Плиточник", "Отделочник", "Разнорабочий",
-    "Уборка", "Вывоз мусора", "Демонтаж", "Грузчики", "Земляные работы",
-    "Снос зданий", "Грузоперевозки", "Фасадные работы", "Устройство фундамента",
-    "Сборщик мебели", "Бурильщик", "Токарь", "Фрезеровщик", "Слесарь",
-    "Монтажник", "Геодезист", "Озеленение", "Бетонщик", "Гипсокартонщик"
+    "Электрик", "Сантехник", "Плотник", "Маляр", "Кровельщик", "Сварщик", "Разнорабочий",
+    "Ремонт бытовой техники", "Установка дверей", "Установка окон", "Дизайнер интерьеров",
+    "Прораб", "Плиточник", "Сборщик мебели", "Отделочные работы", "Демонтажные работы",
+    "Каменщик", "Фасадные работы", "Укладка пола", "Ландшафтный дизайн", "Монолитные работы",
+    "Кладка кирпича", "Бетонные работы", "Обустройство скважин"
 ]
 
 @api_router.get("/specializations/")
 def get_specializations():
     return SPECIALIZATIONS
-    
-# Список типов спецтехники
+
 MACHINERY_TYPES = [
-    "Бульдозер", "Экскаватор", "Погрузчик", "Манипулятор", "Дорожный каток",
-    "Самосвал", "Автокран", "Автовышка", "Мусоровоз", "Илосос", "Минипогрузчик",
-    "Фронтальный погрузчик", "Экскаватор-погрузчик", "Гидромолот",
-    "Автобетоносмеситель", "Ямобур", "Грейдер", "Башенный кран", "Асфальтоукладчик"
+    "Экскаватор", "Погрузчик", "Манипулятор", "Дорожный каток", "Самосвал", "Автокран", "Автовышка",
+    "Мусоровоз", "Илосос", "Канистра", "Монтажный пистолет", "Когти монтерские", "Монтажный пояс",
+    "Электростанция", "Осветительные мачты", "Генератор", "Компрессор", "Мотопомпа",
+    "Сварочный аппарат", "Паяльник", "Гайковерт", "Пресс", "Болгарка", "Дрель", "Перфоратор",
+    "Виброплита", "Вибротрамбовка", "Виброрейка", "Вибратор для бетона", "Затирочная машина",
+    "Резчик швов", "Резчик кровли", "Шлифовальная машина", "Бетономешалка", "Растворосмеситель",
+    "Пескоструйный аппарат", "Опрессовщик", "Прочистная машина", "Пневмоподатчик", "Штукатурная машина",
+    "Окрасочный аппарат", "Компрессорный агрегат", "Гидронасос", "Электроталь",
+    "Тепловые пушки", "Дизельные тепловые пушки", "Теплогенераторы", "Осушители воздуха", "Прогрев грунта", "Промышленные вентиляторы",
+    "Парогенератор", "Бытовки", "Кран Пионер", "Кран Умелец", "Ручная таль", "Домкраты", "Тележки гидравлические", "Лебедки",
+    "Коленчатый подъемник", "Фасадный подъемник", "Телескопический подъемник", "Ножничный подъемник", "Штабелер",
+    "Установка алмазного бурения", "Сантехническое оборудование", "Окрасочный аппарат", "Кровельное оборудование",
+    "Электромонтажный инструмент", "Резьбонарезной инструмент", "Газорезочное оборудование", "Инструмент для фальцевой кровли",
+    "Растворные станции", "Труборезы", "Оборудование для получения лицензии МЧС", "Оборудование для работы с композитом",
+    "Рейсмусовый станок", "Дрель на магнитной подошве", "Плиткорезы", "Отрезной станок", "Фрезер", "Камнерезные станки",
+    "Экскаваторы", "Погрузчик", "Манипулятор", "Дорожные катки", "Самосвалы", "Автокран", "Автовышка", "Мусоровоз", "Илосос",
+    "Канистра", "Монтажный пистолет", "Когти монтерские"
 ]
 
 @api_router.get("/machinery_types/")
 def get_machinery_types():
     return MACHINERY_TYPES
-    
+
 # Список инструментов
 TOOLS_LIST = [
     "Бетономешалка", "Виброплита", "Генератор", "Компрессор", "Отбойный молоток",
@@ -526,18 +377,19 @@ def get_tools_list():
 # Список типов материалов
 MATERIAL_TYPES = [
     "Цемент", "Песок", "Щебень", "Кирпич", "Бетон", "Армирующие материалы",
-    "Гипсокартон", "Штукатурка", "Шпаклевка", "Краска", "Лак", "Грунтовка",
-    "Плитка", "Клей", "Доска", "Брус", "Фанера", "OSB", "Утеплитель", "Кровельные материалы",
-    "Электрокабель", "Трубы", "Сантехника", "Окна", "Двери", "Обои", "Ламинат", "Паркет",
-    "Керамогранит", "Камень"
+    "Гипсокартон", "Штукатурка", "Шпаклевка", "Краски", "Клей", "Грунтовка",
+    "Гидроизоляция", "Теплоизоляция", "Звукоизоляция", "Пиломатериалы",
+    "Фанера", "ДСП", "ОСБ", "Металлопрокат", "Трубы", "Проволока",
+    "Крепежные изделия", "Электротовары", "Сантехника", "Отопление",
+    "Кровля", "Окна", "Двери", "Напольные покрытия", "Сайдинг", "Вагонка",
+    "Ламинат", "Паркет", "Линолеум", "Ковролин"
 ]
 
 @api_router.get("/material_types/")
 def get_material_types():
     return MATERIAL_TYPES
-    
-# Монтируем API-маршруты перед статическими файлами
-app.include_router(api_router)
 
-# Обслуживаем статические файлы, включая index.html
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
+@app.include_router(api_router)
+
+if __name__ == '__main__':
+    uvicorn.run(app, host="0.0.0.0", port=10000)
