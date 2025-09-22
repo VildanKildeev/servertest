@@ -112,9 +112,10 @@
             </div>
         </div>
 
-        <div id="registerPage" class="page-container">
+        <div id="registerPage" class="page">
             <div class="form-container">
                 <h2>Регистрация</h2>
+                <div id="registerStatus" class="message"></div>
                 <form id="registerForm">
                     <div class="input-group">
                         <label for="registerUsername">Имя пользователя (ник):</label>
@@ -133,18 +134,19 @@
                         <input type="email" id="registerEmail" name="email">
                     </div>
                     <div class="input-group">
-                        <label for="userType">Тип аккаунта:</label>
-                        <select id="userType" name="user_type" required>
-                            <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
-                            <option value="ЗАКАЗЧИК">Заказчик</option>
+                        <label for="registerUserType">Тип аккаунта:</label>
+                        <select id="registerUserType" name="user_type">
+                            <option value="ЗАКАЗЧИК">ЗАКАЗЧИК</option>
+                            <option value="ИСПОЛНИТЕЛЬ">ИСПОЛНИТЕЛЬ</option>
                         </select>
                     </div>
-                    <div class="submit-button-container">
-                        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                    <div class="input-group" id="specializationGroup" style="display: none;">
+                        <label for="registerSpecialization">Специализация:</label>
+                        <select id="registerSpecialization" name="specialization"></select>
                     </div>
-                    <p class="form-switch-text">Уже есть аккаунт? <a href="#" onclick="showPage('loginPage'); return false;">Войти</a></p>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                    <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
                 </form>
-                <p id="registerStatus" class="message"></p>
             </div>
         </div>
 
@@ -535,7 +537,8 @@
                 const specializations = await response.json();
                 const workSpecializationEl = document.getElementById('workSpecialization');
                 const newSpecializationEl = document.getElementById('newSpecialization');
-                [workSpecializationEl, newSpecializationEl].forEach(el => {
+                const registerSpecializationEl = document.getElementById('registerSpecialization');
+                [workSpecializationEl, newSpecializationEl, registerSpecializationEl].forEach(el => {
                     if (el) {
                         el.innerHTML = '';
                         specializations.forEach(spec => {
@@ -620,22 +623,22 @@
             const username = document.getElementById('registerUsername').value;
             const password = document.getElementById('registerPassword').value;
             const userName = document.getElementById('registerUserName').value;
-            const email = document.getElementById('registerEmail').value;
-            const userType = document.getElementById('userType').value;
+            const email = document.getElementById('registerEmail').value || null;
+            const userType = document.getElementById('registerUserType').value;
+            const specialization = document.getElementById('registerSpecialization').value || null;
             const registerStatusEl = document.getElementById('registerStatus');
 
             try {
                 const response = await fetch(`${API_URL}/users/`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         username: username,
                         password: password,
                         user_name: userName,
-                        email: email || null,
-                        user_type: userType
+                        email: email,
+                        user_type: userType,
+                        specialization: specialization
                     })
                 });
 
@@ -649,7 +652,7 @@
                     }, 2000);
                 } else {
                     let errorMessage = `Ошибка: ${data.detail}`;
-                    if (data.detail && Array.isArray(data.detail) && data.detail.length > 0 && data.detail[0].msg) {
+                    if (data.detail && data.detail.length > 0 && data.detail[0].msg) {
                         errorMessage = `Ошибка: ${data.detail[0].msg}. Место: ${data.detail[0].loc.join(' -> ')}`;
                     }
                     registerStatusEl.textContent = errorMessage;
@@ -658,6 +661,15 @@
             } catch (error) {
                 registerStatusEl.textContent = 'Произошла ошибка сети.';
                 registerStatusEl.className = 'message error';
+            }
+        });
+
+        document.getElementById('registerUserType').addEventListener('change', (e) => {
+            const specializationGroup = document.getElementById('specializationGroup');
+            if (e.target.value === "ИСПОЛНИТЕЛЬ") {
+                specializationGroup.style.display = 'block';
+            } else {
+                specializationGroup.style.display = 'none';
             }
         });
 
