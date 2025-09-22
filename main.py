@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
 import os
@@ -152,6 +152,16 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+# Функция для аутентификации пользователя
+async def authenticate_user(username: str, password: str):
+    query = users.select().where(users.c.username == username)
+    user_db = await database.fetch_one(query)
+    if not user_db:
+        return False
+    if not verify_password(password, user_db["hashed_password"]):
+        return False
+    return user_db
+
 # Проверка пользователя
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -197,6 +207,22 @@ app.mount("/static", StaticFiles(directory=static_path), name="static")
 @app.get("/", response_class=FileResponse)
 async def serve_index():
     return FileResponse(static_path / "index.html")
+
+# НОВЫЙ МАРШРУТ для получения токена
+@api_router.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user_db = await authenticate_user(form_data.username, form_data.password)
+    if not user_db:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_db["username"]}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # Регистрация пользователя
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED)
