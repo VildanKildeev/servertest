@@ -13,13 +13,11 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
 
-from fastapi.security import OAuth2PasswordBearer
-
 import os
 from dotenv import load_dotenv
 
 # --- Database setup ---
-# Импортируем все таблицы и метаданные из файла database.py
+# Импортируем все таблицы и метаданды из файла database.py
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database
 
 load_dotenv()
@@ -483,9 +481,6 @@ async def delete_material_ad(ad_id: int, current_user: dict = Depends(get_curren
     await database.execute(query)
     return
 
-# Монтируем статические файлы
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
-
 # Список специализаций
 SPECIALIZATIONS = [
     "Сварщик", "Штукатур", "Маляр", "Электрик", "Сантехник", "Каменщик",
@@ -540,4 +535,8 @@ MATERIAL_TYPES = [
 def get_material_types():
     return MATERIAL_TYPES
     
+# Монтируем API-маршруты перед статическими файлами
 app.include_router(api_router)
+
+# Обслуживаем статические файлы, включая index.html
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
