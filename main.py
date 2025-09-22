@@ -54,9 +54,12 @@ async def shutdown():
 @app.on_event("startup")
 async def create_tables():
     # ИСПРАВЛЕНИЕ: Используем асинхронный контекст `database.connection()`
-    # для доступа к синхронному движку SQLAlchemy.
+    # и передаем его в `metadata.create_all` как `bind`
     async with database.connection() as connection:
-        await connection.run_sync(metadata.create_all, bind=engine)
+        # `run_sync` - это метод асинхронного движка SQLAlchemy,
+        # а не объекта `databases.Database`, который мы здесь используем.
+        # Вместо этого, `databases` позволяет передать `bind` напрямую.
+        metadata.create_all(connection)
 
 # --- Password hashing ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
