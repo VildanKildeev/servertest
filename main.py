@@ -13,6 +13,8 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
 
+from fastapi.security import OAuth2PasswordBearer
+
 import os
 from dotenv import load_dotenv
 
@@ -26,6 +28,8 @@ load_dotenv()
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 app = FastAPI(title="СМЗ.РФ API")
 api_router = APIRouter(prefix="/api")
@@ -42,8 +46,6 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     await database.connect()
-    # ДОБАВЛЕНА СТРОКА:
-    # Создаем все таблицы, определенные в метаданных, если они еще не существуют.
     metadata.create_all(engine)
     print("Database connected and tables checked/created.")
 
