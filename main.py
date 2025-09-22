@@ -54,7 +54,7 @@ async def shutdown():
 # Создаем таблицы в базе данных при запуске, если они еще не существуют
 @app.on_event("startup")
 async def create_tables():
-    # ИСПРАВЛЕНИЕ: Запускаем синхронную операцию `metadata.create_all`
+    # Запускаем синхронную операцию `metadata.create_all`
     # в отдельном потоке, чтобы не блокировать асинхронный цикл.
     await run_in_threadpool(metadata.create_all, engine)
 
@@ -433,6 +433,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    with open("index.html", "r", encoding="utf-8") as f:
-        html_content = f.read()
-    return HTMLResponse(content=html_content, status_code=200)
+    # ИСПРАВЛЕНИЕ: Используем os.path.join для создания надежного пути к файлу
+    # Это гарантирует, что файл будет найден независимо от текущей рабочей директории
+    file_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content, status_code=200)
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Ошибка 404: Файл не найден</h1><p>Убедитесь, что файл index.html находится в папке 'static'.</p>", status_code=404)
