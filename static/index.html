@@ -112,37 +112,20 @@
             </div>
         </div>
 
-        <div id="registerPage" class="page">
+        <div id="registerPage" class="page-container">
             <div class="form-container">
                 <h2>Регистрация</h2>
-                <div id="registerStatus" class="message"></div>
                 <form id="registerForm">
-                    <div class="input-group">
-                        <label for="regUsername">Имя пользователя:</label>
-                        <input type="text" id="regUsername" required>
+                    <input type="text" id="registerUsername" name="username" placeholder="Имя пользователя (ник)" required>
+                    <input type="password" id="registerPassword" name="password" placeholder="Пароль" required>
+                    <input type="text" id="registerUserName" name="user_name" placeholder="Ваше имя" required>
+                    <input type="email" id="registerEmail" name="email" placeholder="Email (необязательно)">
+                    <div class="submit-button-container">
+                        <button type="submit">Зарегистрироваться</button>
                     </div>
-                    <div class="input-group">
-                        <label for="regPassword">Пароль:</label>
-                        <input type="password" id="regPassword" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="regUserName">Ваше имя:</label>
-                        <input type="text" id="regUserName" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="regUserType">Тип аккаунта:</label>
-                        <select id="regUserType">
-                            <option value="ЗАКАЗЧИК">ЗАКАЗЧИК</option>
-                            <option value="ИСПОЛНИТЕЛЬ">ИСПОЛНИТЕЛЬ</option>
-                        </select>
-                    </div>
-                    <div class="input-group" id="specializationGroup" style="display:none;">
-                        <label for="regSpecialization">Специализация:</label>
-                        <select id="regSpecialization"></select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
-                    <button type="button" class="btn-link" onclick="showPage('loginPage')">Уже есть аккаунт?</button>
+                    <p class="form-switch-text">Уже есть аккаунт? <a href="#" onclick="showPage('loginPage'); return false;">Войти</a></p>
                 </form>
+                <p id="registerStatus" class="message"></p>
             </div>
         </div>
 
@@ -337,7 +320,7 @@
 
         <div id="materialAdsPage" class="page">
             <div class="list-container">
-                <h2>Объявления на материалы</h2>
+                <h2>Объявления о материалах</h2>
                 <div id="materialAdsList"></div>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
@@ -433,6 +416,7 @@
             profileInfo.innerHTML = `
                 <p><strong>Имя пользователя:</strong> ${profile.username}</p>
                 <p><strong>Ваше имя:</strong> ${profile.user_name}</p>
+                <p><strong>Email:</strong> ${profile.email || 'Не указан'}</p>
                 <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
                 <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>
                 <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
@@ -531,10 +515,9 @@
             try {
                 const response = await fetch(`${API_URL}/specializations`);
                 const specializations = await response.json();
-                const regSpecializationEl = document.getElementById('regSpecialization');
                 const workSpecializationEl = document.getElementById('workSpecialization');
                 const newSpecializationEl = document.getElementById('newSpecialization');
-                [regSpecializationEl, workSpecializationEl, newSpecializationEl].forEach(el => {
+                [workSpecializationEl, newSpecializationEl].forEach(el => {
                     if (el) {
                         el.innerHTML = '';
                         specializations.forEach(spec => {
@@ -614,315 +597,139 @@
             }
         });
 
-        document.getElementById('regUserType').addEventListener('change', (e) => {
-            const specializationGroup = document.getElementById('specializationGroup');
-            if (e.target.value === 'ИСПОЛНИТЕЛЬ') {
-                specializationGroup.style.display = 'block';
-            } else {
-                specializationGroup.style.display = 'none';
-            }
-        });
-
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = e.target.regUsername.value;
-            const password = e.target.regPassword.value;
-            const user_name = e.target.regUserName.value;
-            const user_type = e.target.regUserType.value;
-            const specialization = user_type === 'ИСПОЛНИТЕЛЬ' ? e.target.regSpecialization.value : null;
-            const statusEl = document.getElementById('registerStatus');
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const userName = document.getElementById('registerUserName').value;
+            const email = document.getElementById('registerEmail').value;
+            const registerStatusEl = document.getElementById('registerStatus');
 
-            const response = await fetch(`${API_URL}/users/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username,
-                    password,
-                    user_name,
-                    user_type,
-                    city_id: getSelectedCity().id,
-                    specialization
-                })
-            });
+            try {
+                const response = await fetch('https://servertest2-0.onrender.com/api/users/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        user_name: userName,
+                        email: email || null
+                    })
+                });
 
-            const data = await response.json();
-            if (response.ok) {
-                statusEl.textContent = 'Регистрация прошла успешно! Теперь вы можете войти.';
-                statusEl.className = 'message success';
-                showPage('loginPage');
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail}`;
-                statusEl.className = 'message error';
-            }
-        });
+                const data = await response.json();
 
-        document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('workRequestStatus');
-            const response = await fetch(`${API_URL}/work-requests`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({
-                    description: e.target.workDescription.value,
-                    budget: parseFloat(e.target.workBudget.value),
-                    specialization: e.target.workSpecialization.value,
-                    contact_info: e.target.workContact.value
-                })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                statusEl.textContent = 'Заявка на работу успешно создана!';
-                statusEl.className = 'message success';
-                e.target.reset();
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail}`;
-                statusEl.className = 'message error';
+                if (response.ok) {
+                    registerStatusEl.textContent = 'Успешная регистрация!';
+                    registerStatusEl.className = 'message success';
+                    setTimeout(() => {
+                        showPage('loginPage');
+                    }, 2000);
+                } else {
+                    let errorMessage = `Ошибка: ${data.detail[0].msg}`;
+                    if (data.detail && data.detail.length > 0) {
+                        errorMessage = `Ошибка: ${data.detail[0].msg}. Место: ${data.detail[0].loc.join(' -> ')}`;
+                    }
+                    registerStatusEl.textContent = errorMessage;
+                    registerStatusEl.className = 'message error';
+                }
+            } catch (error) {
+                registerStatusEl.textContent = 'Произошла ошибка сети.';
+                registerStatusEl.className = 'message error';
             }
         });
 
         async function fetchWorkRequests() {
             const workRequestsList = document.getElementById('workRequestsList');
-            workRequestsList.innerHTML = '<p>Загрузка заявок...</p>';
-            try {
-                const response = await fetch(`${API_URL}/work-requests`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const requests = await response.json();
-                workRequestsList.innerHTML = '';
-                if (requests.length === 0) {
-                    workRequestsList.innerHTML = '<p>Заявок пока нет.</p>';
-                    return;
-                }
-                requests.forEach(req => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    item.innerHTML = `
-                        <h4>Заявка #${req.id} - ${req.specialization}</h4>
-                        <p>${req.description}</p>
-                        <p>Бюджет: ${req.budget} руб.</p>
-                        ${req.is_premium ? '<p class="premium">Приоритет: Премиум</p>' : ''}
-                        ${currentUser && currentUser.user_type === 'ИСПОЛНИТЕЛЬ' && req.executor_id === null ? `<button class="take-btn" onclick="takeWorkRequest(${req.id})">Взять заявку</button>` : ''}
-                    `;
-                    workRequestsList.appendChild(item);
-                });
-            } catch (error) {
-                workRequestsList.innerHTML = '<p class="message error">Не удалось загрузить заявки.</p>';
+            const city = getSelectedCity();
+            if (!city) {
+                workRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра заявок.</p>`;
+                return;
             }
-        }
-
-        async function takeWorkRequest(requestId) {
-            const statusEl = document.getElementById('takeOrderStatus');
             try {
-                const response = await fetch(`${API_URL}/work-requests/${requestId}/accept`, {
-                    method: 'POST',
+                const response = await fetch(`${API_URL}/work_requests?city_id=${city.id}`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
-                const data = await response.json();
                 if (response.ok) {
-                    statusEl.textContent = `Заявка с ID ${requestId} успешно принята.`;
-                    statusEl.className = 'message success';
-                    fetchWorkRequests(); // Обновляем список
+                    const requests = await response.json();
+                    renderList(requests, workRequestsList, 'заявок на работу');
                 } else {
-                    statusEl.textContent = `Ошибка: ${data.detail}`;
-                    statusEl.className = 'message error';
+                    const data = await response.json();
+                    workRequestsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
                 }
             } catch (error) {
-                statusEl.textContent = `Ошибка при попытке взять заявку: ${error.message}`;
-                statusEl.className = 'message error';
+                workRequestsList.innerHTML = `<p class="message error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>`;
             }
         }
-
-        document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('machineryRequestStatus');
-            const response = await fetch(`${API_URL}/machinery-requests`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({
-                    machinery_type: e.target.machineryType.value,
-                    description: e.target.machineryDescription.value,
-                    rental_price: parseFloat(e.target.machineryRentalPrice.value),
-                    contact_info: e.target.machineryContact.value
-                })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                statusEl.textContent = 'Заявка на технику успешно создана!';
-                statusEl.className = 'message success';
-                e.target.reset();
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail}`;
-                statusEl.className = 'message error';
-            }
-        });
 
         async function fetchMachineryRequests() {
             const machineryRequestsList = document.getElementById('machineryRequestsList');
-            machineryRequestsList.innerHTML = '<p>Загрузка заявок...</p>';
+            const city = getSelectedCity();
+            if (!city) {
+                machineryRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра заявок.</p>`;
+                return;
+            }
             try {
-                const response = await fetch(`${API_URL}/machinery-requests`, {
+                const response = await fetch(`${API_URL}/machinery_requests?city_id=${city.id}`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
-                const requests = await response.json();
-                machineryRequestsList.innerHTML = '';
-                if (requests.length === 0) {
-                    machineryRequestsList.innerHTML = '<p>Заявок пока нет.</p>';
-                    return;
+                if (response.ok) {
+                    const requests = await response.json();
+                    renderList(requests, machineryRequestsList, 'заявок на технику');
+                } else {
+                    const data = await response.json();
+                    machineryRequestsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
                 }
-                requests.forEach(req => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    item.innerHTML = `
-                        <h4>Заявка #${req.id} - ${req.machinery_type}</h4>
-                        <p>${req.description}</p>
-                        <p>Цена аренды: ${req.rental_price} руб.</p>
-                        <p class="contact">Контакт: ${req.contact_info}</p>
-                    `;
-                    machineryRequestsList.appendChild(item);
-                });
             } catch (error) {
-                machineryRequestsList.innerHTML = '<p class="message error">Не удалось загрузить заявки.</p>';
+                machineryRequestsList.innerHTML = `<p class="message error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>`;
             }
         }
-
-        // Обработчик для чекбокса "Нужна доставка?"
-        document.getElementById('hasDelivery').addEventListener('change', (e) => {
-            const deliveryAddressGroup = document.getElementById('deliveryAddressGroup');
-            if (e.target.checked) {
-                deliveryAddressGroup.style.display = 'block';
-            } else {
-                deliveryAddressGroup.style.display = 'none';
-            }
-        });
-
-        document.getElementById('toolRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('toolRequestStatus');
-            const hasDelivery = e.target.hasDelivery.checked;
-            const deliveryAddress = hasDelivery ? e.target.deliveryAddress.value : null;
-
-            const response = await fetch(`${API_URL}/tool-requests`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({
-                    tool_name: e.target.toolName.value,
-                    description: e.target.toolDescription.value,
-                    rental_price: parseFloat(e.target.toolRentalPrice.value),
-                    count: parseInt(e.target.toolCount.value),
-                    rental_start_date: e.target.toolRentalStartDate.value,
-                    rental_end_date: e.target.toolRentalEndDate.value,
-                    contact_info: e.target.toolContact.value,
-                    has_delivery: hasDelivery,
-                    delivery_address: deliveryAddress
-                })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                statusEl.textContent = 'Заявка на инструмент успешно создана!';
-                statusEl.className = 'message success';
-                e.target.reset();
-                document.getElementById('deliveryAddressGroup').style.display = 'none';
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail}`;
-                statusEl.className = 'message error';
-            }
-        });
 
         async function fetchToolRequests() {
             const toolRequestsList = document.getElementById('toolRequestsList');
-            toolRequestsList.innerHTML = '<p>Загрузка заявок...</p>';
+            const city = getSelectedCity();
+            if (!city) {
+                toolRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра заявок.</p>`;
+                return;
+            }
             try {
-                const response = await fetch(`${API_URL}/tool-requests`, {
+                const response = await fetch(`${API_URL}/tool_requests?city_id=${city.id}`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
-                const requests = await response.json();
-                toolRequestsList.innerHTML = '';
-                if (requests.length === 0) {
-                    toolRequestsList.innerHTML = '<p>Заявок пока нет.</p>';
-                    return;
+                if (response.ok) {
+                    const requests = await response.json();
+                    renderList(requests, toolRequestsList, 'заявок на инструмент');
+                } else {
+                    const data = await response.json();
+                    toolRequestsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
                 }
-                requests.forEach(req => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    let deliveryInfo = req.has_delivery ? `<p><strong>Доставка:</strong> Да, по адресу: ${req.delivery_address || 'не указан'}</p>` : `<p><strong>Доставка:</strong> Нет</p>`;
-                    item.innerHTML = `
-                        <h4>Заявка #${req.id} - ${req.tool_name}</h4>
-                        <p>${req.description}</p>
-                        <p>Цена аренды: ${req.rental_price} руб.</p>
-                        ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
-                        ${req.rental_start_date && req.rental_end_date ? `<p>Срок аренды: ${req.rental_start_date} - ${req.rental_end_date}</p>` : ''}
-                        ${deliveryInfo}
-                        <p class="contact">Контакт: ${req.contact_info}</p>
-                    `;
-                    toolRequestsList.appendChild(item);
-                });
             } catch (error) {
-                toolRequestsList.innerHTML = '<p class="message error">Не удалось загрузить заявки.</p>';
+                toolRequestsList.innerHTML = `<p class="message error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>`;
             }
         }
 
-        document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('materialAdStatus');
-            const response = await fetch(`${API_URL}/material-ads`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({
-                    material_type: e.target.materialType.value,
-                    description: e.target.materialDescription.value,
-                    price: parseFloat(e.target.materialPrice.value),
-                    contact_info: e.target.materialContact.value
-                })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                statusEl.textContent = 'Объявление на материалы успешно создано!';
-                statusEl.className = 'message success';
-                e.target.reset();
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail}`;
-                statusEl.className = 'message error';
-            }
-        });
-
         async function fetchMaterialAds() {
             const materialAdsList = document.getElementById('materialAdsList');
-            materialAdsList.innerHTML = '<p>Загрузка объявлений...</p>';
+            const city = getSelectedCity();
+            if (!city) {
+                materialAdsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра объявлений.</p>`;
+                return;
+            }
             try {
-                const response = await fetch(`${API_URL}/material-ads`, {
+                const response = await fetch(`${API_URL}/material_ads?city_id=${city.id}`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
-                const ads = await response.json();
-                materialAdsList.innerHTML = '';
-                if (ads.length === 0) {
-                    materialAdsList.innerHTML = '<p>Объявлений пока нет.</p>';
-                    return;
+                if (response.ok) {
+                    const ads = await response.json();
+                    renderList(ads, materialAdsList, 'объявлений о материалах');
+                } else {
+                    const data = await response.json();
+                    materialAdsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
                 }
-                ads.forEach(ad => {
-                    const item = document.createElement('div');
-                    item.className = 'request-item';
-                    item.innerHTML = `
-                        <h4>Объявление #${ad.id} - ${ad.material_type}</h4>
-                        <p>${ad.description}</p>
-                        <p>Цена: ${ad.price} руб.</p>
-                        <p class="contact">Контакт: ${ad.contact_info}</p>
-                    `;
-                    materialAdsList.appendChild(item);
-                });
             } catch (error) {
-                materialAdsList.innerHTML = '<p class="message error">Не удалось загрузить объявления.</p>';
+                materialAdsList.innerHTML = `<p class="message error">Не удалось загрузить объявления. Пожалуйста, попробуйте позже.</p>`;
             }
         }
 
@@ -932,78 +739,264 @@
             const myToolRequestsList = document.getElementById('myToolRequestsList');
             const myMaterialAdsList = document.getElementById('myMaterialAdsList');
 
-            myWorkRequestsList.innerHTML = '<p>Загрузка...</p>';
-            myMachineryRequestsList.innerHTML = '<p>Загрузка...</p>';
-            myToolRequestsList.innerHTML = '<p>Загрузка...</p>';
-            myMaterialAdsList.innerHTML = '<p>Загрузка...</p>';
+            const city = getSelectedCity();
+            if (!city) {
+                myWorkRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра ваших заявок.</p>`;
+                myMachineryRequestsList.innerHTML = '';
+                myToolRequestsList.innerHTML = '';
+                myMaterialAdsList.innerHTML = '';
+                return;
+            }
 
             try {
-                const response = await fetch(`${API_URL}/users/my-requests`, {
+                const response = await fetch(`${API_URL}/users/me/requests?city_id=${city.id}`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 const data = await response.json();
-                if (!response.ok) {
-                     throw new Error(data.detail || 'Не удалось загрузить ваши заявки.');
-                }
-                
-                // Функция для рендеринга списка
-                const renderList = (list, container, type) => {
-                    container.innerHTML = '';
-                    if (list.length === 0) {
-                        container.innerHTML = `<p>У вас пока нет ${type}.</p>`;
-                        return;
-                    }
-                    list.forEach(req => {
-                        const item = document.createElement('div');
-                        item.className = 'request-item';
-                        let content = '';
-                        switch (type) {
-                            case 'заявок на работу':
-                                content = `<h4>Заявка на работу #${req.id} - ${req.specialization}</h4>
-                                <p>${req.description}</p>
-                                <p>Бюджет: ${req.budget} руб.</p>
-                                ${req.executor_id ? '<p class="taken">Статус: Принята</p>' : ''}
-                                ${req.contact_info ? `<p class="contact">Контакт: ${req.contact_info}</p>` : ''}`;
-                                break;
-                            case 'заявок на технику':
-                                content = `<h4>Заявка на технику #${req.id} - ${req.machinery_type}</h4>
-                                <p>${req.description}</p>
-                                <p>Цена аренды: ${req.rental_price} руб.</p>
-                                <p class="contact">Контакт: ${req.contact_info}</p>`;
-                                break;
-                            case 'заявок на инструмент':
-                                let deliveryInfo = req.has_delivery ? `<p><strong>Доставка:</strong> Да, по адресу: ${req.delivery_address || 'не указан'}</p>` : `<p><strong>Доставка:</strong> Нет</p>`;
-                                content = `<h4>Заявка на инструмент #${req.id} - ${req.tool_name}</h4>
-                                <p>${req.description}</p>
-                                <p>Цена аренды: ${req.rental_price} руб.</p>
-                                ${req.count ? `<p>Количество: ${req.count}</p>` : ''}
-                                ${req.rental_start_date && req.rental_end_date ? `<p>Срок аренды: ${req.rental_start_date} - ${req.rental_end_date}</p>` : ''}
-                                ${deliveryInfo}
-                                <p class="contact">Контакт: ${req.contact_info}</p>`;
-                                break;
-                            case 'объявлений о материалах':
-                                content = `<h4>Объявление о материалах #${req.id} - ${req.material_type}</h4>
-                                <p>${req.description}</p>
-                                <p>Цена: ${req.price} руб.</p>
-                                <p class="contact">Контакт: ${req.contact_info}</p>`;
-                                break;
-                        }
-                        item.innerHTML = content;
-                        container.appendChild(item);
-                    });
-                };
-
                 renderList(data.work_requests, myWorkRequestsList, 'заявок на работу');
                 renderList(data.machinery_requests, myMachineryRequestsList, 'заявок на технику');
                 renderList(data.tool_requests, myToolRequestsList, 'заявок на инструмент');
                 renderList(data.material_ads, myMaterialAdsList, 'объявлений о материалах');
             } catch (error) {
-                myWorkRequestsList.innerHTML = `<p class="message error">${error.message}</p>`;
+                myWorkRequestsList.innerHTML = `<p class="message error">Не удалось загрузить ваши заявки.</p>`;
                 myMachineryRequestsList.innerHTML = '';
                 myToolRequestsList.innerHTML = '';
                 myMaterialAdsList.innerHTML = '';
             }
         }
+
+        function renderList(items, container, typeText) {
+            if (items.length === 0) {
+                container.innerHTML = `<p>Пока нет ${typeText}.</p>`;
+                return;
+            }
+            container.innerHTML = '';
+            items.forEach(item => {
+                let statusText = '';
+                let buttonHtml = '';
+                let premiumMark = '';
+                if (item.is_premium) {
+                    premiumMark = `<span class="premium"><i class="fas fa-crown"></i> PREMIUM</span>`;
+                }
+
+                if (item.executor_id) {
+                    statusText = `<span class="taken">Заявка принята</span>`;
+                } else {
+                    if (currentUser.user_type === "ИСПОЛНИТЕЛЬ") {
+                        buttonHtml = `<button class="take-btn" onclick="takeRequest(${item.id})">Принять заявку</button>`;
+                    }
+                }
+
+                const itemHtml = `
+                    <div class="request-item">
+                        <h4>${item.title || item.material_type || item.tool_name || item.machinery_type}</h4>
+                        <p><strong>Описание:</strong> ${item.description || 'Нет'}</p>
+                        <p><strong>Город:</strong> ${getSelectedCity().name}</p>
+                        <p><strong>Бюджет/Цена:</strong> ${item.budget || item.price || item.rental_price} руб.</p>
+                        <p class="contact"><strong>Контакт:</strong> ${item.contact_info}</p>
+                        ${premiumMark}
+                        ${statusText}
+                        ${buttonHtml}
+                    </div>
+                `;
+                container.innerHTML += itemHtml;
+            });
+        }
+
+        async function takeRequest(requestId) {
+            const statusEl = document.getElementById('takeOrderStatus');
+            try {
+                const response = await fetch(`${API_URL}/work_requests/${requestId}/take`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = 'Вы успешно приняли заявку!';
+                    statusEl.className = 'message success';
+                    fetchWorkRequests(); // Обновляем список заявок
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при принятии заявки.';
+                statusEl.className = 'message error';
+            }
+        }
+
+        document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const workDescription = e.target.workDescription.value;
+            const workSpecialization = e.target.workSpecialization.value;
+            const workBudget = e.target.workBudget.value;
+            const workContact = e.target.workContact.value;
+            const statusEl = document.getElementById('workRequestStatus');
+
+            try {
+                const response = await fetch(`${API_URL}/work_requests`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        description: workDescription,
+                        specialization: workSpecialization,
+                        budget: workBudget,
+                        contact_info: workContact,
+                        city_id: selectedCityId
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = 'Заявка на работу успешно размещена!';
+                    statusEl.className = 'message success';
+                    e.target.reset();
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
+                statusEl.className = 'message error';
+            }
+        });
+
+        document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const machineryType = e.target.machineryType.value;
+            const machineryDescription = e.target.machineryDescription.value;
+            const machineryRentalPrice = e.target.machineryRentalPrice.value;
+            const machineryContact = e.target.machineryContact.value;
+            const statusEl = document.getElementById('machineryRequestStatus');
+
+            try {
+                const response = await fetch(`${API_URL}/machinery_requests`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        machinery_type: machineryType,
+                        description: machineryDescription,
+                        rental_price: machineryRentalPrice,
+                        contact_info: machineryContact,
+                        city_id: selectedCityId
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = 'Заявка на спецтехнику успешно размещена!';
+                    statusEl.className = 'message success';
+                    e.target.reset();
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
+                statusEl.className = 'message error';
+            }
+        });
+
+        document.getElementById('toolRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const toolName = e.target.toolName.value;
+            const toolDescription = e.target.toolDescription.value;
+            const toolRentalPrice = e.target.toolRentalPrice.value;
+            const toolCount = e.target.toolCount.value;
+            const toolRentalStartDate = e.target.toolRentalStartDate.value;
+            const toolRentalEndDate = e.target.toolRentalEndDate.value;
+            const toolContact = e.target.toolContact.value;
+            const hasDelivery = e.target.hasDelivery.checked;
+            const deliveryAddress = hasDelivery ? e.target.deliveryAddress.value : null;
+            const statusEl = document.getElementById('toolRequestStatus');
+
+            try {
+                const response = await fetch(`${API_URL}/tool_requests`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        tool_name: toolName,
+                        description: toolDescription,
+                        rental_price: toolRentalPrice,
+                        count: toolCount,
+                        rental_start_date: toolRentalStartDate,
+                        rental_end_date: toolRentalEndDate,
+                        contact_info: toolContact,
+                        has_delivery: hasDelivery,
+                        delivery_address: deliveryAddress,
+                        city_id: selectedCityId
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = 'Заявка на инструмент успешно размещена!';
+                    statusEl.className = 'message success';
+                    e.target.reset();
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
+                statusEl.className = 'message error';
+            }
+        });
+
+        document.getElementById('hasDelivery').addEventListener('change', (e) => {
+            const deliveryAddressGroup = document.getElementById('deliveryAddressGroup');
+            if (e.target.checked) {
+                deliveryAddressGroup.style.display = 'block';
+                document.getElementById('deliveryAddress').setAttribute('required', 'required');
+            } else {
+                deliveryAddressGroup.style.display = 'none';
+                document.getElementById('deliveryAddress').removeAttribute('required');
+            }
+        });
+
+        document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const materialType = e.target.materialType.value;
+            const materialDescription = e.target.materialDescription.value;
+            const materialPrice = e.target.materialPrice.value;
+            const materialContact = e.target.materialContact.value;
+            const statusEl = document.getElementById('materialAdStatus');
+
+            try {
+                const response = await fetch(`${API_URL}/material_ads`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        material_type: materialType,
+                        description: materialDescription,
+                        price: materialPrice,
+                        contact_info: materialContact,
+                        city_id: selectedCityId
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = 'Объявление о материалах успешно размещено!';
+                    statusEl.className = 'message success';
+                    e.target.reset();
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при размещении объявления.';
+                statusEl.className = 'message error';
+            }
+        });
 
         function checkAuthentication() {
             accessToken = localStorage.getItem('accessToken');
