@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
 
@@ -75,7 +76,7 @@ class UserIn(UserBase):
 class UserOut(UserBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserUpdate(BaseModel):
     user_name: Optional[str] = None
@@ -140,7 +141,7 @@ class City(BaseModel):
     name: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Хэширование пароля
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
