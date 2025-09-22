@@ -224,6 +224,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+# НОВЫЙ МАРШРУТ для получения профиля пользователя
+@api_router.get("/users/me", response_model=UserOut)
+async def read_users_me(current_user: dict = Depends(get_current_user)):
+    return current_user
+
 # Регистрация пользователя
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserIn):
