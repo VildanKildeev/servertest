@@ -33,44 +33,40 @@ cities = sqlalchemy.Table(
     "cities",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("name", sqlalchemy.String, unique=True, nullable=False),
+    sqlalchemy.Column("name", sqlalchemy.String, unique=True)
 )
 
-# Таблица пользователей
+# Таблица для пользователей
 users = sqlalchemy.Table(
     "users",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("username", sqlalchemy.String, unique=True, index=True),
-    sqlalchemy.Column("password_hash", sqlalchemy.String),
-    sqlalchemy.Column("user_name", sqlalchemy.String),
-    sqlalchemy.Column("user_type", sqlalchemy.String),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer),
+    sqlalchemy.Column("username", sqlalchemy.String, unique=True, nullable=False),
+    sqlalchemy.Column("hashed_password", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("user_name", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("email", sqlalchemy.String, nullable=True),  # <-- НОВАЯ СТРОКА
+    sqlalchemy.Column("user_type", sqlalchemy.String, default="ЗАКАЗЧИК"),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
-    # Добавляем столбец is_premium
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    # Добавляем столбец email
-    sqlalchemy.Column("email", sqlalchemy.String, unique=True, nullable=False),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица для заявок на работу
+# Таблица заявок на работы
 work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("specialization", sqlalchemy.String),
     sqlalchemy.Column("budget", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, nullable=True),
     sqlalchemy.Column("city_id", sqlalchemy.Integer),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True) # Добавляем столбец для специализации
+    sqlalchemy.Column("status", sqlalchemy.String, default="open")
 )
 
-# Таблица для заявок на технику
+# Таблица заявок на спецтехнику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
@@ -84,7 +80,7 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица для заявок на инструмент
+# Таблица заявок на инструмент
 tool_requests = sqlalchemy.Table(
     "tool_requests",
     metadata,

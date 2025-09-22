@@ -18,9 +18,14 @@ from dotenv import load_dotenv
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданные из файла database.py
-from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database
+from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities
 
 load_dotenv()
+
+# Инициализация базы данных
+DATABASE_URL = os.environ.get("DATABASE_URL")
+database = databases.Database(DATABASE_URL)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Настройки для токенов
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
@@ -61,21 +66,17 @@ class UserBase(BaseModel):
     specialization: Optional[str] = None
     is_premium: Optional[bool] = False
 
-# Добавляем email в модели UserCreate и UserPublic
 class UserCreate(UserBase):
     password: str
-    email: str # НОВОЕ ПОЛЕ: email
 
 class UserPublic(UserBase):
     id: int
     created_at: Optional[datetime] = None
-    email: str # НОВОЕ ПОЛЕ: email
 
 class UserInDB(UserBase):
     id: int
     password_hash: str
     created_at: Optional[datetime] = None
-    email: str # НОВОЕ ПОЛЕ: email
 
 class Token(BaseModel):
     access_token: str
@@ -256,8 +257,7 @@ async def create_user(user: UserCreate):
         "user_type": user.user_type,
         "city_id": user.city_id,
         "specialization": user.specialization,
-        "is_premium": user.is_premium,
-        "email": user.email # ДОБАВЛЯЕМ EMAIL ЗДЕСЬ
+        "is_premium": user.is_premium
     }
     
     return await create_record_and_return(
@@ -275,9 +275,6 @@ async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
 async def update_user_specialization(specialization: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.user_type != "ИСПОЛНИТЕЛЬ":
         raise HTTPException(status_code=403, detail="Только Исполнители могут обновлять специализацию.")
-
-    if not current_user.specialization:
-        raise HTTPException(status_code=400, detail="Для принятия заявки необходимо указать вашу специализацию.")
 
     query = users.update().where(users.c.id == current_user.id).values(specialization=specialization)
     await database.execute(query)
