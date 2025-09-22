@@ -112,22 +112,23 @@
             </div>
         </div>
 
-<div id="registerPage" class="page-container">
-    <div class="form-container">
-        <h2>Регистрация</h2>
-        <form id="registerForm">
-            <input type="text" id="registerUsername" name="username" placeholder="Имя пользователя (ник)" required>
-            <input type="password" id="registerPassword" name="password" placeholder="Пароль" required>
-            <input type="text" id="registerUserName" name="user_name" placeholder="Ваше имя" required>
-            <input type="email" id="registerEmail" name="email" placeholder="Email (необязательно)">
-            <div class="submit-button-container">
-                <button type="submit">Зарегистрироваться</button>
+        <div id="registerPage" class="page-container">
+            <div class="form-container">
+                <h2>Регистрация</h2>
+                <form id="registerForm">
+                    <input type="text" id="registerUsername" name="username" placeholder="Имя пользователя (ник)" required>
+                    <input type="password" id="registerPassword" name="password" placeholder="Пароль" required>
+                    <input type="text" id="registerUserName" name="user_name" placeholder="Ваше имя" required>
+                    <input type="email" id="registerEmail" name="email" placeholder="Email (необязательно)">
+                    <div class="submit-button-container">
+                        <button type="submit">Зарегистрироваться</button>
+                    </div>
+                    <p class="form-switch-text">Уже есть аккаунт? <a href="#" onclick="showPage('loginPage'); return false;">Войти</a></p>
+                </form>
+                <p id="registerStatus" class="message"></p>
             </div>
-            <p class="form-switch-text">Уже есть аккаунт? <a href="#" onclick="showPage('loginPage'); return false;">Войти</a></p>
-        </form>
-        <p id="registerStatus" class="message"></p>
-    </div>
-</div>
+        </div>
+
         <div id="buttonContainer" class="page">
             <div class="button-container">
                 <h2>Меню</h2>
@@ -513,10 +514,9 @@
             try {
                 const response = await fetch(`${API_URL}/specializations`);
                 const specializations = await response.json();
-                const regSpecializationEl = document.getElementById('regSpecialization');
                 const workSpecializationEl = document.getElementById('workSpecialization');
                 const newSpecializationEl = document.getElementById('newSpecialization');
-                [regSpecializationEl, workSpecializationEl, newSpecializationEl].forEach(el => {
+                [workSpecializationEl, newSpecializationEl].forEach(el => {
                     if (el) {
                         el.innerHTML = '';
                         specializations.forEach(spec => {
@@ -597,72 +597,49 @@
         });
 
         document.getElementById('registerForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const userName = document.getElementById('registerUserName').value;
+            const email = document.getElementById('registerEmail').value;
+            const registerStatusEl = document.getElementById('registerStatus');
 
-        const username = document.getElementById('registerUsername').value;
-        const password = document.getElementById('registerPassword').value;
-        const userName = document.getElementById('registerUserName').value; // Получаем значение из нового поля
-        const email = document.getElementById('registerEmail').value; // Получаем значение из поля email
+            try {
+                const response = await fetch('https://servertest2-0.onrender.com/api/users/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        user_name: userName,
+                        email: email || null
+                    })
+                });
 
-        const registerStatusEl = document.getElementById('registerStatus');
+                const data = await response.json();
 
-        try {
-            const response = await fetch('https://servertest2-0.onrender.com/api/users/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: username,
-                    password: password,
-                    user_name: userName, // Отправляем новое поле на сервер
-                    email: email || null // Отправляем email
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                registerStatusEl.textContent = 'Успешная регистрация!';
-                registerStatusEl.className = 'message success';
-                setTimeout(() => {
-                    showPage('loginPage');
-                }, 2000);
-            } else {
-                let errorMessage = `Ошибка: ${data.detail[0].msg}`;
-                if (data.detail && data.detail.length > 0) {
-                     errorMessage = `Ошибка: ${data.detail[0].msg}. Место: ${data.detail[0].loc.join(' -> ')}`;
+                if (response.ok) {
+                    registerStatusEl.textContent = 'Успешная регистрация!';
+                    registerStatusEl.className = 'message success';
+                    setTimeout(() => {
+                        showPage('loginPage');
+                    }, 2000);
+                } else {
+                    let errorMessage = `Ошибка: ${data.detail[0].msg}`;
+                    if (data.detail && data.detail.length > 0) {
+                        errorMessage = `Ошибка: ${data.detail[0].msg}. Место: ${data.detail[0].loc.join(' -> ')}`;
+                    }
+                    registerStatusEl.textContent = errorMessage;
+                    registerStatusEl.className = 'message error';
                 }
-                registerStatusEl.textContent = errorMessage;
+            } catch (error) {
+                registerStatusEl.textContent = 'Произошла ошибка сети.';
                 registerStatusEl.className = 'message error';
             }
-        } catch (error) {
-            registerStatusEl.textContent = 'Произошла ошибка сети.';
-            registerStatusEl.className = 'message error';
-        }
-    });
-
-            const data = await response.json();
-            if (response.ok) {
-                statusEl.textContent = 'Регистрация успешна! Теперь вы можете войти.';
-                statusEl.className = 'message success';
-                e.target.reset();
-                setTimeout(() => showPage('loginPage'), 2000);
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail}`;
-                statusEl.className = 'message error';
-            }
         });
 
-        document.getElementById('regUserType').addEventListener('change', (e) => {
-            const specializationGroup = document.getElementById('specializationGroup');
-            if (e.target.value === 'ИСПОЛНИТЕЛЬ') {
-                specializationGroup.style.display = 'block';
-            } else {
-                specializationGroup.style.display = 'none';
-            }
-        });
-        
         async function fetchWorkRequests() {
             const workRequestsList = document.getElementById('workRequestsList');
             const city = getSelectedCity();
@@ -786,7 +763,7 @@
                 myMaterialAdsList.innerHTML = '';
             }
         }
-        
+
         function renderList(items, container, typeText) {
             if (items.length === 0) {
                 container.innerHTML = `<p>Пока нет ${typeText}.</p>`;
@@ -824,7 +801,7 @@
                 container.innerHTML += itemHtml;
             });
         }
-        
+
         async function takeRequest(requestId) {
             const statusEl = document.getElementById('takeOrderStatus');
             try {
@@ -846,7 +823,7 @@
                 statusEl.className = 'message error';
             }
         }
-        
+
         document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const workDescription = e.target.workDescription.value;
@@ -854,7 +831,7 @@
             const workBudget = e.target.workBudget.value;
             const workContact = e.target.workContact.value;
             const statusEl = document.getElementById('workRequestStatus');
-            
+
             try {
                 const response = await fetch(`${API_URL}/work_requests`, {
                     method: 'POST',
@@ -884,7 +861,7 @@
                 statusEl.className = 'message error';
             }
         });
-        
+
         document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const machineryType = e.target.machineryType.value;
@@ -892,7 +869,7 @@
             const machineryRentalPrice = e.target.machineryRentalPrice.value;
             const machineryContact = e.target.machineryContact.value;
             const statusEl = document.getElementById('machineryRequestStatus');
-            
+
             try {
                 const response = await fetch(`${API_URL}/machinery_requests`, {
                     method: 'POST',
@@ -1019,7 +996,7 @@
                 statusEl.className = 'message error';
             }
         });
-        
+
         function checkAuthentication() {
             accessToken = localStorage.getItem('accessToken');
             if (accessToken) {
