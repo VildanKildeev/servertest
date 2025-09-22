@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.concurrency import run_in_threadpool
 
 import os
 from dotenv import load_dotenv
@@ -53,13 +54,10 @@ async def shutdown():
 # Создаем таблицы в базе данных при запуске, если они еще не существуют
 @app.on_event("startup")
 async def create_tables():
-    # ИСПРАВЛЕНИЕ: Используем асинхронный контекст `database.connection()`
-    # и передаем его в `metadata.create_all` как `bind`
-    async with database.connection() as connection:
-        # `run_sync` - это метод асинхронного движка SQLAlchemy,
-        # а не объекта `databases.Database`, который мы здесь используем.
-        # Вместо этого, `databases` позволяет передать `bind` напрямую.
-        metadata.create_all(connection)
+    # ИСПРАВЛЕНИЕ: Запускаем синхронную операцию `metadata.create_all`
+    # в отдельном потоке, чтобы не блокировать асинхронный цикл.
+    await run_in_threadpool(metadata.create_all, engine)
+
 
 # --- Password hashing ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
