@@ -49,6 +49,31 @@ async def startup():
     metadata.create_all(engine)
     print("Database connected and tables checked/created.")
 
+    # --- НОВЫЙ КОД ДЛЯ ЗАПОЛНЕНИЯ ГОРОДОВ ---
+    # Проверяем, есть ли города в таблице
+    query = cities.select().limit(1)
+    city_exists = await database.fetch_one(query)
+
+    # Если городов нет, добавляем их
+    if not city_exists:
+        print("Города не найдены, добавляю стандартный список...")
+        default_cities = [
+            {"name": "Москва"},
+            {"name": "Санкт-Петербург"},
+            {"name": "Новосибирск"},
+            {"name": "Екатеринбург"},
+            {"name": "Казань"},
+            {"name": "Нижний Новгород"},
+            {"name": "Челябинск"},
+            {"name": "Самара"},
+            {"name": "Омск"},
+            {"name": "Ростов-на-Дону"},
+        ]
+        insert_query = cities.insert().values(default_cities)
+        await database.execute(insert_query)
+        print("Города успешно добавлены.")
+    # --- КОНЕЦ НОВОГО КОДА ---
+
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
