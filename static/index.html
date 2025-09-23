@@ -99,8 +99,8 @@
                 <div id="loginStatus" class="message"></div>
                 <form id="loginForm">
                     <div class="input-group">
-                        <label for="loginUsername">Имя пользователя:</label>
-                        <input type="text" id="loginUsername" required>
+                        <label for="loginEmail">Email:</label>
+                        <input type="email" id="loginEmail" required>
                     </div>
                     <div class="input-group">
                         <label for="loginPassword">Пароль:</label>
@@ -118,20 +118,28 @@
                 <div id="registerStatus" class="message"></div>
                 <form id="registerForm">
                     <div class="input-group">
-                        <label for="registerUsername">Имя пользователя (ник):</label>
-                        <input type="text" id="registerUsername" name="username" required>
+                        <label for="registerEmail">Email:</label>
+                        <input type="email" id="registerEmail" required>
                     </div>
                     <div class="input-group">
                         <label for="registerPassword">Пароль:</label>
-                        <input type="password" id="registerPassword" name="password" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="registerEmail">Email:</label>
-                        <input type="email" id="registerEmail" name="email" required>
+                        <input type="password" id="registerPassword" required>
                     </div>
                     <div class="input-group">
                         <label for="registerPhoneNumber">Номер телефона:</label>
-                        <input type="text" id="registerPhoneNumber" name="phone_number" required>
+                        <input type="text" id="registerPhoneNumber" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerUserType">Тип аккаунта:</label>
+                        <select id="registerUserType" required>
+                            <option value="">Выберите тип</option>
+                            <option value="ЗАКАЗЧИК">Заказчик</option>
+                            <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="specializationGroup" style="display: none;">
+                        <label for="registerSpecialization">Специализация:</label>
+                        <select id="registerSpecialization" required></select>
                     </div>
                     <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
                     <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
@@ -425,7 +433,7 @@
             const editSpecializationForm = document.getElementById('editSpecializationForm');
             profileInfo.innerHTML = `
                 <p><strong>Имя пользователя:</strong> ${profile.username}</p>
-                <p><strong>Ваше имя:</strong> ${profile.user_name}</p>
+                <p><strong>Ваш email:</strong> ${profile.email}</p>
                 <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
                 <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>
                 <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
@@ -612,6 +620,8 @@
             const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
             const phoneNumber = document.getElementById('registerPhoneNumber').value;
+            const userType = document.getElementById('registerUserType').value;
+            const specialization = document.getElementById('registerSpecialization').value;
             const registerStatusEl = document.getElementById('registerStatus');
 
             try {
@@ -621,7 +631,9 @@
                     body: JSON.stringify({
                         email: email,
                         password: password,
-                        phone_number: phoneNumber
+                        phone_number: phoneNumber,
+                        user_type: userType,
+                        specialization: specialization
                     })
                 });
 
@@ -651,8 +663,10 @@
             const specializationGroup = document.getElementById('specializationGroup');
             if (e.target.value === "ИСПОЛНИТЕЛЬ") {
                 specializationGroup.style.display = 'block';
+                document.getElementById('registerSpecialization').setAttribute('required', 'required');
             } else {
                 specializationGroup.style.display = 'none';
+                document.getElementById('registerSpecialization').removeAttribute('required');
             }
         });
 
