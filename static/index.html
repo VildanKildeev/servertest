@@ -126,23 +126,12 @@
                         <input type="password" id="registerPassword" name="password" required>
                     </div>
                     <div class="input-group">
-                        <label for="registerUserName">Ваше имя:</label>
-                        <input type="text" id="registerUserName" name="user_name" required>
+                        <label for="registerEmail">Email:</label>
+                        <input type="email" id="registerEmail" name="email" required>
                     </div>
                     <div class="input-group">
-                        <label for="registerEmail">Email (необязательно):</label>
-                        <input type="email" id="registerEmail" name="email">
-                    </div>
-                    <div class="input-group">
-                        <label for="registerUserType">Тип аккаунта:</label>
-                        <select id="registerUserType" name="user_type">
-                            <option value="ЗАКАЗЧИК">ЗАКАЗЧИК</option>
-                            <option value="ИСПОЛНИТЕЛЬ">ИСПОЛНИТЕЛЬ</option>
-                        </select>
-                    </div>
-                    <div class="input-group" id="specializationGroup" style="display: none;">
-                        <label for="registerSpecialization">Специализация:</label>
-                        <select id="registerSpecialization" name="specialization"></select>
+                        <label for="registerPhoneNumber">Номер телефона:</label>
+                        <input type="text" id="registerPhoneNumber" name="phone_number" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
                     <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
@@ -590,12 +579,12 @@
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = e.target.loginUsername.value;
+            const email = e.target.loginEmail.value;
             const password = e.target.loginPassword.value;
             const statusEl = document.getElementById('loginStatus');
 
             const formBody = new URLSearchParams();
-            formBody.append('username', username);
+            formBody.append('username', email);
             formBody.append('password', password);
 
             const response = await fetch(`${API_URL}/token`, {
@@ -620,12 +609,9 @@
 
         document.getElementById('registerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
-            const userName = document.getElementById('registerUserName').value;
-            const email = document.getElementById('registerEmail').value || null;
-            const userType = document.getElementById('registerUserType').value;
-            const specialization = document.getElementById('registerSpecialization').value || null;
+            const phoneNumber = document.getElementById('registerPhoneNumber').value;
             const registerStatusEl = document.getElementById('registerStatus');
 
             try {
@@ -633,12 +619,9 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        username: username,
-                        password: password,
-                        user_name: userName,
                         email: email,
-                        user_type: userType,
-                        specialization: specialization
+                        password: password,
+                        phone_number: phoneNumber
                     })
                 });
 
