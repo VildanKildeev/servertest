@@ -7,7 +7,7 @@ from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -56,11 +56,13 @@ async def shutdown():
 
 # Схемы Pydantic для валидации данных
 
-# Модель для создания пользователя (новая и правильная)
+# НОВАЯ И ОБНОВЛЕННАЯ модель для создания пользователя
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     phone_number: str
+    user_type: str = Field(..., description="Тип пользователя: ЗАКАЗЧИК или ИСПОЛНИТЕЛЬ")
+    specialization: Optional[str] = None
 
 # Модель для пользователя, который хранится в БД
 class UserInDB(BaseModel):
@@ -69,6 +71,8 @@ class UserInDB(BaseModel):
     hashed_password: str
     phone_number: str
     is_active: bool = True
+    user_type: str
+    specialization: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -78,10 +82,8 @@ class UserOut(BaseModel):
     id: int
     email: str
     phone_number: str
-    # Если вы хотите возвращать больше полей, добавьте их сюда
-    # user_name: Optional[str] = None
-    # user_type: Optional[str] = None
-    # specialization: Optional[str] = None
+    user_type: str
+    specialization: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -169,7 +171,7 @@ def get_password_hash(password):
 
 # Функция для аутентификации пользователя
 async def authenticate_user(username: str, password: str):
-    query = users.select().where(users.c.username == username)
+    query = users.select().where(users.c.email == username)
     user_db = await database.fetch_one(query)
     if not user_db:
         return False
@@ -186,14 +188,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(username=email)
     except JWTError:
         raise credentials_exception
 
-    query = users.select().where(users.c.username == token_data.username)
+    query = users.select().where(users.c.email == token_data.username)
     user_db = await database.fetch_one(query)
     if user_db is None:
         raise credentials_exception
@@ -230,12 +232,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     if not user_db:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user_db["username"]}, expires_delta=access_token_expires
+        data={"sub": user_db["email"]}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -250,7 +252,7 @@ async def is_email_taken(email: str):
     existing_user = await database.fetch_one(query)
     return existing_user is not None
 
-@api_router.post("/users/", status_code=status.HTTP_201_CREATED)
+@api_router.post("/users/", status_code=status.HTTP_201_CREATED, response_model=UserOut)
 async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
     try:
         if await is_email_taken(user.email):
@@ -258,9 +260,21 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Пользователь с таким email уже существует."
             )
+        
+        if user.user_type == "ИСПОЛНИТЕЛЬ" and not user.specialization:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
+            )
 
         hashed_password = pwd_context.hash(user.password)
-        query = users.insert().values(email=user.email, hashed_password=hashed_password, phone_number=user.phone_number)
+        query = users.insert().values(
+            email=user.email, 
+            hashed_password=hashed_password, 
+            phone_number=user.phone_number,
+            user_type=user.user_type,
+            specialization=user.specialization
+        )
         last_record_id = await database.execute(query)
 
         user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
@@ -273,7 +287,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
         # Вы можете добавить здесь фоновое задание для отправки email, если функция `send_welcome_email` определена
         # background_tasks.add_task(send_welcome_email, user.email)
 
-        return {"access_token": access_token, "token_type": "bearer"}
+        return user_in_db
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -443,8 +457,8 @@ MACHINERY_TYPES = [
     "Электростанция", "Осветительные мачты", "Генератор", "Компрессор", "Мотопомпа",
     "Сварочный аппарат", "Паяльник", "Гайковерт", "Пресс", "Болгарка", "Дрель", "Перфоратор",
     "Виброплита", "Вибротрамбовка", "Виброрейка", "Вибратор для бетона", "Затирочная машина",
-    "Резчик швов", "Резчик кровли", "Шлифовальная машина", "Бетономешалка", "Растворосмеситель",
-    "Пескоструйный аппарат", "Опрессовщик", "Прочистная машина", "Пневмоподатчик", "Штукатурная машина",
+    "Резчик швов", "Резчик кровли", "Шлифовальная машина", "Промышленный фен", "Промышленный пылесос",
+    "Бетономешалка", "Растворосмеситель", "Пескоструйный аппарат", "Опрессовщик", "Прочистная машина", "Пневмоподатчик", "Штукатурная машина",
     "Окрасочный аппарат", "Компрессорный агрегат", "Гидронасос", "Электроталь",
     "Тепловые пушки", "Дизельные тепловые пушки", "Теплогенераторы", "Осушители воздуха", "Прогрев грунта", "Промышленные вентиляторы",
     "Парогенератор", "Бытовки", "Кран Пионер", "Кран Умелец", "Ручная таль", "Домкраты", "Тележки гидравлические", "Лебедки",
@@ -452,10 +466,9 @@ MACHINERY_TYPES = [
     "Установка алмазного бурения", "Сантехническое оборудование", "Окрасочный аппарат", "Кровельное оборудование",
     "Электромонтажный инструмент", "Резьбонарезной инструмент", "Газорезочное оборудование", "Инструмент для фальцевой кровли",
     "Растворные станции", "Труборезы", "Оборудование для получения лицензии МЧС", "Оборудование для работы с композитом",
-    "Рейсмусовый станок", "Дрель на магнитной подошве", "Плиткорезы", "Отрезной станок", "Фрезер", "Камнерезные станки",
-    "Экскаваторы", "Погрузчик", "Манипулятор", "Дорожные катки", "Самосвалы", "Автокран", "Автовышка", "Мусоровоз", "Илосос",
-    "Канистра", "Монтажный пистолет", "Когти монтерские"
+    "Рейсмусовый станок", "Дрель на магнитной подошве", "Плиткорезы", "Отрезной станок", "Фрезер", "Камнерезные станки"
 ]
+
 
 @api_router.get("/machinery_types/")
 def get_machinery_types():
