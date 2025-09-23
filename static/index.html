@@ -504,7 +504,7 @@
         async function fetchCities() {
             loadingMessage.style.display = 'block';
             try {
-                const response = await fetch(`${API_URL}/cities`);
+                const response = await fetch(`${API_URL}/cities/`);
                 const cities = await response.json();
                 const cityList = document.getElementById('cityList');
                 cityList.innerHTML = '';
@@ -530,7 +530,7 @@
 
         async function fetchSpecializations() {
             try {
-                const response = await fetch(`${API_URL}/specializations`);
+                const response = await fetch(`${API_URL}/specializations/`);
                 const specializations = await response.json();
                 const workSpecializationEl = document.getElementById('workSpecialization');
                 const newSpecializationEl = document.getElementById('newSpecialization');
@@ -553,7 +553,7 @@
 
         async function fetchMachineryTypes() {
             try {
-                const response = await fetch(`${API_URL}/machinery-types`);
+                const response = await fetch(`${API_URL}/machinery_types/`);
                 const types = await response.json();
                 const machineryTypeEl = document.getElementById('machineryType');
                 machineryTypeEl.innerHTML = '';
@@ -570,7 +570,7 @@
 
         async function fetchToolsList() {
             try {
-                const response = await fetch(`${API_URL}/tools-list`);
+                const response = await fetch(`${API_URL}/tools_list/`);
                 const tools = await response.json();
                 const toolNameEl = document.getElementById('toolName');
                 toolNameEl.innerHTML = '';
