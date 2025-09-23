@@ -1,12 +1,13 @@
 import json
 import uvicorn
 import databases
+import asyncpg
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -16,8 +17,6 @@ from sqlalchemy.orm import relationship
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-from pydantic import BaseModel
-from database import machinery_requests, tool_requests, work_requests
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
@@ -56,36 +55,50 @@ async def shutdown():
     print("Database disconnected.")
 
 # Схемы Pydantic для валидации данных
-class Token(BaseModel):
-    access_token: str
-    token_type: str
 
-class TokenData(BaseModel):
-    username: str | None = None
-
-# Схемы для пользователя
-class UserBase(BaseModel):
-    username: str
-    user_name: str
-    email: Optional[str] = None
-    user_type: str
-    specialization: Optional[str] = None
-    is_premium: Optional[bool] = False
-
-class UserIn(UserBase):
+# Модель для создания пользователя (новая и правильная)
+class UserCreate(BaseModel):
+    email: EmailStr
     password: str
+    phone_number: str
 
-class UserOut(UserBase):
+# Модель для пользователя, который хранится в БД
+class UserInDB(BaseModel):
     id: int
+    email: str
+    hashed_password: str
+    phone_number: str
+    is_active: bool = True
+    
     class Config:
         from_attributes = True
 
+# Модель для отображения пользователя (обновлена)
+class UserOut(BaseModel):
+    id: int
+    email: str
+    phone_number: str
+    # Если вы хотите возвращать больше полей, добавьте их сюда
+    # user_name: Optional[str] = None
+    # user_type: Optional[str] = None
+    # specialization: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+        
 class UserUpdate(BaseModel):
     user_name: Optional[str] = None
     email: Optional[str] = None
     user_type: Optional[str] = None
     specialization: Optional[str] = None
     is_premium: Optional[bool] = None
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: str | None = None
 
 # Схемы для работы
 class WorkRequestIn(BaseModel):
@@ -231,8 +244,14 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
+# --- Helper function for email check ---
+async def is_email_taken(email: str):
+    query = users.select().where(users.c.email == email)
+    existing_user = await database.fetch_one(query)
+    return existing_user is not None
+
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserCreate, request: Request, background_tasks: BackgroundTasks):
+async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
     try:
         if await is_email_taken(user.email):
             raise HTTPException(
@@ -244,23 +263,23 @@ async def create_user(user: UserCreate, request: Request, background_tasks: Back
         query = users.insert().values(email=user.email, hashed_password=hashed_password, phone_number=user.phone_number)
         last_record_id = await database.execute(query)
 
-        user_in_db = await get_user(last_record_id)
-        token_data = {"sub": user_in_db.email, "id": user_in_db.id}
-        access_token = create_access_token(data=token_data)
+        user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
+        
+        # Создание токена
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        token_data = {"sub": user_in_db["email"], "id": user_in_db["id"]}
+        access_token = create_access_token(data=token_data, expires_delta=access_token_expires)
 
-        # Отправка email в фоновом режиме
-        background_tasks.add_task(send_welcome_email, user.email)
+        # Вы можете добавить здесь фоновое задание для отправки email, если функция `send_welcome_email` определена
+        # background_tasks.add_task(send_welcome_email, user.email)
 
-        return {"message": "Пользователь успешно создан!", "access_token": access_token, "token_type": "bearer"}
-
+        return {"access_token": access_token, "token_type": "bearer"}
     except asyncpg.exceptions.UniqueViolationError:
-        # Эта часть кода будет выполнена, если возникнет ошибка уникального ключа
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Пользователь с таким email уже существует."
         )
     except Exception as e:
-        # Общая обработка других возможных ошибок
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Произошла ошибка сервера: {e}"
@@ -365,12 +384,12 @@ async def get_material_ads():
 @api_router.get("/users/me/requests/")
 async def get_my_requests(
     city_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     all_requests = []
     
     # Запросы на работы
-    work_query = work_requests.select().where(work_requests.c.user_id == current_user.id)
+    work_query = work_requests.select().where(work_requests.c.user_id == current_user["id"])
     if city_id:
         work_query = work_query.where(work_requests.c.city_id == city_id)
     work_requests_from_db = await database.fetch_all(work_query)
@@ -379,7 +398,7 @@ async def get_my_requests(
     ])
 
     # Запросы на аренду спецтехники
-    machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == current_user.id)
+    machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == current_user["id"])
     if city_id:
         machinery_query = machinery_query.where(machinery_requests.c.city_id == city_id)
     machinery_requests_from_db = await database.fetch_all(machinery_query)
@@ -388,7 +407,7 @@ async def get_my_requests(
     ])
 
     # Запросы на аренду инструментов
-    tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user.id)
+    tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user["id"])
     if city_id:
         tool_query = tool_query.where(tool_requests.c.city_id == city_id)
     tool_requests_from_db = await database.fetch_all(tool_query)
