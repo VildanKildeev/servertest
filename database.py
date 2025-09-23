@@ -68,13 +68,13 @@ cities = sqlalchemy.Table(
     sqlalchemy.Column("name", sqlalchemy.String, unique=True, index=True)
 )
 
-# Таблица запросов на спецтехнику
+# Таблица запросов на спецтехнику (обновлена)
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False), # НОВЫЙ СТОЛБЕЦ
     sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
@@ -98,7 +98,7 @@ tool_requests = sqlalchemy.Table(
     # ОБНОВЛЕННЫЕ СТОЛБЦЫ:
     sqlalchemy.Column("count", sqlalchemy.Integer, default=1),
     sqlalchemy.Column("rental_start_date", sqlalchemy.Date, nullable=True),
-    sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("rental_end_date", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False, nullable=False),
     sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
 )
