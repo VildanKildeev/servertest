@@ -16,6 +16,7 @@ from sqlalchemy.orm import relationship
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from database import machinery_requests, tool_requests, work_requests
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
@@ -229,32 +230,39 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
-# Регистрация пользователя
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserIn):
-    query = users.select().where(users.c.username == user.username)
-    existing_user = await database.fetch_one(query)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
-    hashed_password = get_password_hash(user.password)
-    query = users.insert().values(
-        username=user.username,
-        hashed_password=hashed_password,
-        user_name=user.user_name,
-        email=user.email,
-        user_type=user.user_type,
-        specialization=user.specialization
-    )
+async def create_user(user: UserCreate, request: Request, background_tasks: BackgroundTasks):
     try:
+        if await is_email_taken(user.email):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пользователь с таким email уже существует."
+            )
+
+        hashed_password = pwd_context.hash(user.password)
+        query = users.insert().values(email=user.email, hashed_password=hashed_password, phone_number=user.phone_number)
         last_record_id = await database.execute(query)
-        return {"id": last_record_id, **user.dict(exclude={"password"})}
-    except exc.IntegrityError:
+
+        user_in_db = await get_user(last_record_id)
+        token_data = {"sub": user_in_db.email, "id": user_in_db.id}
+        access_token = create_access_token(data=token_data)
+
+        # Отправка email в фоновом режиме
+        background_tasks.add_task(send_welcome_email, user.email)
+
+        return {"message": "Пользователь успешно создан!", "access_token": access_token, "token_type": "bearer"}
+
+    except asyncpg.exceptions.UniqueViolationError:
+        # Эта часть кода будет выполнена, если возникнет ошибка уникального ключа
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Error during user creation. Check if all fields are valid."
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Пользователь с таким email уже существует."
+        )
+    except Exception as e:
+        # Общая обработка других возможных ошибок
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Произошла ошибка сервера: {e}"
         )
 
 # Создание запроса на работу
@@ -352,6 +360,43 @@ async def get_material_ads():
     query = material_ads.select()
     ads = await database.fetch_all(query)
     return ads
+
+@api_router.get("/users/me/requests/")
+async def get_my_requests(
+    city_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user)
+):
+    all_requests = []
+    
+    # Запросы на работы
+    work_query = work_requests.select().where(work_requests.c.user_id == current_user.id)
+    if city_id:
+        work_query = work_query.where(work_requests.c.city_id == city_id)
+    work_requests_from_db = await database.fetch_all(work_query)
+    all_requests.extend([
+        {**dict(req), "type": "work"} for req in work_requests_from_db
+    ])
+
+    # Запросы на аренду спецтехники
+    machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == current_user.id)
+    if city_id:
+        machinery_query = machinery_query.where(machinery_requests.c.city_id == city_id)
+    machinery_requests_from_db = await database.fetch_all(machinery_query)
+    all_requests.extend([
+        {**dict(req), "type": "machinery"} for req in machinery_requests_from_db
+    ])
+
+    # Запросы на аренду инструментов
+    tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user.id)
+    if city_id:
+        tool_query = tool_query.where(tool_requests.c.city_id == city_id)
+    tool_requests_from_db = await database.fetch_all(tool_query)
+    all_requests.extend([
+        {**dict(req), "type": "tool"} for req in tool_requests_from_db
+    ])
+
+    # Возвращаем все найденные заявки
+    return {"requests": all_requests}
 
 # Маршруты для получения списков специализаций, городов, типов техники и инструментов
 @api_router.get("/cities/")
