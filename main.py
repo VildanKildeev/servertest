@@ -16,6 +16,7 @@ from sqlalchemy.orm import relationship
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from pydantic import BaseModel
 from database import machinery_requests, tool_requests, work_requests
 
 # --- Database setup ---
