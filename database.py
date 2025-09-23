@@ -34,24 +34,16 @@ users = sqlalchemy.Table(
     "users",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("username", sqlalchemy.String, unique=True, nullable=False),
-    sqlalchemy.Column("hashed_password", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("user_name", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("email", sqlalchemy.String, unique=True),
-    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("email", sqlalchemy.String, unique=True, index=True),
+    sqlalchemy.Column("hashed_password", sqlalchemy.String),
+    sqlalchemy.Column("phone_number", sqlalchemy.String),
+    sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # НОВЫЙ СТОЛБЕЦ
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # НОВЫЙ СТОЛБЕЦ
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица для городов
-cities = sqlalchemy.Table(
-    "cities",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("name", sqlalchemy.String, unique=True, nullable=False),
-)
-
-# Таблица заявок на работу
+# Таблица запросов на работу
 work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
@@ -62,13 +54,21 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("budget", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False, nullable=False),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
-    sqlalchemy.Column("status", sqlalchemy.String, default="active", nullable=False),
+    sqlalchemy.Column("status", sqlalchemy.String, default="active"),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now())
 )
 
-# Таблица заявок на спецтехнику
+# Таблица городов
+cities = sqlalchemy.Table(
+    "cities",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("name", sqlalchemy.String, unique=True, index=True)
+)
+
+# Таблица запросов на спецтехнику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
@@ -79,11 +79,11 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False, nullable=False),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now())
 )
 
-# Таблица заявок на инструмент
+# Таблица запросов на инструмент
 tool_requests = sqlalchemy.Table(
     "tool_requests",
     metadata,
@@ -115,5 +115,5 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False, nullable=False),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
