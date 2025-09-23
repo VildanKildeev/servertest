@@ -217,43 +217,40 @@
             </div>
         </div>
 
- <div id="createMachineryRequestPage" class="page">
-    <div class="form-container">
-        <h2>Заявка на спецтехнику</h2>
-        <div id="machineryRequestStatus" class="message"></div>
-        <form id="machineryRequestForm">
-            <div class="input-group">
-                <label for="machineryType">Тип техники:</label>
-                <select id="machineryType" required>
-                    <option value="">Выберите категорию</option>
-                    <optgroup label="🟡 1. ЭКСКАВАТОРЫ">
-                        <option value="ЭКСКАВАТОР: Гусеничные">Гусеничные</option>
-                        <option value="ЭКСКАВАТОР: Колёсные">Колёсные</option>
-                        <option value="ЭКСКАВАТОР: Мини-экскаваторы">Мини-экскаваторы</option>
-                        <option value="ЭКСКАВАТОР: Планировщики">Планировщики</option>
-                        <option value="ЭКСКАВАТОР: Длиннорукие (Long Reach)">Длиннорукие (Long Reach)</option>
-                        <option value="ЭКСКАВАТОР: С гидромолотом, ямобуром, вибропогружателем">С гидромолотом, ямобуром, вибропогружателем</option>
-                    </optgroup>
-                    <!-- Остальные опции -->
-                </select>
+        <div id="createMachineryRequestPage" class="page">
+            <div class="form-container">
+                <h2>Заявка на спецтехнику</h2>
+                <div id="machineryRequestStatus" class="message"></div>
+                <form id="machineryRequestForm">
+                    <div class="input-group">
+                        <label for="machineryType">Тип техники:</label>
+                        <select id="machineryType"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryDescription">Описание задачи:</label>
+                        <textarea id="machineryDescription" required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryRentalDate">Дата (необязательно):</label>
+                        <input type="date" id="machineryRentalDate">
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryMinHours">Минимальное кол-во часов:</label>
+                        <input type="number" id="machineryMinHours" value="4" min="1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryRentalPrice">Цена аренды (за час):</label>
+                        <input type="number" id="machineryRentalPrice" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryContact">Контакт:</label>
+                        <input type="text" id="machineryContact" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
+                </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
-            <div class="input-group">
-                <label for="machineryDescription">Описание:</label>
-                <textarea id="machineryDescription" required></textarea>
-            </div>
-            <div class="input-group">
-                <label for="machineryRentalPrice">Цена аренды:</label>
-                <input type="number" id="machineryRentalPrice" required>
-            </div>
-            <div class="input-group">
-                <label for="machineryContact">Контакт:</label>
-                <input type="text" id="machineryContact" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Разместить</button>
-        </form>
-        <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-    </div>
-</div>
+        </div>
 
         <div id="machineryRequestsPage" class="page">
             <div class="list-container">
@@ -806,7 +803,7 @@
         }
 
         function renderList(items, container, typeText) {
-            if (items.length === 0) {
+            if (!items || items.length === 0) {
                 container.innerHTML = `<p>Пока нет ${typeText}.</p>`;
                 return;
             }
@@ -822,16 +819,27 @@
                 if (item.executor_id) {
                     statusText = `<span class="taken">Заявка принята</span>`;
                 } else {
-                    if (currentUser.user_type === "ИСПОЛНИТЕЛЬ") {
+                    if (currentUser && currentUser.user_type === "ИСПОЛНИТЕЛЬ") {
                         buttonHtml = `<button class="take-btn" onclick="takeRequest(${item.id})">Принять заявку</button>`;
+                    }
+                }
+
+                let detailsHtml = `<p><strong>Описание:</strong> ${item.description || 'Нет'}</p>`;
+
+                if (item.machinery_type) {
+                    if (item.rental_date) {
+                        detailsHtml += `<p><strong>Дата аренды:</strong> ${new Date(item.rental_date).toLocaleDateString('ru-RU')}</p>`;
+                    }
+                    if (item.min_rental_hours) {
+                        detailsHtml += `<p><strong>Минимальное кол-во часов:</strong> ${item.min_rental_hours}</p>`;
                     }
                 }
 
                 const itemHtml = `
                     <div class="request-item">
                         <h4>${item.title || item.material_type || item.tool_name || item.machinery_type}</h4>
-                        <p><strong>Описание:</strong> ${item.description || 'Нет'}</p>
-                        <p><strong>Город:</strong> ${getSelectedCity().name}</p>
+                        ${detailsHtml}
+                        <p><strong>Город:</strong> ${getSelectedCity() ? getSelectedCity().name : 'Не указан'}</p>
                         <p><strong>Бюджет/Цена:</strong> ${item.budget || item.price || item.rental_price} руб.</p>
                         <p class="contact"><strong>Контакт:</strong> ${item.contact_info}</p>
                         ${premiumMark}
@@ -842,6 +850,7 @@
                 container.innerHTML += itemHtml;
             });
         }
+
 
         async function takeRequest(requestId) {
             const statusEl = document.getElementById('takeOrderStatus');
@@ -909,6 +918,8 @@
             const machineryDescription = e.target.machineryDescription.value;
             const machineryRentalPrice = e.target.machineryRentalPrice.value;
             const machineryContact = e.target.machineryContact.value;
+            const machineryRentalDate = e.target.machineryRentalDate.value || null;
+            const machineryMinHours = e.target.machineryMinHours.value;
             const statusEl = document.getElementById('machineryRequestStatus');
 
             try {
@@ -923,7 +934,9 @@
                         description: machineryDescription,
                         rental_price: machineryRentalPrice,
                         contact_info: machineryContact,
-                        city_id: selectedCityId
+                        city_id: selectedCityId,
+                        rental_date: machineryRentalDate,
+                        min_rental_hours: parseInt(machineryMinHours, 10)
                     })
                 });
                 const data = await response.json();
@@ -1059,8 +1072,10 @@
             fetchMachineryTypes();
             fetchToolsList();
 
-            if (getSelectedCity()) {
-                cityNameEl.textContent = getSelectedCity().name;
+            const selectedCity = getSelectedCity();
+            if (selectedCity) {
+                cityNameEl.textContent = selectedCity.name;
+                selectedCityId = selectedCity.id;
                 checkAuthentication();
             } else {
                 cityModal.classList.add('active');
