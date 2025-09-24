@@ -86,6 +86,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     phone_number: str
+full_name: Optional[str] = None  # ДОБАВЛЕНИЕ: новое поле
     user_type: str = Field(..., description="Тип пользователя: ЗАКАЗЧИК или ИСПОЛНИТЕЛЬ")
     specialization: Optional[str] = None
 
@@ -300,6 +301,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
             email=user.email, 
             hashed_password=hashed_password, 
             phone_number=user.phone_number,
+full_name=user.full_name,
             user_type=user.user_type,
             specialization=user.specialization
         )
