@@ -328,19 +328,30 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
             )
-
-hashed_password = pwd_context.hash(user.password)
-query = users.insert().values(
-    name=user.name, # ДОБАВЛЕННЫЙ ПАРАМЕТР
-    email=user.email,
-    hashed_password=hashed_password,
-    phone_number=user.phone_number,
-    user_type=user.user_type,
-    specialization=user.specialization,
-    city_id=user.city_id # ДОБАВЛЕННЫЙ ПАРАМЕТР
-)
-last_record_id = await database.execute(query)
-user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
+        
+        hashed_password = pwd_context.hash(user.password)
+        query = users.insert().values(
+            name=user.name,
+            email=user.email,
+            hashed_password=hashed_password,
+            phone_number=user.phone_number,
+            user_type=user.user_type,
+            specialization=user.specialization,
+            city_id=user.city_id
+        )
+        last_record_id = await database.execute(query)
+        user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
+        
+        return UserOut(
+            id=user_in_db["id"],
+            name=user_in_db["name"],
+            email=user_in_db["email"],
+            phone_number=user_in_db["phone_number"],
+            user_type=user_in_db["user_type"],
+            specialization=user_in_db["specialization"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Произошла ошибка сервера: {str(e)}")
         
         # Создание токена
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
