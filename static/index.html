@@ -402,24 +402,24 @@
         const cityNameEl = document.getElementById('cityName');
         const loadingMessage = document.getElementById('loadingMessage');
 
-function showPage(pageId) {
-            // Исправленная строка: получаем все элементы с классом 'page'
-            const pages = document.querySelectorAll('.page');
-            pages.forEach(page => {
-                if (page) {
-                    page.classList.remove('active');
-                }
-            });
-            const activePage = document.getElementById(pageId);
-            if (activePage) {
-                activePage.classList.add('active');
-            }
-            if (pageId === 'workRequestsPage') fetchWorkRequests();
-            if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
-            if (pageId === 'toolRequestsPage') fetchToolRequests();
-            if (pageId === 'materialAdsPage') fetchMaterialAds();
-            if (pageId === 'myRequestsPage') fetchMyRequests();
+async function showPage(pageId) {
+    // Исправленная строка: получаем все элементы с классом 'page'
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => {
+        if (page) {
+            page.classList.remove('active');
         }
+    });
+    const activePage = document.getElementById(pageId);
+    if (activePage) {
+        activePage.classList.add('active');
+    }
+    if (pageId === 'workRequestsPage') await fetchWorkRequests();
+    if (pageId === 'machineryRequestsPage') await fetchMachineryRequests();
+    if (pageId === 'toolRequestsPage') await fetchToolRequests();
+    if (pageId === 'materialAdsPage') await fetchMaterialAds();
+    if (pageId === 'myRequestsPage') await fetchMyRequests();
+}
 
 async function fetchProfile() {
     if (!accessToken) return;
