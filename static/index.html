@@ -98,6 +98,10 @@
                 <h2>Вход</h2>
                 <div id="loginStatus" class="message"></div>
                 <form id="loginForm">
+<div class="input-group">
+    <label for="registerName">Имя:</label>
+    <input type="text" id="registerName" required>
+</div>
                     <div class="input-group">
                         <label for="loginEmail">Email:</label>
                         <input type="email" id="loginEmail" required>
@@ -170,6 +174,11 @@
             <div class="form-container">
                 <h2>Профиль</h2>
                 <div id="profileInfo"></div>
+<div class="input-group">
+    <label for="profileCity">Город:</label>
+    <select id="profileCity"></select>
+</div>
+<button id="updateCityBtn" class="btn btn-primary" style="margin-top: 10px;">Обновить город</button>
                 <div id="editSpecializationForm">
                     <div class="input-group">
                         <label for="newSpecialization">Новая специализация:</label>
@@ -417,24 +426,36 @@
             if (pageId === 'myRequestsPage') fetchMyRequests();
         }
 
-        async function fetchProfile() {
-            try {
-                const response = await fetch(`${API_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    currentUser = await response.json();
-                    updateProfilePage(currentUser);
-                } else {
-                    localStorage.removeItem('accessToken');
-                    showPage('loginPage');
-                }
-            } catch (error) {
-                console.error('Ошибка при получении профиля:', error);
-                localStorage.removeItem('accessToken');
-                showPage('loginPage');
+async function fetchProfile() {
+    if (!accessToken) return;
+    try {
+        const response = await fetch(`${API_URL}/users/me`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
             }
+        });
+
+        if (response.ok) {
+            currentUser = await response.json();
+            const profileInfoEl = document.getElementById('profileInfo');
+            profileInfoEl.innerHTML = `
+                <p><strong>Имя:</strong> ${currentUser.name}</p>
+                <p><strong>Email:</strong> ${currentUser.email}</p>
+                <p><strong>Телефон:</strong> ${currentUser.phone_number}</p>
+                <p><strong>Тип аккаунта:</strong> ${currentUser.user_type}</p>
+                ${currentUser.specialization ? `<p><strong>Специализация:</strong> ${currentUser.specialization}</p>` : ''}
+            `;
+            document.getElementById('profileCity').value = currentUser.city ? currentUser.city.id : '';
+
+        } else {
+            console.error("Failed to fetch profile");
+            logout();
         }
+    } catch (error) {
+        console.error("Error fetching profile:", error);
+        logout();
+    }
+}
 
         function updateProfilePage(profile) {
             const profileInfo = document.getElementById('profileInfo');
@@ -623,27 +644,82 @@
             }
         });
 
-        document.getElementById('registerForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const phoneNumber = document.getElementById('registerPhoneNumber').value;
-            const userType = document.getElementById('registerUserType').value;
-            const specialization = document.getElementById('registerSpecialization').value;
-            const registerStatusEl = document.getElementById('registerStatus');
+document.getElementById('updateCityBtn').addEventListener('click', async () => {
+    const newCityId = document.getElementById('profileCity').value;
+    if (!newCityId) {
+        alert('Пожалуйста, выберите город.');
+        return;
+    }
 
-            try {
-                const response = await fetch(`${API_URL}/users/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email,
-                        password: password,
-                        phone_number: phoneNumber,
-                        user_type: userType,
-                        specialization: specialization
-                    })
-                });
+    try {
+        const response = await fetch(`${API_URL}/users/me`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ city_id: newCityId })
+        });
+
+        if (response.ok) {
+            alert('Город успешно обновлен!');
+            fetchProfile();
+        } else {
+            const errorData = await response.json();
+            alert(`Ошибка при обновлении города: ${errorData.detail}`);
+        }
+    } catch (error) {
+        alert('Произошла ошибка при обновлении города.');
+    }
+});
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const phone_number = document.getElementById('registerPhoneNumber').value;
+    const user_type = document.getElementById('registerUserType').value;
+    const specialization = document.getElementById('registerSpecialization').value;
+    const name = document.getElementById('registerName').value; // ДОБАВЛЕНО
+    const cityId = selectedCityId; // ИСПОЛЬЗУЕМ ВЫБРАННЫЙ ГОРОД
+
+    const statusEl = document.getElementById('registerStatus');
+    statusEl.textContent = 'Регистрация...';
+    statusEl.className = 'message';
+
+    try {
+        const response = await fetch(`${API_URL}/users/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name, // ДОБАВЛЕНО
+                email,
+                password,
+                phone_number,
+                user_type,
+                specialization,
+                city_id: cityId // ДОБАВЛЕНО
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            statusEl.textContent = 'Регистрация успешна! Теперь вы можете войти.';
+            statusEl.className = 'message success';
+            e.target.reset();
+            showPage('loginPage');
+        } else {
+            const errorData = await response.json();
+            statusEl.textContent = `Ошибка: ${errorData.detail}`;
+            statusEl.className = 'message error';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Произошла ошибка при регистрации.';
+        statusEl.className = 'message error';
+    }
+});
 
                 const data = await response.json();
 
