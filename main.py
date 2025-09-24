@@ -83,11 +83,13 @@ async def shutdown():
 
 # НОВАЯ И ОБНОВЛЕННАЯ модель для создания пользователя
 class UserCreate(BaseModel):
+    name: str # ДОБАВЛЕННОЕ ПОЛЕ
     email: EmailStr
     password: str
     phone_number: str
     user_type: str = Field(..., description="Тип пользователя: ЗАКАЗЧИК или ИСПОЛНИТЕЛЬ")
     specialization: Optional[str] = None
+    city_id: Optional[int] = None # ДОБАВЛЕНОЕ ПОЛЕ
 
 # Модель для пользователя, который хранится в БД
 class UserInDB(BaseModel):
@@ -105,10 +107,12 @@ class UserInDB(BaseModel):
 # Модель для отображения пользователя (обновлена)
 class UserOut(BaseModel):
     id: int
+    name: str # ДОБАВЛЕННОЕ ПОЛЕ
     email: str
     phone_number: str
     user_type: str
     specialization: Optional[str] = None
+    city: Optional[dict] = None # ДОБАВЛЕНОЕ ПОЛЕ
 
     class Config:
         from_attributes = True
@@ -119,6 +123,7 @@ class UserUpdate(BaseModel):
     user_type: Optional[str] = None
     specialization: Optional[str] = None
     is_premium: Optional[bool] = None
+    city_id: Optional[int] = None # ДОБАВЛЕННОЕ ПОЛЕ
 
 class Token(BaseModel):
     access_token: str
@@ -269,16 +274,45 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# НОВЫЙ МАРШРУТ для получения профиля пользователя
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
-    return current_user
+    # Получаем информацию о городе пользователя
+    query = users.join(cities).select().where(users.c.id == current_user["id"])
+    user_with_city = await database.fetch_one(query)
+
+    if user_with_city:
+        user_data = dict(user_with_city)
+        # Формируем данные для ответа
+        user_out = UserOut(
+            id=user_data["id"],
+            name=user_data["name"], # ДОБАВЛЕННЫЙ ПАРАМЕТР
+            email=user_data["email"],
+            phone_number=user_data["phone_number"],
+            user_type=user_data["user_type"],
+            specialization=user_data["specialization"],
+            city={"id": user_data["city_id"], "name": user_data["name_1"]} # имя столбца "name" из таблицы "cities" будет "name_1"
+        )
+        return user_out
+    else:
+        return UserOut(**current_user, city=None)
 
 # --- Helper function for email check ---
 async def is_email_taken(email: str):
     query = users.select().where(users.c.email == email)
     existing_user = await database.fetch_one(query)
     return existing_user is not None
+
+@api_router.put("/users/me", response_model=UserOut)
+async def update_users_me(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
+    if user_update.user_name:
+        query = users.update().where(users.c.id == current_user["id"]).values(name=user_update.user_name)
+        await database.execute(query)
+    if user_update.city_id:
+        query = users.update().where(users.c.id == current_user["id"]).values(city_id=user_update.city_id)
+        await database.execute(query)
+
+    # Перезагружаем пользователя, чтобы вернуть обновленные данные
+    return await read_users_me(current_user=current_user)
 
 @api_router.post("/users/", status_code=status.HTTP_201_CREATED, response_model=UserOut)
 async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
@@ -295,17 +329,18 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
                 detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
             )
 
-        hashed_password = pwd_context.hash(user.password)
-        query = users.insert().values(
-            email=user.email, 
-            hashed_password=hashed_password, 
-            phone_number=user.phone_number,
-            user_type=user.user_type,
-            specialization=user.specialization
-        )
-        last_record_id = await database.execute(query)
-
-        user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
+hashed_password = pwd_context.hash(user.password)
+query = users.insert().values(
+    name=user.name, # ДОБАВЛЕННЫЙ ПАРАМЕТР
+    email=user.email,
+    hashed_password=hashed_password,
+    phone_number=user.phone_number,
+    user_type=user.user_type,
+    specialization=user.specialization,
+    city_id=user.city_id # ДОБАВЛЕННЫЙ ПАРАМЕТР
+)
+last_record_id = await database.execute(query)
+user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
         
         # Создание токена
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
