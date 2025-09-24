@@ -527,5 +527,12 @@ async def get_material_ads(city_id: int, current_user: dict = Depends(get_curren
     query = material_ads.select().where(material_ads.c.city_id == city_id)
     return await database.fetch_all(query)
 
+# НОВЫЙ МАРШРУТ: Этот маршрут будет явно обрабатывать запрос на корневой URL "/"
+@app.get("/")
+async def read_index():
+    return FileResponse("static/index.html")
+
+# Обслуживание остальных статических файлов из папки 'static'
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 app.include_router(api_router)
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
