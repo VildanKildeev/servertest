@@ -1143,20 +1143,22 @@ document.getElementById('updateCityBtn').addEventListener('click', async () => {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            fetchCities();
-            fetchSpecializations();
-            fetchMachineryTypes();
-            fetchToolsList();
+    fetchCities();
+    fetchSpecializations();
+    fetchMachineryTypes();
+    fetchToolsList();
+    
+    // Этот код должен быть здесь, чтобы приложение работало
+    const selectedCity = getSelectedCity();
+    if (selectedCity) {
+        cityNameEl.textContent = selectedCity.name;
+        selectedCityId = selectedCity.id;
+        checkAuthentication();
+    } else {
+        cityModal.classList.add('active');
+    }
+});
 
-            const selectedCity = getSelectedCity();
-            if (selectedCity) {
-                cityNameEl.textContent = selectedCity.name;
-                selectedCityId = selectedCity.id;
-                checkAuthentication();
-            } else {
-                cityModal.classList.add('active');
-            }
-        });
     </script>
 </body>
 </html>
