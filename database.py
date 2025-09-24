@@ -40,8 +40,6 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
     sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # НОВЫЙ СТОЛБЕЦ
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # НОВЫЙ СТОЛБЕЦ
-sqlalchemy.Column("full_name", sqlalchemy.String, nullable=True),
-)
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
