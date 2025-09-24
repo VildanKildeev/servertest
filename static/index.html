@@ -408,8 +408,9 @@
         }
 
         function showPage(pageId) {
-            pages.forEach(id => {
-                const page = document.getElementById(id);
+            // Исправленная строка: получаем все элементы с классом 'page'
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => {
                 if (page) {
                     page.classList.remove('active');
                 }
@@ -418,7 +419,6 @@
             if (activePage) {
                 activePage.classList.add('active');
             }
-            // Вызов функций загрузки при переходе на соответствующую страницу
             if (pageId === 'workRequestsPage') fetchWorkRequests();
             if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
             if (pageId === 'toolRequestsPage') fetchToolRequests();
