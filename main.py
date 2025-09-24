@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import exc
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import select
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -288,33 +289,27 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Пользователь с таким email уже существует."
             )
-        
         if user.user_type == "ИСПОЛНИТЕЛЬ" and not user.specialization:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
             )
-
         hashed_password = pwd_context.hash(user.password)
         query = users.insert().values(
-            email=user.email, 
-            hashed_password=hashed_password, 
+            email=user.email,
+            hashed_password=hashed_password,
             phone_number=user.phone_number,
             user_type=user.user_type,
             specialization=user.specialization
         )
         last_record_id = await database.execute(query)
-
         user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
-        
         # Создание токена
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         token_data = {"sub": user_in_db["email"], "id": user_in_db["id"]}
         access_token = create_access_token(data=token_data, expires_delta=access_token_expires)
-
         # Вы можете добавить здесь фоновое задание для отправки email, если функция `send_welcome_email` определена
         # background_tasks.add_task(send_welcome_email, user.email)
-
         return user_in_db
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(
@@ -343,10 +338,12 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **work_request.dict()}
 
-# Получение всех заявок на работу
+# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на работу
 @api_router.get("/work_requests/")
-async def get_work_requests():
+async def get_work_requests(city_id: Optional[int] = None):
     query = work_requests.select()
+    if city_id:
+        query = query.where(work_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
     return requests
 
@@ -362,17 +359,18 @@ async def create_machinery_request(machinery_request: MachineryRequestIn, curren
         contact_info=machinery_request.contact_info,
         city_id=machinery_request.city_id,
         is_premium=machinery_request.is_premium,
-        # --- НОВЫЕ ПОЛЯ ---
         rental_date=machinery_request.rental_date,
         min_rental_hours=machinery_request.min_rental_hours
     )
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **machinery_request.dict()}
 
-# Получение всех заявок на спецтехнику
+# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на спецтехнику
 @api_router.get("/machinery_requests/")
-async def get_machinery_requests():
+async def get_machinery_requests(city_id: Optional[int] = None):
     query = machinery_requests.select()
+    if city_id:
+        query = query.where(machinery_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
     return requests
 
@@ -396,10 +394,12 @@ async def create_tool_request(tool_request: ToolRequestIn, current_user: dict = 
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **tool_request.dict()}
 
-# Получение всех заявок на инструмент
+# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на инструмент
 @api_router.get("/tool_requests/")
-async def get_tool_requests():
+async def get_tool_requests(city_id: Optional[int] = None):
     query = tool_requests.select()
+    if city_id:
+        query = query.where(tool_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
     return requests
 
@@ -419,69 +419,118 @@ async def create_material_ad(material_ad: MaterialAdIn, current_user: dict = Dep
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **material_ad.dict()}
 
-# Получение всех объявлений о материалах
+# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех объявлений о материалах
 @api_router.get("/material_ads/")
-async def get_material_ads():
+async def get_material_ads(city_id: Optional[int] = None):
     query = material_ads.select()
+    if city_id:
+        query = query.where(material_ads.c.city_id == city_id)
     ads = await database.fetch_all(query)
     return ads
 
-@api_router.get("/users/me/requests/")
-async def get_my_requests(
-    city_id: Optional[int] = None,
-    current_user: dict = Depends(get_current_user)
-):
-    all_requests = []
-    
-    # Запросы на работы
-    work_query = work_requests.select().where(work_requests.c.user_id == current_user["id"])
-    if city_id:
-        work_query = work_query.where(work_requests.c.city_id == city_id)
-    work_requests_from_db = await database.fetch_all(work_query)
-    all_requests.extend([
-        {**dict(req), "type": "work"} for req in work_requests_from_db
-    ])
+# --- Маршруты для получения данных из таблиц-справочников ---
 
-    # Запросы на аренду спецтехники
-    machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == current_user["id"])
-    if city_id:
-        machinery_query = machinery_query.where(machinery_requests.c.city_id == city_id)
-    machinery_requests_from_db = await database.fetch_all(machinery_query)
-    all_requests.extend([
-        {**dict(req), "type": "machinery"} for req in machinery_requests_from_db
-    ])
+@api_router.get("/specializations/")
+def get_specializations():
+    return SPECIALIZATIONS
 
-    # Запросы на аренду инструментов
-    tool_query = tool_requests.select().where(tool_requests.c.user_id == current_user["id"])
-    if city_id:
-        tool_query = tool_query.where(tool_requests.c.city_id == city_id)
-    tool_requests_from_db = await database.fetch_all(tool_query)
-    all_requests.extend([
-        {**dict(req), "type": "tool"} for req in tool_requests_from_db
-    ])
+@api_router.get("/machinery_types/")
+def get_machinery_types():
+    return MACHINERY_TYPES
 
-    # Возвращаем все найденные заявки
-    return {"requests": all_requests}
-
-# Маршруты для получения списков специализаций, городов, типов техники и инструментов
 @api_router.get("/cities/")
 async def get_cities():
-    query = cities.select()
+    query = cities.select().order_by(cities.c.name)
     all_cities = await database.fetch_all(query)
     return all_cities
 
+# ОБНОВЛЕННЫЙ МАРШРУТ
+@api_router.get("/my_requests/")
+async def get_my_requests(current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    
+    # Заявки на работу
+    work_query = work_requests.select().where(work_requests.c.user_id == user_id)
+    my_work_requests = await database.fetch_all(work_query)
+
+    # Заявки на спецтехнику
+    machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == user_id)
+    my_machinery_requests = await database.fetch_all(machinery_query)
+
+    # Заявки на инструмент
+    tool_query = tool_requests.select().where(tool_requests.c.user_id == user_id)
+    my_tool_requests = await database.fetch_all(tool_query)
+
+    # Объявления о материалах
+    material_query = material_ads.select().where(material_ads.c.user_id == user_id)
+    my_material_ads = await database.fetch_all(material_query)
+
+    return {
+        "work_requests": my_work_requests,
+        "machinery_requests": my_machinery_requests,
+        "tool_requests": my_tool_requests,
+        "material_ads": my_material_ads
+    }
+
+# Новый маршрут для принятия заявки
+@api_router.patch("/work_requests/{request_id}/take")
+async def take_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    
+    # Проверяем, что заявка существует
+    query_check = select(work_requests).where(work_requests.c.id == request_id)
+    request_data = await database.fetch_one(query_check)
+    if not request_data:
+        raise HTTPException(status_code=404, detail="Заявка не найдена.")
+
+    # Проверяем, что заявка не уже взята
+    if request_data['status'] == 'В РАБОТЕ':
+        raise HTTPException(status_code=400, detail="Эта заявка уже принята другим исполнителем.")
+
+    # Обновляем статус и исполнителя
+    query_update = work_requests.update().where(work_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
+    await database.execute(query_update)
+    
+    return {"message": "Заявка успешно принята.", "request_id": request_id}
+
+@api_router.patch("/machinery_requests/{request_id}/take")
+async def take_machinery_request(request_id: int, current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    query_update = machinery_requests.update().where(machinery_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
+    await database.execute(query_update)
+    return {"message": "Заявка успешно принята.", "request_id": request_id}
+
+# Новый маршрут для подписки на премиум
+@api_router.post("/subscribe/")
+async def activate_premium_subscription(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    query = users.update().where(users.c.id == user_id).values(is_premium=True)
+    await database.execute(query)
+    return {"message": "Премиум-подписка активирована. Вы можете разместить до 5 премиум-заявок."}
+
+# Новый маршрут для обновления специализации
+@api_router.post("/update_specialization/")
+async def update_user_specialization(specialization: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    query = users.update().where(users.c.id == user_id).values(specialization=specialization)
+    await database.execute(query)
+    return {"message": "Специализация успешно обновлена."}
+
+# Список специализаций
 SPECIALIZATIONS = [
-    "Электрик", "Сантехник", "Плотник", "Маляр", "Кровельщик", "Сварщик", "Разнорабочий",
-    "Ремонт бытовой техники", "Установка дверей", "Установка окон", "Дизайнер интерьеров",
-    "Прораб", "Плиточник", "Сборщик мебели", "Отделочные работы", "Демонтажные работы",
-    "Каменщик", "Фасадные работы", "Укладка пола", "Ландшафтный дизайн", "Монолитные работы",
-    "Кладка кирпича", "Бетонные работы", "Обустройство скважин"
+    "Электрик", "Сантехник", "Сварщик", "Плиточник", "Маляр", "Штукатур",
+    "Ремонтник", "Плотник", "Кровельщик", "Каменщик", "Фасадчик",
+    "Отделочник", "Монтажник", "Демонтажник", "Разнорабочий",
+    "Специалист по полам", "Установщик дверей/окон", "Мебельщик", "Сборщик мебели",
+    "Специалист по вентиляции", "Геодезист", "Ландшафтный дизайнер", "Уборщик",
+    "Косметический ремонт", "Капитальный ремонт", "Проектирование"
 ]
 
 @api_router.get("/specializations/")
 def get_specializations():
     return SPECIALIZATIONS
 
+# Список типов спецтехники
 MACHINERY_TYPES = [
     "Экскаватор", "Погрузчик", "Манипулятор", "Дорожный каток", "Самосвал", "Автокран", "Автовышка",
     "Мусоровоз", "Илосос", "Канистра", "Монтажный пистолет", "Когти монтерские", "Монтажный пояс",
@@ -499,7 +548,6 @@ MACHINERY_TYPES = [
     "Растворные станции", "Труборезы", "Оборудование для получения лицензии МЧС", "Оборудование для работы с композитом",
     "Рейсмусовый станок", "Дрель на магнитной подошве", "Плиткорезы", "Отрезной станок", "Фрезер", "Камнерезные станки"
 ]
-
 
 @api_router.get("/machinery_types/")
 def get_machinery_types():
@@ -523,12 +571,7 @@ def get_tools_list():
 # Список типов материалов
 MATERIAL_TYPES = [
     "Цемент", "Песок", "Щебень", "Кирпич", "Бетон", "Армирующие материалы",
-    "Гипсокартон", "Штукатурка", "Шпаклевка", "Краски", "Клей", "Грунтовка",
-    "Гидроизоляция", "Теплоизоляция", "Звукоизоляция", "Пиломатериалы",
-    "Фанера", "ДСП", "ОСБ", "Металлопрокат", "Трубы", "Проволока",
-    "Крепежные изделия", "Электротовары", "Сантехника", "Отопление",
-    "Кровля", "Окна", "Двери", "Напольные покрытия", "Сайдинг", "Вагонка",
-    "Ламинат", "Паркет", "Линолеум", "Ковролин"
+    "Гипсокартон", "Штукатурка", "Шпаклевка", "Краски", "Клей", "Грунтовка"
 ]
 
 @api_router.get("/material_types/")
@@ -536,6 +579,3 @@ def get_material_types():
     return MATERIAL_TYPES
 
 app.include_router(api_router)
-
-if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
