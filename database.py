@@ -4,6 +4,7 @@ from sqlalchemy.engine import create_engine
 import os
 import databases
 from sqlalchemy.types import JSON
+from sqlalchemy import exc
 
 # Получаем DATABASE_URL из переменных окружения.
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -36,58 +37,69 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("email", sqlalchemy.String, unique=True, index=True),
     sqlalchemy.Column("hashed_password", sqlalchemy.String),
-    sqlalchemy.Column("phone_number", sqlalchemy.String),
     sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
-    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # НОВЫЙ СТОЛБЕЦ
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # НОВЫЙ СТОЛБЕЦ
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    sqlalchemy.Column("username", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
 
-# Таблица запросов на работу
+# Таблица для городов
+cities = sqlalchemy.Table(
+    "cities",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("name", sqlalchemy.String, unique=True, index=True),
+)
+
+# Таблица для заявок на работу
 work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    # НОВЫЙ СТОЛБЕЦ: Исполнитель заявки
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("budget", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
-    sqlalchemy.Column("status", sqlalchemy.String, default="active"),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now())
+    # НОВЫЙ СТОЛБЕЦ: Чат активирован
+    sqlalchemy.Column("chat_enabled", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("is_taken", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица городов
-cities = sqlalchemy.Table(
-    "cities",
+# НОВАЯ ТАБЛИЦА: для сообщений чата
+chat_messages = sqlalchemy.Table(
+    "chat_messages",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("name", sqlalchemy.String, unique=True, index=True)
+    sqlalchemy.Column("request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id")),
+    sqlalchemy.Column("sender_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("message", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("timestamp", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-# Таблица запросов на спецтехнику (ОБНОВЛЕНО)
+# Таблица для заявок на спецтехнику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True), # Теперь это описание задачи
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("min_rental_hours", sqlalchemy.Integer, nullable=True),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    # --- НОВЫЕ СТОЛБЦЫ ---
-    sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
-    sqlalchemy.Column("min_rental_hours", sqlalchemy.Integer, default=4),
 )
 
-
-# Таблица запросов на инструмент
+# Таблица для заявок на инструмент
 tool_requests = sqlalchemy.Table(
     "tool_requests",
     metadata,
@@ -119,5 +131,4 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
