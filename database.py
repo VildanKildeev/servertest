@@ -39,8 +39,8 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    sqlalchemy.Column("username", sqlalchemy.String, unique=True, nullable=True)  # НОВАЯ КОЛОНКА
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False), # ВАЖНО: УБЕДИТЕСЬ, ЧТО ЭТА СТРОКА ЕСТЬ
+    sqlalchemy.Column("username", sqlalchemy.String, unique=True, nullable=True) 
 )
 
 # Таблица для заявок на работу
