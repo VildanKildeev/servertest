@@ -83,10 +83,10 @@ async def shutdown():
 
 # НОВАЯ И ОБНОВЛЕННАЯ модель для создания пользователя
 class UserCreate(BaseModel):
+    full_name: Optional[str] = None
     email: EmailStr
     password: str
     phone_number: str
-full_name: Optional[str] = None  # ДОБАВЛЕНИЕ: новое поле
     user_type: str = Field(..., description="Тип пользователя: ЗАКАЗЧИК или ИСПОЛНИТЕЛЬ")
     specialization: Optional[str] = None
 
