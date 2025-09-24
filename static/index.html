@@ -402,12 +402,7 @@
         const cityNameEl = document.getElementById('cityName');
         const loadingMessage = document.getElementById('loadingMessage');
 
-        function getSelectedCity() {
-            const cityData = localStorage.getItem('selectedCity');
-            return cityData ? JSON.parse(cityData) : null;
-        }
-
-        function showPage(pageId) {
+function showPage(pageId) {
             // Исправленная строка: получаем все элементы с классом 'page'
             const pages = document.querySelectorAll('.page');
             pages.forEach(page => {
@@ -434,6 +429,11 @@ async function fetchProfile() {
                 'Authorization': `Bearer ${accessToken}`
             }
         });
+
+        function getSelectedCity() {
+            const cityData = localStorage.getItem('selectedCity');
+            return cityData ? JSON.parse(cityData) : null;
+        }
 
         if (response.ok) {
             currentUser = await response.json();
