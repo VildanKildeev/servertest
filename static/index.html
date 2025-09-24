@@ -673,15 +673,15 @@ document.getElementById('updateCityBtn').addEventListener('click', async () => {
     }
 });
 
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
     const phone_number = document.getElementById('registerPhoneNumber').value;
     const user_type = document.getElementById('registerUserType').value;
     const specialization = document.getElementById('registerSpecialization').value;
-    const name = document.getElementById('registerName').value; // ДОБАВЛЕНО
-    const cityId = selectedCityId; // ИСПОЛЬЗУЕМ ВЫБРАННЫЙ ГОРОД
+    const name = document.getElementById('registerName').value;
+    const cityId = selectedCityId;
 
     const statusEl = document.getElementById('registerStatus');
     statusEl.textContent = 'Регистрация...';
@@ -694,15 +694,33 @@ document.getElementById('updateCityBtn').addEventListener('click', async () => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                name, // ДОБАВЛЕНО
+                name,
                 email,
                 password,
                 phone_number,
                 user_type,
                 specialization,
-                city_id: cityId // ДОБАВЛЕНО
+                city_id: cityId
             })
         });
+
+        // ПРАВИЛЬНОЕ РАСПОЛОЖЕНИЕ
+        const data = await response.json();
+
+        if (response.ok) {
+            statusEl.textContent = 'Регистрация успешна! Теперь вы можете войти.';
+            statusEl.className = 'message success';
+            e.target.reset();
+            showPage('loginPage');
+        } else {
+            statusEl.textContent = `Ошибка: ${data.detail}`;
+            statusEl.className = 'message error';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Произошла ошибка при регистрации.';
+        statusEl.className = 'message error';
+    }
+});
 
         if (response.ok) {
             const data = await response.json();
