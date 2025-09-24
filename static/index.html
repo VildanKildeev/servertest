@@ -54,6 +54,8 @@
         .request-item .taken { color: #28a745; font-weight: bold; }
         .request-item .take-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
         .request-item .take-btn:hover { background-color: #218838; }
+        .request-item .chat-btn { background-color: #E87D39; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+        .request-item .chat-btn:hover { background-color: #D66D29; }
 
         .my-requests-section { border-bottom: 1px solid #DCDCDC; padding-bottom: 15px; margin-bottom: 15px; }
         .my-requests-section:last-of-type { border-bottom: none; }
@@ -69,6 +71,17 @@
         #updateSpecializationBtn { background-color: #28a745; color: white; }
         #updateSpecializationBtn:hover { background-color: #218838; }
         #editSpecializationForm { display: none; }
+
+        /* Стили для чата */
+        #chatPage { display: none; padding: 15px; }
+        #chatBox { border: 1px solid #DCDCDC; border-radius: 10px; padding: 10px; max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; background-color: #fff; }
+        .chat-message { padding: 8px; border-radius: 8px; max-width: 80%; }
+        .chat-message.me { background-color: #E87D39; color: white; align-self: flex-end; }
+        .chat-message.other { background-color: #DCDCDC; color: #4A4A4A; align-self: flex-start; }
+        .chat-message-info { font-size: 10px; color: #6B6B6B; margin-top: 4px; text-align: right; }
+        .chat-input-container { display: flex; gap: 10px; }
+        #chatInput { flex-grow: 1; padding: 10px; border-radius: 5px; border: 1px solid #DCDCDC; }
+        #sendMessageBtn { width: auto; padding: 10px 15px; background-color: #E87D39; color: white; border: none; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -214,6 +227,18 @@
                 <div id="workRequestsList"></div>
                 <div id="takeOrderStatus" class="message"></div>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="chatPage" class="page">
+            <div class="form-container">
+                <h2>Чат по заявке</h2>
+                <div id="chatBox"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" placeholder="Введите сообщение...">
+                    <button id="sendMessageBtn">Отправить</button>
+                </div>
+                <button class="btn btn-secondary" onclick="showPage('workRequestsPage')">Назад</button>
             </div>
         </div>
 
@@ -381,13 +406,14 @@
         let accessToken = null;
         let selectedCityId = null;
         let currentUser = null;
+        let currentChatRequestId = null;
 
         const pages = [
             'loginPage', 'registerPage', 'buttonContainer', 'profilePage',
             'createWorkRequestPage', 'workRequestsPage',
             'createMachineryRequestPage', 'machineryRequestsPage',
             'createToolRequestPage', 'toolRequestsPage',
-            'createMaterialAdPage', 'materialAdsPage', 'myRequestsPage'
+            'createMaterialAdPage', 'materialAdsPage', 'myRequestsPage', 'chatPage'
         ];
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityName');
@@ -688,7 +714,7 @@
                 });
                 if (response.ok) {
                     const requests = await response.json();
-                    renderList(requests, workRequestsList, 'заявок на работу');
+                    renderList(requests, workRequestsList, 'заявок на работу', 'work');
                 } else {
                     const data = await response.json();
                     workRequestsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
@@ -787,10 +813,10 @@
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 const data = await response.json();
-                renderList(data.work_requests, myWorkRequestsList, 'заявок на работу');
-                renderList(data.machinery_requests, myMachineryRequestsList, 'заявок на технику');
-                renderList(data.tool_requests, myToolRequestsList, 'заявок на инструмент');
-                renderList(data.material_ads, myMaterialAdsList, 'объявлений о материалах');
+                renderList(data.work_requests, myWorkRequestsList, 'заявок на работу', 'work');
+                renderList(data.machinery_requests, myMachineryRequestsList, 'заявок на технику', 'machinery');
+                renderList(data.tool_requests, myToolRequestsList, 'заявок на инструмент', 'tool');
+                renderList(data.material_ads, myMaterialAdsList, 'объявлений о материалах', 'material');
             } catch (error) {
                 myWorkRequestsList.innerHTML = `<p class="message error">Не удалось загрузить ваши заявки.</p>`;
                 myMachineryRequestsList.innerHTML = '';
@@ -799,7 +825,7 @@
             }
         }
 
-        function renderList(items, container, typeText) {
+        function renderList(items, container, typeText, type) {
             if (!items || items.length === 0) {
                 container.innerHTML = `<p>Пока нет ${typeText}.</p>`;
                 return;
@@ -809,14 +835,18 @@
                 let statusText = '';
                 let buttonHtml = '';
                 let premiumMark = '';
+
                 if (item.is_premium) {
                     premiumMark = `<span class="premium"><i class="fas fa-crown"></i> PREMIUM</span>`;
                 }
 
-                if (item.executor_id) {
+                if (item.is_taken) {
                     statusText = `<span class="taken">Заявка принята</span>`;
+                    if (type === 'work' && (currentUser.id === item.user_id || currentUser.id === item.executor_id)) {
+                        buttonHtml = `<button class="chat-btn" onclick="startChat(${item.id})">Начать чат</button>`;
+                    }
                 } else {
-                    if (currentUser && currentUser.user_type === "ИСПОЛНИТЕЛЬ") {
+                    if (type === 'work' && currentUser && currentUser.user_type === "ИСПОЛНИТЕЛЬ") {
                         buttonHtml = `<button class="take-btn" onclick="takeRequest(${item.id})">Принять заявку</button>`;
                     }
                 }
@@ -834,7 +864,7 @@
 
                 const itemHtml = `
                     <div class="request-item">
-                        <h4>${item.title || item.material_type || item.tool_name || item.machinery_type}</h4>
+                        <h4>${item.title || item.material_type || item.tool_name || item.machinery_type || item.description.substring(0, 30) + '...'}</h4>
                         ${detailsHtml}
                         <p><strong>Город:</strong> ${getSelectedCity() ? getSelectedCity().name : 'Не указан'}</p>
                         <p><strong>Бюджет/Цена:</strong> ${item.budget || item.price || item.rental_price} руб.</p>
@@ -860,6 +890,7 @@
                 if (response.ok) {
                     statusEl.textContent = 'Вы успешно приняли заявку!';
                     statusEl.className = 'message success';
+                    // Перезагружаем список заявок, чтобы показать изменения
                     fetchWorkRequests();
                 } else {
                     statusEl.textContent = `Ошибка: ${data.detail}`;
@@ -870,6 +901,70 @@
                 statusEl.className = 'message error';
             }
         }
+
+        function startChat(requestId) {
+            currentChatRequestId = requestId;
+            showPage('chatPage');
+            fetchChatMessages();
+            // Обновляем сообщения каждые 5 секунд
+            setInterval(fetchChatMessages, 5000); 
+        }
+
+        async function fetchChatMessages() {
+            const chatBox = document.getElementById('chatBox');
+            try {
+                const response = await fetch(`${API_URL}/chat/${currentChatRequestId}`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (response.ok) {
+                    const messages = await response.json();
+                    chatBox.innerHTML = '';
+                    messages.forEach(msg => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `chat-message ${msg.is_me ? 'me' : 'other'}`;
+                        messageDiv.textContent = msg.message;
+                        const timestampSpan = document.createElement('span');
+                        timestampSpan.className = 'chat-message-info';
+                        const messageDate = new Date(msg.timestamp);
+                        timestampSpan.textContent = messageDate.toLocaleTimeString();
+                        messageDiv.appendChild(timestampSpan);
+                        chatBox.appendChild(messageDiv);
+                    });
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                } else {
+                    const data = await response.json();
+                    chatBox.innerHTML = `<p class="message error">Ошибка загрузки чата: ${data.detail}</p>`;
+                }
+            } catch (error) {
+                chatBox.innerHTML = `<p class="message error">Ошибка сети. Попробуйте позже.</p>`;
+            }
+        }
+
+        document.getElementById('sendMessageBtn').addEventListener('click', async () => {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            if (message === "" || !currentChatRequestId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/chat/${currentChatRequestId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                if (response.ok) {
+                    chatInput.value = '';
+                    fetchChatMessages();
+                } else {
+                    const data = await response.json();
+                    alert(`Ошибка отправки: ${data.detail}`);
+                }
+            } catch (error) {
+                alert('Произошла ошибка сети при отправке сообщения.');
+            }
+        });
 
         document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
