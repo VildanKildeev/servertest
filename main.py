@@ -388,7 +388,12 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
         city_id=request.city_id,
         address=request.address,
         visit_date=request.visit_date,
-        is_premium=current_user["is_premium"] # Устанавливаем премиум статус
+        is_premium=current_user["is_premium"],
+        # --- FIX START ---
+        is_taken=False,
+        chat_enabled=False,
+        status="active" # Optional, but good practice
+        # --- FIX END ---
     )
     last_record_id = await database.execute(query)
     created_request_query = work_requests.select().where(work_requests.c.id == last_record_id)
