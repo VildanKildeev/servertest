@@ -50,6 +50,7 @@ work_requests = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+sqlalchemy.Column("name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("budget", sqlalchemy.Float),
