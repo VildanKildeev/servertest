@@ -19,10 +19,6 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # --- Database setup ---
-# Импортируем все таблицы и метаданды из файла database.py
-# Убедитесь, что ваш файл database.py находится в той же директории
-# ВАЖНО: После обновления database.py вам может потребоваться 
-# заново развернуть его на Render.com или провести миграцию базы данных!
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, chat_messages
 
 load_dotenv()
@@ -122,12 +118,16 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+# ОБНОВЛЕННАЯ СХЕМА ДЛЯ ЗАЯВКИ
 class WorkRequestIn(BaseModel):
+    name: str
+    phone_number: str
     description: str
     specialization: str
     budget: float
-    contact_info: str
     city_id: int
+    address: Optional[str] = None
+    visit_date: Optional[datetime] = None
 
 class WorkRequestOut(BaseModel):
     id: int
@@ -139,8 +139,10 @@ class WorkRequestOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
-    is_taken: bool # Теперь этот столбец есть в БД
-    chat_enabled: bool # Теперь этот столбец есть в БД
+    is_taken: bool
+    chat_enabled: bool
+    address: Optional[str]
+    visit_date: Optional[datetime]
 
 class MachineryRequestIn(BaseModel):
     machinery_type: str
@@ -190,7 +192,6 @@ class ToolRequestOut(BaseModel):
     delivery_address: Optional[str]
     city_id: int
     created_at: datetime
-# Конец ИСПРАВЛЕНИЯ 2
 
 class MaterialAdIn(BaseModel):
     material_type: str
@@ -233,7 +234,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     query = users.select().where(users.c.email == form_data.username)
     user = await database.fetch_one(query)
     
-    # ИСПРАВЛЕНИЕ 2: Заменено user.get("hashed_password") на user["hashed_password"] для устранения AttributeError
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -252,21 +252,18 @@ async def create_user(user: UserIn):
     if user.user_type not in ["ЗАКАЗЧИК", "ИСПОЛНИТЕЛЬ"]:
         raise HTTPException(status_code=400, detail="Invalid user_type")
 
-    # ИСПРАВЛЕНИЕ 1: Проверка занятости email ПЕРЕД вставкой
     if await is_email_taken(user.email):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, 
             detail="Пользователь с таким email уже существует."
         )
 
-    # 1. Валидация: ИСПОЛНИТЕЛЬ должен иметь специализацию
     if user.user_type == "ИСПОЛНИТЕЛЬ" and not user.specialization:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
         )
 
-    # 2. Логика: Если пользователь НЕ ИСПОЛНИТЕЛЬ, сбросить specialization в None
     specialization_to_insert = user.specialization
     if user.user_type != "ИСПОЛНИТЕЛЬ":
         specialization_to_insert = None
@@ -281,7 +278,6 @@ async def create_user(user: UserIn):
     )
     
     last_record_id = await database.execute(query)
-    # Получаем данные созданного пользователя для возврата
     created_user = await database.fetch_one(users.select().where(users.c.id == last_record_id))
     return {**created_user, "username": created_user["email"]}
 
@@ -289,7 +285,6 @@ async def create_user(user: UserIn):
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     user_dict = dict(current_user)
     
-    # ИСПРАВЛЕНИЕ: Гарантируем, что is_premium является bool (False), если в DB стоит NULL (None)
     if user_dict.get("is_premium") is None:
         user_dict["is_premium"] = False 
         
@@ -337,11 +332,17 @@ async def get_cities():
     return await database.fetch_all(query)
 
 # --- СПИСКИ ДЛЯ ФРОНТЕНДА ---
-SPECIALIZATIONS = [
-    "Маляр", "Сантехник", "Электрик", "Плиточник", "Сварщик",
-    "Штукатур", "Плотник", "Кровельщик", "Каменщик", "Фасадчик",
-    "Геодезист", "Ландшафтный дизайнер", "Установщик окон/дверей",
-    "Сборщик мебели", "Демонтажник"
+# ОБНОВЛЕННЫЙ СПИСОК ТИПОВ РАБОТ
+WORK_TYPES = [
+    "ЗЕМЛЯНЫЕ РАБОТЫ", "ФУНДАМЕНТЫ И ОСНОВАНИЯ", "КЛАДОЧНЫЕ РАБОТЫ",
+    "МЕТАЛЛОКОНСТРУКЦИИ", "КРОВЕЛЬНЫЕ РАБОТЫ", "ОСТЕКЛЕНИЕ И ФАСАДНЫЕ РАБОТЫ",
+    "ВНУТРЕННИЕ ИНЖЕНЕРНЫЕ СЕТИ", "САНТЕХНИЧЕСКИЕ И ВОДОПРОВОДНЫЕ РАБОТЫ",
+    "ОТОПЛЕНИЕ И ТЕПЛОСНАБЖЕНИЕ", "ВЕНТИЛЯЦИЯ И КОНДИЦИОНИРОВАНИЕ",
+    "ЭЛЕКТРОМОНТАЖНЫЕ РАБОТЫ", "ОТДЕЛОЧНЫЕ РАБОТЫ", "МОНТАЖ ПОТОЛКОВ",
+    "ПОЛУСУХАЯ СТЯЖКА ПОЛА", "МАЛЯРНЫЕ РАБОТЫ", "БЛАГОУСТРОЙСТВО ТЕРРИТОРИИ",
+    "СТРОИТЕЛЬСТВО ДОМОВ ПОД КЛЮЧ", "ДЕМОНТАЖНЫЕ РАБОТЫ", "МОНТАЖ ОБОРУДОВАНИЯ",
+    "РАЗНОРАБОЧИЕ", "КЛИНИНГ, УБОРКА ПОМЕЩЕНИЙ", "МУЖ НА ЧАС",
+    "БУРЕНИЕ, УСТРОЙСТВО СКВАЖИН", "ПРОЕКТИРОВАНИЕ", "ГЕОЛОГИЯ"
 ]
 
 MACHINERY_TYPES = [
@@ -367,9 +368,10 @@ MATERIAL_TYPES = [
     "Профнастил", "Утеплитель", "Монтажная пена", "Деревянные брусья/доски"
 ]
 
-@api_router.get("/specializations/")
-def get_specializations():
-    return SPECIALIZATIONS
+# ОБНОВЛЕННЫЙ МАРШРУТ, который теперь возвращает типы работ
+@api_router.get("/work_types/")
+def get_work_types():
+    return WORK_TYPES
 
 @api_router.get("/machinery_types/")
 def get_machinery_types():
@@ -384,18 +386,24 @@ def get_material_types():
     return MATERIAL_TYPES
 
 # Work Requests
+# ОБНОВЛЕННЫЙ МАРШРУТ ДЛЯ СОЗДАНИЯ ЗАЯВКИ
 @api_router.post("/work_requests", response_model=WorkRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_work_request(request: WorkRequestIn, current_user: dict = Depends(get_current_user)):
     if current_user["user_type"] != "ЗАКАЗЧИК":
         raise HTTPException(status_code=403, detail="Только ЗАКАЗЧИК может создавать заявки на работу")
     
+    # Объединяем имя и телефон в contact_info
+    contact_info_full = f"Имя: {request.name}, Телефон: {request.phone_number}"
+
     query = work_requests.insert().values(
         user_id=current_user["id"],
         description=request.description,
         specialization=request.specialization,
         budget=request.budget,
-        contact_info=request.contact_info,
-        city_id=request.city_id
+        contact_info=contact_info_full, # Используем объединенную строку
+        city_id=request.city_id,
+        address=request.address, # Сохраняем адрес
+        visit_date=request.visit_date # Сохраняем дату выезда
     )
     last_record_id = await database.execute(query)
     created_request = await database.fetch_one(work_requests.select().where(work_requests.c.id == last_record_id))
@@ -403,7 +411,6 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
 
 @api_router.get("/work_requests", response_model=List[WorkRequestOut])
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
-    # ИСПРАВЛЕНИЕ 1: Запрос теперь работает, так как 'is_taken' добавлен в database.py
     query = work_requests.select().where((work_requests.c.city_id == city_id) & (work_requests.c.is_taken == False))
     return await database.fetch_all(query)
 
@@ -520,7 +527,7 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
         tool_name=request.tool_name,
         description=request.description,
         rental_price=request.rental_price,
-        tool_count=request.tool_count, # ИСПРАВЛЕНИЕ 2: Используем tool_count
+        tool_count=request.tool_count,
         rental_start_date=request.rental_start_date,
         rental_end_date=request.rental_end_date,
         contact_info=request.contact_info,

@@ -58,10 +58,12 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
     sqlalchemy.Column("status", sqlalchemy.String, default="active"),
-    # ИСПРАВЛЕНИЕ 1: Добавлены отсутствующие столбцы
     sqlalchemy.Column("is_taken", sqlalchemy.Boolean, default=False, nullable=False),
     sqlalchemy.Column("chat_enabled", sqlalchemy.Boolean, default=False, nullable=False),
-    # Конец ИСПРАВЛЕНИЯ 1
+    # НОВЫЕ СТОЛБЦЫ
+    sqlalchemy.Column("address", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("visit_date", sqlalchemy.DateTime, nullable=True),
+    # КОНЕЦ НОВЫХ СТОЛБЦОВ
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now())
 )
 
@@ -80,7 +82,7 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True), # Теперь это описание задачи
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
@@ -105,7 +107,6 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     # ОБНОВЛЕННЫЕ СТОЛБЦЫ:
-    # ИСПРАВЛЕНИЕ 2: Переименовали 'count' в 'tool_count'
     sqlalchemy.Column("tool_count", sqlalchemy.Integer, default=1),
     sqlalchemy.Column("rental_start_date", sqlalchemy.Date, nullable=True),
     sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
@@ -128,7 +129,7 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
 
-# ИСПРАВЛЕНИЕ 3: Добавление пропущенной таблицы для чата
+# Добавление пропущенной таблицы для чата
 chat_messages = sqlalchemy.Table(
     "chat_messages",
     metadata,
