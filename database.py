@@ -15,7 +15,8 @@ if not DATABASE_URL:
 # --- ВАЖНЫЕ ИЗМЕНЕНИЯ ЗДЕСЬ ---
 # Добавляем параметр SSL для Render.com, если его нет.
 if "?" in DATABASE_URL:
-    DATABASE_URL += "&sslmode=require"
+    if "sslmode" not in DATABASE_URL:
+        DATABASE_URL += "&sslmode=require"
 else:
     DATABASE_URL += "?sslmode=require"
 
@@ -41,7 +42,9 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
+    # ИСПРАВЛЕНО: Добавлен столбец city_id, необходимый для регистрации
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=False)
 )
 
 # Таблица запросов на работу
@@ -50,11 +53,12 @@ work_requests = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-sqlalchemy.Column("name", sqlalchemy.String, nullable=False),
+    # ИСПРАВЛЕНО: Столбец contact_info был заменен на phone_number для соответствия новым полям формы
+    sqlalchemy.Column("name", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("budget", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
@@ -91,7 +95,8 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     # --- НОВЫЕ СТОЛБЦЫ ---
     sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
-    sqlalchemy.Column("min_rental_hours", sqlalchemy.Integer, default=4),
+    # ИСПРАВЛЕНО: Имя столбца приведено в соответствие с Pydantic моделью
+    sqlalchemy.Column("min_hours", sqlalchemy.Integer, default=4),
 )
 
 
