@@ -279,7 +279,8 @@ async def create_user(user: UserIn):
         user_type=user.user_type,
         phone_number=user.phone_number,
         specialization=specialization_to_insert,
-        city_id=user.city_id # ИСПРАВЛЕНО: city_id теперь сохраняется
+        city_id=user.city_id, # ИСПРАВЛЕНО: city_id теперь сохраняется
+        is_premium=False      # <-- ДОБАВЬТЕ ЭТУ СТРОКУ
     )
     
     last_record_id = await database.execute(query)
@@ -287,7 +288,6 @@ async def create_user(user: UserIn):
     created_user = await database.fetch_one(created_user_query)
     
     return {**created_user, "username": created_user["email"]}
-
 
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
