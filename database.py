@@ -38,10 +38,10 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("hashed_password", sqlalchemy.String),
     sqlalchemy.Column("phone_number", sqlalchemy.String),
     sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
-    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # НОВЫЙ СТОЛБЕЦ
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # НОВЫЙ СТОЛБЕЦ
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False) # Добавлен is_premium
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
 
 # Таблица запросов на работу
@@ -126,4 +126,15 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
+)
+
+# ИСПРАВЛЕНИЕ 3: Добавление пропущенной таблицы для чата
+chat_messages = sqlalchemy.Table(
+    "chat_messages",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id")),
+    sqlalchemy.Column("sender_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("message", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("timestamp", sqlalchemy.DateTime, default=sqlalchemy.func.now())
 )
