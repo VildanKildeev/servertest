@@ -388,17 +388,26 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
         city_id=request.city_id,
         address=request.address,
         visit_date=request.visit_date,
-        is_premium=current_user["is_premium"],
-        # --- FIX START ---
-        is_taken=False,
-        chat_enabled=False,
-        status="active" # Optional, but good practice
-        # --- FIX END ---
+        is_premium=current_user["is_premium"], 
+        is_taken=False,       # (Предыдущее исправление)
+        chat_enabled=False,   # (Предыдущее исправление)
+        status="active"       # (Предыдущее исправление)
     )
     last_record_id = await database.execute(query)
     created_request_query = work_requests.select().where(work_requests.c.id == last_record_id)
     created_request = await database.fetch_one(created_request_query)
-    return created_request
+
+    # --- НОВОЕ ИСПРАВЛЕНИЕ: Гарантируем, что is_premium является bool для WorkRequestOut ---
+    if created_request:
+        # Преобразуем в словарь для модификации
+        request_dict = dict(created_request) 
+        # Устанавливаем False, если база данных по какой-то причине вернула None/null
+        if request_dict.get("is_premium") is None: 
+            request_dict["is_premium"] = False
+        return request_dict # Возвращаем очищенный словарь
+
+    # Эта ошибка не должна произойти, если вставка прошла успешно
+    raise HTTPException(status_code=500, detail="Не удалось получить созданную заявку.")
 
 @api_router.get("/work_requests/{city_id}", response_model=List[WorkRequestOut])
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
