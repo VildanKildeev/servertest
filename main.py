@@ -133,6 +133,7 @@ class WorkRequestOut(BaseModel):
     id: int
     user_id: int
     executor_id: Optional[int]
+    name: str # <-- ИСПРАВЛЕНИЕ: Добавлено
     description: str
     specialization: str
     budget: float
@@ -392,21 +393,20 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
     if current_user["user_type"] != "ЗАКАЗЧИК":
         raise HTTPException(status_code=403, detail="Только ЗАКАЗЧИК может создавать заявки на работу")
     
-    # Объединяем имя и телефон в contact_info
-    contact_info_full = f"Имя: {request.name}, Телефон: {request.phone_number}"
-
     query = work_requests.insert().values(
         user_id=current_user["id"],
+        name=request.name, # <-- ИСПРАВЛЕНО
         description=request.description,
         specialization=request.specialization,
         budget=request.budget,
-        contact_info=contact_info_full, # Используем объединенную строку
+        contact_info=request.phone_number, # <-- ИСПРАВЛЕНО: Маппинг phone_number на contact_info
         city_id=request.city_id,
-        address=request.address, # Сохраняем адрес
-        visit_date=request.visit_date # Сохраняем дату выезда
+        address=request.address, # <-- ИСПРАВЛЕНО
+        visit_date=request.visit_date # <-- ИСПРАВЛЕНО
     )
     last_record_id = await database.execute(query)
     created_request = await database.fetch_one(work_requests.select().where(work_requests.c.id == last_record_id))
+    
     return created_request
 
 @api_router.get("/work_requests", response_model=List[WorkRequestOut])
