@@ -20,6 +20,7 @@ from pathlib import Path
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
+# Убедитесь, что ваш файл database.py находится в той же директории
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, chat_messages
 
 load_dotenv()
@@ -81,7 +82,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return user
 
-# НОВАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ EMAIL
+# ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ EMAIL
 async def is_email_taken(email: str) -> bool:
     """Проверяет, существует ли пользователь с данным email в базе данных."""
     query = users.select().where(users.c.email == email)
@@ -113,6 +114,7 @@ class UserOut(BaseModel):
     user_type: str
     phone_number: Optional[str] = None
     specialization: Optional[str] = None
+    # ИСПРАВЛЕНИЕ 3: is_premium должен быть булевым, но мы обрабатываем None в коде.
     is_premium: bool
 
 class Token(BaseModel):
@@ -211,7 +213,6 @@ class CityOut(BaseModel):
     id: int
     name: str
 
-# НОВЫЕ СХЕМЫ ДЛЯ ЧАТА
 class ChatMessageIn(BaseModel):
     message: str
 
@@ -229,7 +230,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     query = users.select().where(users.c.email == form_data.username)
     user = await database.fetch_one(query)
     
-    # ИСПРАВЛЕНИЕ ОШИБКИ: Заменено user.get("hashed_password") на user["hashed_password"]
+    # ИСПРАВЛЕНИЕ 2: Заменено user.get("hashed_password") на user["hashed_password"] для устранения AttributeError
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -248,10 +249,10 @@ async def create_user(user: UserIn):
     if user.user_type not in ["ЗАКАЗЧИК", "ИСПОЛНИТЕЛЬ"]:
         raise HTTPException(status_code=400, detail="Invalid user_type")
 
-    # НОВОЕ: Проверка занятости email ПЕРЕД вставкой
+    # ИСПРАВЛЕНИЕ 1: Проверка занятости email ПЕРЕД вставкой
     if await is_email_taken(user.email):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, # Возвращаем 409 Conflict
+            status_code=status.HTTP_409_CONFLICT, 
             detail="Пользователь с таким email уже существует."
         )
 
@@ -262,7 +263,7 @@ async def create_user(user: UserIn):
             detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
         )
 
-    # 2. ИСПРАВЛЕНИЕ ЛОГИКИ: Если пользователь НЕ ИСПОЛНИТЕЛЬ, сбросить specialization в None
+    # 2. Логика: Если пользователь НЕ ИСПОЛНИТЕЛЬ, сбросить specialization в None
     specialization_to_insert = user.specialization
     if user.user_type != "ИСПОЛНИТЕЛЬ":
         specialization_to_insert = None
@@ -273,7 +274,7 @@ async def create_user(user: UserIn):
         hashed_password=hashed_password,
         user_type=user.user_type,
         phone_number=user.phone_number,
-        specialization=specialization_to_insert # Используем отфильтрованное значение
+        specialization=specialization_to_insert
     )
     
     last_record_id = await database.execute(query)
@@ -284,6 +285,11 @@ async def create_user(user: UserIn):
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     user_dict = dict(current_user)
+    
+    # ИСПРАВЛЕНИЕ 3: Гарантируем, что is_premium является bool (False), если в DB стоит NULL (None)
+    if user_dict.get("is_premium") is None:
+        user_dict["is_premium"] = False 
+        
     user_dict["username"] = user_dict["email"]
     return user_dict
 
@@ -410,7 +416,6 @@ async def take_work_request(request_id: int, current_user: dict = Depends(get_cu
     if request_item["is_taken"]:
         raise HTTPException(status_code=400, detail="Эта заявка уже принята другим исполнителем")
 
-    # ОБНОВЛЕНИЕ: Теперь принимаем заявку, устанавливаем исполнителя и включаем чат
     update_query = work_requests.update().where(work_requests.c.id == request_id).values(
         is_taken=True,
         executor_id=current_user["id"],
@@ -429,7 +434,6 @@ async def get_chat_messages(request_id: int, current_user: dict = Depends(get_cu
     if not request_item:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
 
-    # Проверяем, является ли текущий пользователь заказчиком или исполнителем этой заявки
     is_owner = request_item["user_id"] == current_user["id"]
     is_executor = request_item["executor_id"] == current_user["id"]
 
@@ -442,7 +446,6 @@ async def get_chat_messages(request_id: int, current_user: dict = Depends(get_cu
     query = chat_messages.select().where(chat_messages.c.request_id == request_id).order_by(chat_messages.c.timestamp)
     messages = await database.fetch_all(query)
 
-    # Добавляем поле is_me для фронтенда, чтобы различать свои сообщения
     result = []
     for msg in messages:
         msg_dict = dict(msg)
@@ -459,7 +462,6 @@ async def send_chat_message(request_id: int, message: ChatMessageIn, current_use
     if not request_item:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
 
-    # Проверяем, имеет ли текущий пользователь право отправлять сообщение
     is_owner = request_item["user_id"] == current_user["id"]
     is_executor = request_item["executor_id"] == current_user["id"]
 
@@ -557,6 +559,7 @@ async def get_material_ads(city_id: int, current_user: dict = Depends(get_curren
 # НОВЫЙ МАРШРУТ: Этот маршрут будет явно обрабатывать запрос на корневой URL "/"
 @app.get("/")
 async def read_index():
+    # Убедитесь, что у вас есть папка 'static' с файлом 'index.html'
     return FileResponse("static/index.html")
 
 # Обслуживание остальных статических файлов из папки 'static'
