@@ -21,6 +21,8 @@ from pathlib import Path
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
 # Убедитесь, что ваш файл database.py находится в той же директории
+# ВАЖНО: После обновления database.py вам может потребоваться 
+# заново развернуть его на Render.com или провести миграцию базы данных!
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, chat_messages
 
 load_dotenv()
@@ -114,7 +116,6 @@ class UserOut(BaseModel):
     user_type: str
     phone_number: Optional[str] = None
     specialization: Optional[str] = None
-    # ИСПРАВЛЕНИЕ 3: is_premium должен быть булевым, но мы обрабатываем None в коде.
     is_premium: bool
 
 class Token(BaseModel):
@@ -138,8 +139,8 @@ class WorkRequestOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
-    is_taken: bool
-    chat_enabled: bool
+    is_taken: bool # Теперь этот столбец есть в БД
+    chat_enabled: bool # Теперь этот столбец есть в БД
 
 class MachineryRequestIn(BaseModel):
     machinery_type: str
@@ -162,11 +163,12 @@ class MachineryRequestOut(BaseModel):
     city_id: int
     created_at: datetime
 
+# ИСПРАВЛЕНИЕ 2: Замена 'count' на 'tool_count' в схемах
 class ToolRequestIn(BaseModel):
     tool_name: str
     description: str
     rental_price: float
-    count: int = 1
+    tool_count: int = 1
     rental_start_date: date
     rental_end_date: date
     contact_info: str
@@ -180,7 +182,7 @@ class ToolRequestOut(BaseModel):
     tool_name: str
     description: str
     rental_price: float
-    count: int
+    tool_count: int
     rental_start_date: date
     rental_end_date: date
     contact_info: str
@@ -188,6 +190,7 @@ class ToolRequestOut(BaseModel):
     delivery_address: Optional[str]
     city_id: int
     created_at: datetime
+# Конец ИСПРАВЛЕНИЯ 2
 
 class MaterialAdIn(BaseModel):
     material_type: str
@@ -286,7 +289,7 @@ async def create_user(user: UserIn):
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     user_dict = dict(current_user)
     
-    # ИСПРАВЛЕНИЕ 3: Гарантируем, что is_premium является bool (False), если в DB стоит NULL (None)
+    # ИСПРАВЛЕНИЕ: Гарантируем, что is_premium является bool (False), если в DB стоит NULL (None)
     if user_dict.get("is_premium") is None:
         user_dict["is_premium"] = False 
         
@@ -328,7 +331,7 @@ async def get_my_requests(city_id: int, current_user: dict = Depends(get_current
         "material_ads": my_material_ads
     }
 
-@api_router.get("/cities/", response_model=List[CityOut])
+@api_router.get("/cities/")
 async def get_cities():
     query = cities.select()
     return await database.fetch_all(query)
@@ -400,6 +403,7 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
 
 @api_router.get("/work_requests", response_model=List[WorkRequestOut])
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
+    # ИСПРАВЛЕНИЕ 1: Запрос теперь работает, так как 'is_taken' добавлен в database.py
     query = work_requests.select().where((work_requests.c.city_id == city_id) & (work_requests.c.is_taken == False))
     return await database.fetch_all(query)
 
@@ -516,7 +520,7 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
         tool_name=request.tool_name,
         description=request.description,
         rental_price=request.rental_price,
-        count=request.count,
+        tool_count=request.tool_count, # ИСПРАВЛЕНИЕ 2: Используем tool_count
         rental_start_date=request.rental_start_date,
         rental_end_date=request.rental_end_date,
         contact_info=request.contact_info,
