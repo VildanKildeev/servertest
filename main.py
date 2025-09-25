@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # --- Database setup ---
-# Примечание: Убедитесь, что database.py находится в той же директории и содержит все таблицы
+# Предполагается, что database.py находится в той же директории
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, chat_messages
 
 load_dotenv()
@@ -45,6 +45,8 @@ app.add_middleware(
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# --- Утилиты безопасности ---
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -56,7 +58,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -88,6 +90,8 @@ async def is_email_taken(email: str) -> bool:
     user = await database.fetch_one(query)
     return user is not None
 
+# --- Настройка базы данных ---
+
 @app.on_event("startup")
 async def startup():
     print("Connecting to the database...")
@@ -99,6 +103,7 @@ async def shutdown():
     await database.disconnect()
 
 # --- Schemas ---
+
 class UserIn(BaseModel):
     email: EmailStr
     password: str
@@ -174,6 +179,8 @@ class ToolRequestIn(BaseModel):
     description: str
     rental_price: float
     tool_count: int = 1
+    # Поля с nullable=True в database.py, которые должны быть тут как date, но Pydantic будет ожидать date,
+    # что вызовет 422 для старых записей с NULL. В ToolRequestOut это исправлено.
     rental_start_date: date
     rental_end_date: date
     contact_info: str
@@ -181,7 +188,8 @@ class ToolRequestIn(BaseModel):
     delivery_address: Optional[str] = None
     city_id: int
 
-# ИСПРАВЛЕНО: Добавлены Optional для полей, которые могут быть NULL в БД
+# ИСПРАВЛЕННАЯ СХЕМА: rental_start_date и rental_end_date теперь Optional[date], 
+# чтобы обработать NULL из базы данных, что устраняет ошибку 422.
 class ToolRequestOut(BaseModel):
     id: int
     user_id: int
@@ -189,8 +197,8 @@ class ToolRequestOut(BaseModel):
     description: Optional[str]
     rental_price: float
     tool_count: int
-    rental_start_date: date
-    rental_end_date: date
+    rental_start_date: Optional[date] 
+    rental_end_date: Optional[date]   
     contact_info: str
     has_delivery: bool
     delivery_address: Optional[str]
@@ -233,9 +241,9 @@ class ChatMessageOut(BaseModel):
     timestamp: datetime
 
 # --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ОЧИСТКИ ДАННЫХ (FIX для 422) ---
-# Эта функция очищает списки записей, приводя потенциальные NULL из БД к значениям,
-# которые Pydantic ожидает (False для bool, и т.д. для WorkRequestOut)
+
 def clean_requests_list(requests):
+    """Очищает список записей от NULL-значений для полей Boolean и других, которые Pydantic ожидает."""
     cleaned_requests = []
     for req in requests:
         # Pydantic RowProxy/Record в словарь
@@ -251,16 +259,15 @@ def clean_requests_list(requests):
         if "chat_enabled" in req_dict and req_dict.get("chat_enabled") is None:
             req_dict["chat_enabled"] = False
             
-        # 3. Очистка других nullable полей (на всякий случай)
-        # Если какое-то поле, объявленное как str или int, возвращает None, это может вызвать ошибку.
-        # Например, если description объявлено как str, а в БД null. 
-        # Если поля объявлены как Optional[str], Pydantic справится.
-        
+        # 3. Очистка has_delivery (для tool_requests)
+        if "has_delivery" in req_dict and req_dict.get("has_delivery") is None:
+             req_dict["has_delivery"] = False
+            
         cleaned_requests.append(req_dict)
     return cleaned_requests
 
-# Вспомогательная функция для очистки одной записи (для POST-запросов)
 def clean_single_request(request_item):
+    """Очищает одну запись от NULL-значений."""
     if not request_item:
         return None
         
@@ -273,6 +280,9 @@ def clean_single_request(request_item):
         req_dict["is_taken"] = False
     if "chat_enabled" in req_dict and req_dict.get("chat_enabled") is None:
         req_dict["chat_enabled"] = False
+    # 3. Очистка has_delivery
+    if "has_delivery" in req_dict and req_dict.get("has_delivery") is None:
+             req_dict["has_delivery"] = False
     
     return req_dict
 # --- КОНЕЦ ВСПОМОГАТЕЛЬНЫХ ФУНКЦИЙ ---
@@ -366,6 +376,7 @@ async def get_cities():
     return await database.fetch_all(query)
 
 # --- СПИСКИ ДЛЯ ФРОНТЕНДА ---
+
 SPECIALIZATIONS_LIST = [
     "ЗЕМЛЯНЫЕ РАБОТЫ", "ФУНДАМЕНТЫ И ОСНОВАНИЯ", "КЛАДОЧНЫЕ РАБОТЫ",
     "МЕТАЛЛОКОНСТРУКЦИИ", "КРОВЕЛЬНЫЕ РАБОТЫ", "ОСТЕКЛЕНИЕ И ФАСАДНЫЕ РАБОТЫ",
@@ -418,6 +429,7 @@ def get_material_types():
     return MATERIAL_TYPES
 
 # --- Work Requests ---
+
 @api_router.post("/work_requests", response_model=WorkRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_work_request(request: WorkRequestIn, current_user: dict = Depends(get_current_user)):
     if current_user["user_type"] != "ЗАКАЗЧИК":
@@ -450,14 +462,12 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = work_requests.select().where((work_requests.c.city_id == city_id))
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 @api_router.get("/work_requests/my", response_model=List[WorkRequestOut])
 async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
     query = work_requests.select().where(work_requests.c.user_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
     
 @api_router.get("/work_requests/taken", response_model=List[WorkRequestOut])
@@ -466,7 +476,6 @@ async def get_my_taken_work_requests(current_user: dict = Depends(get_current_us
         return []
     query = work_requests.select().where(work_requests.c.executor_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 
@@ -494,6 +503,7 @@ async def take_work_request(request_id: int, current_user: dict = Depends(get_cu
     return {"message": "Вы успешно приняли заявку и можете начать чат с заказчиком."}
 
 # --- Chat Endpoints ---
+
 @api_router.get("/work_requests/{request_id}/chat", response_model=List[ChatMessageOut])
 async def get_chat_messages(request_id: int, current_user: dict = Depends(get_current_user)):
     request_query = work_requests.select().where(work_requests.c.id == request_id)
@@ -548,6 +558,7 @@ async def send_chat_message(request_id: int, message: ChatMessageIn, current_use
     return {"message": "Сообщение отправлено"}
 
 # --- Machinery Requests ---
+
 @api_router.post("/machinery_requests", response_model=MachineryRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_machinery_request(request: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
     query = machinery_requests.insert().values(
@@ -565,7 +576,6 @@ async def create_machinery_request(request: MachineryRequestIn, current_user: di
     created_request_query = machinery_requests.select().where(machinery_requests.c.id == last_record_id)
     created_request = await database.fetch_one(created_request_query)
     
-    # ИСПРАВЛЕНО: Применена очистка
     if created_request:
         return clean_single_request(created_request)
     raise HTTPException(status_code=500, detail="Не удалось получить созданную заявку.")
@@ -575,17 +585,16 @@ async def create_machinery_request(request: MachineryRequestIn, current_user: di
 async def get_machinery_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = machinery_requests.select().where(machinery_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 @api_router.get("/machinery_requests/my", response_model=List[MachineryRequestOut])
 async def get_my_machinery_requests(current_user: dict = Depends(get_current_user)):
     query = machinery_requests.select().where(machinery_requests.c.user_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 # --- Tool Requests --- 
+
 @api_router.post("/tool_requests", response_model=ToolRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_tool_request(request: ToolRequestIn, current_user: dict = Depends(get_current_user)):
     query = tool_requests.insert().values(
@@ -605,28 +614,26 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
     created_request_query = tool_requests.select().where(tool_requests.c.id == last_record_id)
     created_request = await database.fetch_one(created_request_query)
     
-    # ИСПРАВЛЕНО: Применена очистка (для nullable полей)
     if created_request:
         return clean_single_request(created_request)
     raise HTTPException(status_code=500, detail="Не удалось получить созданную заявку.")
-
 
 @api_router.get("/tool_requests/{city_id}", response_model=List[ToolRequestOut])
 async def get_tool_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = tool_requests.select().where(tool_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
+    # Здесь clean_requests_list нужен, чтобы is_premium и has_delivery были bool, а не None
     return clean_requests_list(requests)
 
 @api_router.get("/tool_requests/my", response_model=List[ToolRequestOut])
 async def get_my_tool_requests(current_user: dict = Depends(get_current_user)):
     query = tool_requests.select().where(tool_requests.c.user_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 
 # --- Material Ads ---
+
 @api_router.post("/material_ads", response_model=MaterialAdOut, status_code=status.HTTP_201_CREATED)
 async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_current_user)):
     query = material_ads.insert().values(
@@ -642,7 +649,6 @@ async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_
     created_ad_query = material_ads.select().where(material_ads.c.id == last_record_id)
     created_ad = await database.fetch_one(created_ad_query)
     
-    # ИСПРАВЛЕНО: Применена очистка
     if created_ad:
         return clean_single_request(created_ad)
     raise HTTPException(status_code=500, detail="Не удалось получить созданное объявление.")
@@ -652,17 +658,16 @@ async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_
 async def get_material_ads(city_id: int, current_user: dict = Depends(get_current_user)):
     query = material_ads.select().where(material_ads.c.city_id == city_id)
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 @api_router.get("/material_ads/my", response_model=List[MaterialAdOut])
 async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
     query = material_ads.select().where(material_ads.c.user_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 # --- Static Files Mounting ---
+
 app.include_router(api_router)
 
 # Обслуживание статических файлов и главной страницы
