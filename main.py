@@ -81,6 +81,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return user
 
+# НОВАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ EMAIL
+async def is_email_taken(email: str) -> bool:
+    """Проверяет, существует ли пользователь с данным email в базе данных."""
+    query = users.select().where(users.c.email == email)
+    user = await database.fetch_one(query)
+    return user is not None
+
 @app.on_event("startup")
 async def startup():
     print("Connecting to the database...")
@@ -221,23 +228,32 @@ class ChatMessageOut(BaseModel):
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     query = users.select().where(users.c.email == form_data.username)
     user = await database.fetch_one(query)
-    if not user or not verify_password(form_data.password, user.get("hashed_password")):
+    
+    # ИСПРАВЛЕНИЕ ОШИБКИ: Заменено user.get("hashed_password") на user["hashed_password"]
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user.get("id"))}, expires_delta=access_token_expires
+        data={"sub": str(user["id"])}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ИСПРАВЛЕННАЯ ФУНКЦИЯ create_user
 @api_router.post("/users/", response_model=UserOut)
 async def create_user(user: UserIn):
     if user.user_type not in ["ЗАКАЗЧИК", "ИСПОЛНИТЕЛЬ"]:
         raise HTTPException(status_code=400, detail="Invalid user_type")
+
+    # НОВОЕ: Проверка занятости email ПЕРЕД вставкой
+    if await is_email_taken(user.email):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, # Возвращаем 409 Conflict
+            detail="Пользователь с таким email уже существует."
+        )
 
     # 1. Валидация: ИСПОЛНИТЕЛЬ должен иметь специализацию
     if user.user_type == "ИСПОЛНИТЕЛЬ" and not user.specialization:
@@ -246,7 +262,7 @@ async def create_user(user: UserIn):
             detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
         )
 
-    # 2. ИСПРАВЛЕНИЕ ЛОГИКИ: Если пользователь НЕ ИСПОЛНИТЕЛЬ (т.е. ЗАКАЗЧИК), сбросить specialization в None
+    # 2. ИСПРАВЛЕНИЕ ЛОГИКИ: Если пользователь НЕ ИСПОЛНИТЕЛЬ, сбросить specialization в None
     specialization_to_insert = user.specialization
     if user.user_type != "ИСПОЛНИТЕЛЬ":
         specialization_to_insert = None
@@ -259,13 +275,11 @@ async def create_user(user: UserIn):
         phone_number=user.phone_number,
         specialization=specialization_to_insert # Используем отфильтрованное значение
     )
-    try:
-        last_record_id = await database.execute(query)
-        # Получаем данные созданного пользователя для возврата
-        created_user = await database.fetch_one(users.select().where(users.c.id == last_record_id))
-        return {**created_user, "username": created_user["email"]}
-    except exc.IntegrityError:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    last_record_id = await database.execute(query)
+    # Получаем данные созданного пользователя для возврата
+    created_user = await database.fetch_one(users.select().where(users.c.id == last_record_id))
+    return {**created_user, "username": created_user["email"]}
 
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
