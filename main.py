@@ -373,6 +373,35 @@ def get_material_types():
     return MATERIAL_TYPES
 
 # --- Work Requests ---
+def clean_work_requests(requests):
+    cleaned_requests = []
+    for req in requests:
+        # Преобразование Row в словарь
+        req_dict = dict(req)
+        # Установка is_premium в False, если оно None/null
+        if req_dict.get("is_premium") is None:
+            req_dict["is_premium"] = False
+        cleaned_requests.append(req_dict)
+    return cleaned_requests
+
+# main.py
+
+# ... (Код до work_requests)
+
+# --- Work Requests ---
+
+# Вспомогательная функция для очистки is_premium (Новое!)
+def clean_work_requests(requests):
+    cleaned_requests = []
+    for req in requests:
+        # Преобразование Row в словарь
+        req_dict = dict(req)
+        # Установка is_premium в False, если оно None/null
+        if req_dict.get("is_premium") is None:
+            req_dict["is_premium"] = False
+        cleaned_requests.append(req_dict)
+    return cleaned_requests
+
 @api_router.post("/work_requests", response_model=WorkRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_work_request(request: WorkRequestIn, current_user: dict = Depends(get_current_user)):
     if current_user["user_type"] != "ЗАКАЗЧИК":
@@ -388,37 +417,39 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
         city_id=request.city_id,
         address=request.address,
         visit_date=request.visit_date,
-        is_premium=current_user["is_premium"], 
-        is_taken=False,       # (Предыдущее исправление)
-        chat_enabled=False,   # (Предыдущее исправление)
-        status="active"       # (Предыдущее исправление)
+        is_premium=current_user["is_premium"], # Устанавливаем премиум статус
+        # Добавляем недостающие обязательные поля из предыдущих исправлений
+        is_taken=False,
+        chat_enabled=False,
     )
     last_record_id = await database.execute(query)
     created_request_query = work_requests.select().where(work_requests.c.id == last_record_id)
     created_request = await database.fetch_one(created_request_query)
-
-    # --- НОВОЕ ИСПРАВЛЕНИЕ: Гарантируем, что is_premium является bool для WorkRequestOut ---
+    
+    # ПРИМЕНЕНИЕ ОЧИСТКИ (Аналогично предыдущему исправлению)
     if created_request:
-        # Преобразуем в словарь для модификации
         request_dict = dict(created_request) 
-        # Устанавливаем False, если база данных по какой-то причине вернула None/null
         if request_dict.get("is_premium") is None: 
             request_dict["is_premium"] = False
-        return request_dict # Возвращаем очищенный словарь
-
-    # Эта ошибка не должна произойти, если вставка прошла успешно
+        return request_dict 
+    
     raise HTTPException(status_code=500, detail="Не удалось получить созданную заявку.")
+
 
 @api_router.get("/work_requests/{city_id}", response_model=List[WorkRequestOut])
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = work_requests.select().where((work_requests.c.city_id == city_id))
-    return await database.fetch_all(query)
+    requests = await database.fetch_all(query)
+    # ПРИМЕНЕНИЕ ОЧИСТКИ (Новое исправление)
+    return clean_work_requests(requests)
 
 # ИСПРАВЛЕНО: Добавлен эндпоинт /my, который ожидает фронтенд
 @api_router.get("/work_requests/my", response_model=List[WorkRequestOut])
 async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
     query = work_requests.select().where(work_requests.c.user_id == current_user["id"])
-    return await database.fetch_all(query)
+    requests = await database.fetch_all(query)
+    # ПРИМЕНЕНИЕ ОЧИСТКИ (Новое исправление)
+    return clean_work_requests(requests)
     
 # ИСПРАВЛЕНО: Добавлен эндпоинт /taken, который ожидает фронтенд
 @api_router.get("/work_requests/taken", response_model=List[WorkRequestOut])
@@ -426,8 +457,9 @@ async def get_my_taken_work_requests(current_user: dict = Depends(get_current_us
     if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
         return []
     query = work_requests.select().where(work_requests.c.executor_id == current_user["id"])
-    return await database.fetch_all(query)
-
+    requests = await database.fetch_all(query)
+    # ПРИМЕНЕНИЕ ОЧИСТКИ (Новое исправление)
+    return clean_work_requests(requests)
 
 @api_router.post("/work_requests/{request_id}/take", status_code=status.HTTP_200_OK)
 async def take_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
