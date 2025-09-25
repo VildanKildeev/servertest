@@ -1044,41 +1044,70 @@
 
         // Создание заявки на работу
         document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const description = document.getElementById('workDescription').value;
-            const specialization = document.getElementById('workSpecialization').value;
-            const budget = parseFloat(document.getElementById('workBudget').value);
-            const contact_info = document.getElementById('workContact').value;
-            const statusEl = document.getElementById('workRequestStatus');
-            statusEl.textContent = 'Размещение...';
-            statusEl.className = 'message';
+    e.preventDefault();
+    const statusEl = document.getElementById('workRequestStatus');
+    statusEl.textContent = 'Отправка...';
+    statusEl.className = 'message';
 
-            const payload = { description, specialization, budget, contact_info, city_id: selectedCityId };
+    // --- ИСПРАВЛЕНО: Обновленный сбор данных формы ---
+    const workName = document.getElementById('workName').value;
+    const workPhoneNumber = document.getElementById('workPhoneNumber').value; // Новое ID
+    const workDescription = document.getElementById('workDescription').value;
+    const workSpecialization = document.getElementById('workSpecialization').value;
+    const workBudget = parseFloat(document.getElementById('workBudget').value);
+    const workAddress = document.getElementById('workAddress').value || null; // Опциональное поле
+    
+    let workVisitDate = document.getElementById('workVisitDate').value;
+    if (workVisitDate) {
+        // Преобразование в формат, ожидаемый FastAPI (ISO 8601)
+        workVisitDate = new Date(workVisitDate).toISOString();
+    } else {
+        workVisitDate = null;
+    }
+    // ----------------------------------------------------
+    
+    if (!selectedCityId) {
+        statusEl.textContent = 'Ошибка: Пожалуйста, выберите город.';
+        statusEl.className = 'message error';
+        return;
+    }
 
-            try {
-                const response = await fetch(`${API_URL}/work_requests/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    statusEl.textContent = 'Заявка успешно размещена!';
-                    statusEl.className = 'message success';
-                    e.target.reset();
-                } else {
-                    statusEl.textContent = `Ошибка: ${data.detail}`;
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
-                statusEl.className = 'message error';
-            }
+    const payload = {
+        name: workName,
+        phone_number: workPhoneNumber, // Соответствует WorkRequestIn
+        description: workDescription,
+        specialization: workSpecialization,
+        budget: workBudget,
+        city_id: selectedCityId,
+        address: workAddress,
+        visit_date: workVisitDate
+    };
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/work_requests`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify(payload)
         });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            statusEl.textContent = 'Заявка на работу успешно создана!';
+            statusEl.className = 'message success';
+            document.getElementById('workRequestForm').reset();
+        } else {
+            statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось создать заявку'}`;
+            statusEl.className = 'message error';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Произошла сетевая ошибка при создании заявки.';
+        statusEl.className = 'message error';
+    }
+});
 
         // Создание заявки на технику **(НОВАЯ ФОРМА)**
         document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
