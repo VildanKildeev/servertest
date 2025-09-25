@@ -233,18 +233,31 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+# ИСПРАВЛЕННАЯ ФУНКЦИЯ create_user
 @api_router.post("/users/", response_model=UserOut)
 async def create_user(user: UserIn):
     if user.user_type not in ["ЗАКАЗЧИК", "ИСПОЛНИТЕЛЬ"]:
         raise HTTPException(status_code=400, detail="Invalid user_type")
-    
+
+    # 1. Валидация: ИСПОЛНИТЕЛЬ должен иметь специализацию
+    if user.user_type == "ИСПОЛНИТЕЛЬ" and not user.specialization:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
+        )
+
+    # 2. ИСПРАВЛЕНИЕ ЛОГИКИ: Если пользователь НЕ ИСПОЛНИТЕЛЬ (т.е. ЗАКАЗЧИК), сбросить specialization в None
+    specialization_to_insert = user.specialization
+    if user.user_type != "ИСПОЛНИТЕЛЬ":
+        specialization_to_insert = None
+
     hashed_password = get_password_hash(user.password)
     query = users.insert().values(
         email=user.email,
         hashed_password=hashed_password,
         user_type=user.user_type,
         phone_number=user.phone_number,
-        specialization=user.specialization
+        specialization=specialization_to_insert # Используем отфильтрованное значение
     )
     try:
         last_record_id = await database.execute(query)
