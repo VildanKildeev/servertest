@@ -349,7 +349,7 @@
                 <form id="materialAdForm">
                     <div class="input-group">
                         <label for="materialType">Тип материала:</label>
-                        <input type="text" id="materialType" required>
+                        <select id="materialType"></select>
                     </div>
                     <div class="input-group">
                         <label for="materialDescription">Описание:</label>
@@ -407,6 +407,7 @@
         let selectedCityId = null;
         let currentUser = null;
         let currentChatRequestId = null;
+        let currentChatType = null; // 'work' | 'machinery' | 'tool'
 
         const pages = [
             'loginPage', 'registerPage', 'buttonContainer', 'profilePage',
@@ -471,6 +472,14 @@
                 <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>
                 <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
             `;
+
+            const existingSubscribeBtn = document.getElementById('subscribeBtn');
+            if (existingSubscribeBtn) existingSubscribeBtn.remove();
+            
+            const existingUpdateBtn = document.getElementById('updateSpecializationBtn');
+            if (existingUpdateBtn) existingUpdateBtn.remove();
+            
+            editSpecializationForm.style.display = 'none';
 
             if (!profile.is_premium) {
                 const subscribeBtn = document.createElement('button');
@@ -569,6 +578,13 @@
                 [workSpecializationEl, newSpecializationEl, registerSpecializationEl].forEach(el => {
                     if (el) {
                         el.innerHTML = '';
+                        // Добавляем пустой опшин для registerSpecialization
+                        if (el.id === 'registerSpecialization') {
+                             const emptyOption = document.createElement('option');
+                             emptyOption.value = '';
+                             emptyOption.textContent = 'Выберите специализацию';
+                             el.appendChild(emptyOption);
+                        }
                         specializations.forEach(spec => {
                             const option = document.createElement('option');
                             option.value = spec;
@@ -587,112 +603,437 @@
                 const response = await fetch(`${API_URL}/machinery_types/`);
                 const types = await response.json();
                 const machineryTypeEl = document.getElementById('machineryType');
-                machineryTypeEl.innerHTML = '';
-                types.forEach(type => {
-                    const option = document.createElement('option');
-                    option.value = type;
-                    option.textContent = type;
-                    machineryTypeEl.appendChild(option);
-                });
+                if (machineryTypeEl) {
+                    machineryTypeEl.innerHTML = '';
+                    types.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type;
+                        machineryTypeEl.appendChild(option);
+                    });
+                }
             } catch (error) {
                 console.error('Ошибка при загрузке типов техники:', error);
             }
         }
-
+        
+        // **НОВЫЕ ФУНКЦИИ**
         async function fetchToolsList() {
-            try {
+             try {
                 const response = await fetch(`${API_URL}/tools_list/`);
                 const tools = await response.json();
                 const toolNameEl = document.getElementById('toolName');
-                toolNameEl.innerHTML = '';
-                tools.forEach(tool => {
-                    const option = document.createElement('option');
-                    option.value = tool;
-                    option.textContent = tool;
-                    toolNameEl.appendChild(option);
-                });
+                if (toolNameEl) {
+                    toolNameEl.innerHTML = '';
+                    tools.forEach(tool => {
+                        const option = document.createElement('option');
+                        option.value = tool;
+                        option.textContent = tool;
+                        toolNameEl.appendChild(option);
+                    });
+                }
             } catch (error) {
                 console.error('Ошибка при загрузке списка инструментов:', error);
             }
         }
 
+        async function fetchMaterialTypes() {
+             try {
+                const response = await fetch(`${API_URL}/material_types/`);
+                const types = await response.json();
+                const materialTypeEl = document.getElementById('materialType');
+                if (materialTypeEl) {
+                    materialTypeEl.innerHTML = '';
+                    types.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type;
+                        materialTypeEl.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке типов материалов:', error);
+            }
+        }
+        
+        function renderRequests(requests, containerId, type) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            container.innerHTML = '';
+            if (requests.length === 0) {
+                container.innerHTML = '<p>Нет доступных заявок.</p>';
+                return;
+            }
+
+            requests.forEach(req => {
+                const item = document.createElement('div');
+                item.className = 'request-item';
+                let content = '';
+
+                if (type === 'work') {
+                    content = `
+                        <h4>Работа: ${req.specialization} ${req.is_premium ? '<span class="premium">(ПРЕМИУМ)</span>' : ''}</h4>
+                        <p><strong>Описание:</strong> ${req.description}</p>
+                        <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
+                        <p><strong>Город:</strong> ${getSelectedCity().name}</p>
+                        <p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>
+                    `;
+                } else if (type === 'machinery') {
+                    const date = req.rental_date ? new Date(req.rental_date).toLocaleDateString() : 'Любая дата';
+                    content = `
+                        <h4>Техника: ${req.machinery_type}</h4>
+                        <p><strong>Описание:</strong> ${req.description}</p>
+                        <p><strong>Дата:</strong> ${date}</p>
+                        <p><strong>Мин. часы:</strong> ${req.min_hours}</p>
+                        <p><strong>Цена (за час):</strong> ${req.rental_price} руб.</p>
+                        <p><strong>Город:</strong> ${getSelectedCity().name}</p>
+                        <p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>
+                    `;
+                } else if (type === 'tool') {
+                    const startDate = req.rental_start_date ? new Date(req.rental_start_date).toLocaleDateString() : 'Не указано';
+                    const endDate = req.rental_end_date ? new Date(req.rental_end_date).toLocaleDateString() : 'Не указано';
+                    content = `
+                        <h4>Инструмент: ${req.tool_name} (x${req.count})</h4>
+                        <p><strong>Описание:</strong> ${req.description}</p>
+                        <p><strong>Срок:</strong> ${startDate} - ${endDate}</p>
+                        <p><strong>Цена аренды:</strong> ${req.rental_price} руб./сутки</p>
+                        <p><strong>Доставка:</strong> ${req.has_delivery ? `Да (${req.delivery_address || 'Адрес не указан'})` : 'Нет'}</p>
+                        <p><strong>Город:</strong> ${getSelectedCity().name}</p>
+                        <p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>
+                    `;
+                } else if (type === 'material') {
+                     content = `
+                        <h4>Материал: ${req.material_type}</h4>
+                        <p><strong>Описание:</strong> ${req.description}</p>
+                        <p><strong>Цена:</strong> ${req.price} руб.</p>
+                        <p><strong>Город:</strong> ${getSelectedCity().name}</p>
+                        <p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>
+                    `;
+                }
+                
+                item.innerHTML = content;
+
+                // Кнопки для исполнителя
+                if (currentUser && currentUser.user_type === 'ИСПОЛНИТЕЛЬ' && type === 'work') {
+                    if (req.is_taken) {
+                        if (req.taken_by_user_id === currentUser.id) {
+                            item.innerHTML += `<p class="taken"><strong>Заявка принята вами.</strong></p>`;
+                            if (req.has_chat) {
+                                item.innerHTML += `<button class="chat-btn" onclick="setupChat(${req.id}, 'work')">Открыть чат</button>`;
+                            }
+                        } else {
+                             item.innerHTML += `<p class="taken"><strong>Заявка занята другим исполнителем.</strong></p>`;
+                        }
+                    } else {
+                        const takeBtn = document.createElement('button');
+                        takeBtn.className = 'take-btn';
+                        takeBtn.textContent = 'Взять заявку';
+                        takeBtn.onclick = () => takeRequest(req.id, type);
+                        item.appendChild(takeBtn);
+                    }
+                }
+                
+                // Кнопки для просмотра своих заявок (всех типов)
+                if (currentUser && req.user_id === currentUser.id && type !== 'material') {
+                    const chatBtn = document.createElement('button');
+                    chatBtn.className = 'chat-btn';
+                    chatBtn.textContent = 'Открыть чат';
+                    chatBtn.style.marginLeft = '10px';
+                    chatBtn.onclick = () => setupChat(req.id, type);
+                    item.appendChild(chatBtn);
+                }
+
+                container.appendChild(item);
+            });
+        }
+
+        // Общие функции получения заявок
+        async function fetchRequests(endpoint, containerId, type) {
+            if (!selectedCityId) {
+                alert('Пожалуйста, выберите город.');
+                return;
+            }
+            try {
+                const url = `${API_URL}/${endpoint}/${selectedCityId}`;
+                const response = await fetch(url, {
+                     headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    renderRequests(data, containerId, type);
+                } else {
+                    document.getElementById(containerId).innerHTML = `<p class="message error">Ошибка загрузки: ${data.detail || response.statusText}</p>`;
+                }
+            } catch (error) {
+                console.error(`Ошибка при получении ${type} заявок:`, error);
+                document.getElementById(containerId).innerHTML = '<p class="message error">Не удалось соединиться с сервером.</p>';
+            }
+        }
+        
+        async function fetchWorkRequests() {
+            await fetchRequests('work_requests', 'workRequestsList', 'work');
+        }
+
+        async function fetchMachineryRequests() {
+            await fetchRequests('machinery_requests', 'machineryRequestsList', 'machinery');
+        }
+
+        async function fetchToolRequests() {
+            await fetchRequests('tool_requests', 'toolRequestsList', 'tool');
+        }
+
+        async function fetchMaterialAds() {
+            await fetchRequests('material_ads', 'materialAdsList', 'material');
+        }
+
+        async function fetchMyRequests() {
+             if (!accessToken) return;
+             
+             // Получаем все мои заявки
+             await fetchRequests('work_requests/my', 'myWorkRequestsList', 'work');
+             await fetchRequests('machinery_requests/my', 'myMachineryRequestsList', 'machinery');
+             await fetchRequests('tool_requests/my', 'myToolRequestsList', 'tool');
+             await fetchRequests('material_ads/my', 'myMaterialAdsList', 'material');
+             
+             // Получаем заявки, которые я взял
+             if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
+                 try {
+                     const response = await fetch(`${API_URL}/work_requests/taken`, {
+                         headers: { 'Authorization': `Bearer ${accessToken}` }
+                     });
+                     const takenRequests = await response.json();
+                     const takenRequestsHtml = takenRequests.length > 0
+                        ? takenRequests.map(req => `
+                             <div class="request-item">
+                                 <h4>Взятая работа: ${req.specialization}</h4>
+                                 <p><strong>Описание:</strong> ${req.description}</p>
+                                 <p class="taken"><strong>Статус:</strong> Принята</p>
+                                 <button class="chat-btn" onclick="setupChat(${req.id}, 'work')">Открыть чат</button>
+                             </div>`).join('')
+                        : '<p>Нет взятых заявок.</p>';
+                     
+                     const takenSection = document.createElement('div');
+                     takenSection.className = 'my-requests-section';
+                     takenSection.innerHTML = `<h3>Взятые мной заявки</h3><div id="myTakenWorkRequestsList">${takenRequestsHtml}</div>`;
+                     
+                     const myRequestsPage = document.getElementById('myRequestsPage').querySelector('.list-container');
+                     if (!document.getElementById('myTakenWorkRequestsList')) {
+                         myRequestsPage.insertBefore(takenSection, myRequestsPage.querySelector('.btn-secondary'));
+                     } else {
+                         document.getElementById('myTakenWorkRequestsList').innerHTML = takenRequestsHtml;
+                     }
+
+                 } catch (error) {
+                     console.error('Ошибка при получении взятых заявок:', error);
+                 }
+             }
+        }
+
+        // Логика чата
+        async function setupChat(requestId, type) {
+            currentChatRequestId = requestId;
+            currentChatType = type;
+            showPage('chatPage');
+            document.getElementById('chatBox').innerHTML = 'Загрузка сообщений...';
+            document.getElementById('sendMessageBtn').onclick = () => sendMessage();
+            await fetchChatMessages();
+            // Возможно, нужно открыть соединение WebSocket
+            // В рамках текущей задачи используем только REST API для простоты
+        }
+        
+        async function fetchChatMessages() {
+            if (!currentChatRequestId || !currentChatType) return;
+            try {
+                const response = await fetch(`${API_URL}/${currentChatType}_requests/${currentChatRequestId}/chat`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const messages = await response.json();
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML = '';
+                
+                messages.forEach(msg => {
+                    const msgEl = document.createElement('div');
+                    const isMe = msg.sender_id === currentUser.id;
+                    msgEl.className = `chat-message ${isMe ? 'me' : 'other'}`;
+                    
+                    const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                    
+                    msgEl.innerHTML = `
+                        <p>${msg.message}</p>
+                        <div class="chat-message-info">${isMe ? 'Вы' : msg.sender_username} ${time}</div>
+                    `;
+                    chatBox.appendChild(msgEl);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                console.error('Ошибка при загрузке чата:', error);
+                document.getElementById('chatBox').innerHTML = '<p class="message error">Ошибка при загрузке сообщений.</p>';
+            }
+        }
+
+        async function sendMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+
+            if (!message || !currentChatRequestId || !currentChatType) return;
+
+            try {
+                const response = await fetch(`${API_URL}/${currentChatType}_requests/${currentChatRequestId}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (response.ok) {
+                    chatInput.value = '';
+                    // Оптимистическое обновление или полная перезагрузка
+                    await fetchChatMessages(); 
+                } else {
+                    const data = await response.json();
+                    alert(`Ошибка отправки сообщения: ${data.detail}`);
+                }
+            } catch (error) {
+                console.error('Ошибка при отправке сообщения:', error);
+                alert('Не удалось отправить сообщение.');
+            }
+        }
+
+        async function takeRequest(requestId, type) {
+            if (!selectedCityId) {
+                alert('Пожалуйста, выберите город.');
+                return;
+            }
+            if (!confirm('Вы уверены, что хотите взять эту заявку? Это откроет чат с заказчиком.')) return;
+
+            const statusEl = document.getElementById('takeOrderStatus');
+            statusEl.textContent = 'Принятие заявки...';
+            statusEl.className = 'message';
+            
+            try {
+                const response = await fetch(`${API_URL}/${type}_requests/${requestId}/take`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = 'Заявка успешно взята! Открывается чат.';
+                    statusEl.className = 'message success';
+                    // Переход в чат
+                    setupChat(requestId, type);
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось взять заявку.'}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при взятии заявки.';
+                statusEl.className = 'message error';
+            }
+            // Перезагрузка списка заявок
+            if (type === 'work') await fetchWorkRequests();
+        }
+        
+        // --- ОБРАБОТКА ФОРМ ---
+
+        // Аутентификация
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = e.target.loginEmail.value;
-            const password = e.target.loginPassword.value;
+            if (!selectedCityId) {
+                 document.getElementById('loginStatus').textContent = 'Пожалуйста, выберите город перед входом.';
+                 document.getElementById('loginStatus').className = 'message error';
+                 return;
+            }
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
             const statusEl = document.getElementById('loginStatus');
+            statusEl.textContent = 'Вход...';
+            statusEl.className = 'message';
 
             const formBody = new URLSearchParams();
             formBody.append('username', email);
             formBody.append('password', password);
 
-            const response = await fetch(`${API_URL}/token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formBody.toString()
-            });
+            try {
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formBody.toString()
+                });
+                const data = await response.json();
 
-            const data = await response.json();
-            if (response.ok) {
-                localStorage.setItem('accessToken', data.access_token);
-                accessToken = data.access_token;
-                statusEl.textContent = 'Успешный вход!';
-                statusEl.className = 'message success';
-                fetchProfile();
-                showPage('buttonContainer');
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail}`;
+                if (response.ok) {
+                    accessToken = data.access_token;
+                    localStorage.setItem('accessToken', accessToken);
+                    statusEl.textContent = 'Вход успешен!';
+                    statusEl.className = 'message success';
+                    await fetchProfile();
+                    showPage('buttonContainer');
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail || 'Неверный email или пароль.'}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при входе.';
                 statusEl.className = 'message error';
             }
         });
 
-        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        // Регистрация
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+             if (!selectedCityId) {
+                 document.getElementById('registerStatus').textContent = 'Пожалуйста, выберите город перед регистрацией.';
+                 document.getElementById('registerStatus').className = 'message error';
+                 return;
+            }
             const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
             const phoneNumber = document.getElementById('registerPhoneNumber').value;
             const userType = document.getElementById('registerUserType').value;
             const specialization = document.getElementById('registerSpecialization').value;
-            const registerStatusEl = document.getElementById('registerStatus');
+            const statusEl = document.getElementById('registerStatus');
+            statusEl.textContent = 'Регистрация...';
+            statusEl.className = 'message';
+
+            const payload = {
+                email,
+                password,
+                phone_number: phoneNumber,
+                user_type: userType,
+                specialization: userType === 'ИСПОЛНИТЕЛЬ' ? specialization : null,
+                city_id: selectedCityId
+            };
 
             try {
-                const response = await fetch(`${API_URL}/users/`, {
+                const response = await fetch(`${API_URL}/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email,
-                        password: password,
-                        phone_number: phoneNumber,
-                        user_type: userType,
-                        specialization: specialization
-                    })
+                    body: JSON.stringify(payload)
                 });
-
                 const data = await response.json();
 
                 if (response.ok) {
-                    registerStatusEl.textContent = 'Успешная регистрация!';
-                    registerStatusEl.className = 'message success';
-                    setTimeout(() => {
-                        showPage('loginPage');
-                    }, 2000);
+                    statusEl.textContent = 'Регистрация успешна! Теперь войдите.';
+                    statusEl.className = 'message success';
+                    e.target.reset();
+                    showPage('loginPage');
                 } else {
-                    let errorMessage = `Ошибка: ${data.detail}`;
-                    if (data.detail && data.detail.length > 0 && data.detail[0].msg) {
-                        errorMessage = `Ошибка: ${data.detail[0].msg}. Место: ${data.detail[0].loc.join(' -> ')}`;
-                    }
-                    registerStatusEl.textContent = errorMessage;
-                    registerStatusEl.className = 'message error';
+                    statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось зарегистрироваться.'}`;
+                    statusEl.className = 'message error';
                 }
             } catch (error) {
-                registerStatusEl.textContent = 'Произошла ошибка сети.';
-                registerStatusEl.className = 'message error';
+                statusEl.textContent = 'Произошла ошибка при регистрации.';
+                statusEl.className = 'message error';
             }
         });
-
+        
+        // Показ поля специализации при регистрации
         document.getElementById('registerUserType').addEventListener('change', (e) => {
             const specializationGroup = document.getElementById('specializationGroup');
-            if (e.target.value === "ИСПОЛНИТЕЛЬ") {
+            if (e.target.value === 'ИСПОЛНИТЕЛЬ') {
                 specializationGroup.style.display = 'block';
                 document.getElementById('registerSpecialization').setAttribute('required', 'required');
             } else {
@@ -701,297 +1042,32 @@
             }
         });
 
-        async function fetchWorkRequests() {
-            const workRequestsList = document.getElementById('workRequestsList');
-            const city = getSelectedCity();
-            if (!city) {
-                workRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра заявок.</p>`;
-                return;
-            }
-            try {
-                const response = await fetch(`${API_URL}/work_requests?city_id=${city.id}`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    const requests = await response.json();
-                    renderList(requests, workRequestsList, 'заявок на работу', 'work');
-                } else {
-                    const data = await response.json();
-                    workRequestsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
-                }
-            } catch (error) {
-                workRequestsList.innerHTML = `<p class="message error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>`;
-            }
-        }
-
-        async function fetchMachineryRequests() {
-            const machineryRequestsList = document.getElementById('machineryRequestsList');
-            const city = getSelectedCity();
-            if (!city) {
-                machineryRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра заявок.</p>`;
-                return;
-            }
-            try {
-                const response = await fetch(`${API_URL}/machinery_requests?city_id=${city.id}`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    const requests = await response.json();
-                    renderList(requests, machineryRequestsList, 'заявок на технику');
-                } else {
-                    const data = await response.json();
-                    machineryRequestsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
-                }
-            } catch (error) {
-                machineryRequestsList.innerHTML = `<p class="message error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>`;
-            }
-        }
-
-        async function fetchToolRequests() {
-            const toolRequestsList = document.getElementById('toolRequestsList');
-            const city = getSelectedCity();
-            if (!city) {
-                toolRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра заявок.</p>`;
-                return;
-            }
-            try {
-                const response = await fetch(`${API_URL}/tool_requests?city_id=${city.id}`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    const requests = await response.json();
-                    renderList(requests, toolRequestsList, 'заявок на инструмент');
-                } else {
-                    const data = await response.json();
-                    toolRequestsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
-                }
-            } catch (error) {
-                toolRequestsList.innerHTML = `<p class="message error">Не удалось загрузить заявки. Пожалуйста, попробуйте позже.</p>`;
-            }
-        }
-
-        async function fetchMaterialAds() {
-            const materialAdsList = document.getElementById('materialAdsList');
-            const city = getSelectedCity();
-            if (!city) {
-                materialAdsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра объявлений.</p>`;
-                return;
-            }
-            try {
-                const response = await fetch(`${API_URL}/material_ads?city_id=${city.id}`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    const ads = await response.json();
-                    renderList(ads, materialAdsList, 'объявлений о материалах');
-                } else {
-                    const data = await response.json();
-                    materialAdsList.innerHTML = `<p class="message error">Ошибка: ${data.detail}</p>`;
-                }
-            } catch (error) {
-                materialAdsList.innerHTML = `<p class="message error">Не удалось загрузить объявления. Пожалуйста, попробуйте позже.</p>`;
-            }
-        }
-
-        async function fetchMyRequests() {
-            const myWorkRequestsList = document.getElementById('myWorkRequestsList');
-            const myMachineryRequestsList = document.getElementById('myMachineryRequestsList');
-            const myToolRequestsList = document.getElementById('myToolRequestsList');
-            const myMaterialAdsList = document.getElementById('myMaterialAdsList');
-
-            const city = getSelectedCity();
-            if (!city) {
-                myWorkRequestsList.innerHTML = `<p class="message error">Пожалуйста, выберите город для просмотра ваших заявок.</p>`;
-                myMachineryRequestsList.innerHTML = '';
-                myToolRequestsList.innerHTML = '';
-                myMaterialAdsList.innerHTML = '';
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/users/me/requests?city_id=${city.id}`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await response.json();
-                renderList(data.work_requests, myWorkRequestsList, 'заявок на работу', 'work');
-                renderList(data.machinery_requests, myMachineryRequestsList, 'заявок на технику', 'machinery');
-                renderList(data.tool_requests, myToolRequestsList, 'заявок на инструмент', 'tool');
-                renderList(data.material_ads, myMaterialAdsList, 'объявлений о материалах', 'material');
-            } catch (error) {
-                myWorkRequestsList.innerHTML = `<p class="message error">Не удалось загрузить ваши заявки.</p>`;
-                myMachineryRequestsList.innerHTML = '';
-                myToolRequestsList.innerHTML = '';
-                myMaterialAdsList.innerHTML = '';
-            }
-        }
-
-        function renderList(items, container, typeText, type) {
-            if (!items || items.length === 0) {
-                container.innerHTML = `<p>Пока нет ${typeText}.</p>`;
-                return;
-            }
-            container.innerHTML = '';
-            items.forEach(item => {
-                let statusText = '';
-                let buttonHtml = '';
-                let premiumMark = '';
-
-                if (item.is_premium) {
-                    premiumMark = `<span class="premium"><i class="fas fa-crown"></i> PREMIUM</span>`;
-                }
-
-                if (item.is_taken) {
-                    statusText = `<span class="taken">Заявка принята</span>`;
-                    if (type === 'work' && (currentUser.id === item.user_id || currentUser.id === item.executor_id)) {
-                        buttonHtml = `<button class="chat-btn" onclick="startChat(${item.id})">Начать чат</button>`;
-                    }
-                } else {
-                    if (type === 'work' && currentUser && currentUser.user_type === "ИСПОЛНИТЕЛЬ") {
-                        buttonHtml = `<button class="take-btn" onclick="takeRequest(${item.id})">Принять заявку</button>`;
-                    }
-                }
-
-                let detailsHtml = `<p><strong>Описание:</strong> ${item.description || 'Нет'}</p>`;
-
-                if (item.machinery_type) {
-                    if (item.rental_date) {
-                        detailsHtml += `<p><strong>Дата аренды:</strong> ${new Date(item.rental_date).toLocaleDateString('ru-RU')}</p>`;
-                    }
-                    if (item.min_rental_hours) {
-                        detailsHtml += `<p><strong>Минимальное кол-во часов:</strong> ${item.min_rental_hours}</p>`;
-                    }
-                }
-
-                const itemHtml = `
-                    <div class="request-item">
-                        <h4>${item.title || item.material_type || item.tool_name || item.machinery_type || item.description.substring(0, 30) + '...'}</h4>
-                        ${detailsHtml}
-                        <p><strong>Город:</strong> ${getSelectedCity() ? getSelectedCity().name : 'Не указан'}</p>
-                        <p><strong>Бюджет/Цена:</strong> ${item.budget || item.price || item.rental_price} руб.</p>
-                        <p class="contact"><strong>Контакт:</strong> ${item.contact_info}</p>
-                        ${premiumMark}
-                        ${statusText}
-                        ${buttonHtml}
-                    </div>
-                `;
-                container.innerHTML += itemHtml;
-            });
-        }
-
-
-        async function takeRequest(requestId) {
-            const statusEl = document.getElementById('takeOrderStatus');
-            try {
-                const response = await fetch(`${API_URL}/work_requests/${requestId}/take`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Вы успешно приняли заявку!';
-                    statusEl.className = 'message success';
-                    // Перезагружаем список заявок, чтобы показать изменения
-                    fetchWorkRequests();
-                } else {
-                    statusEl.textContent = `Ошибка: ${data.detail}`;
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при принятии заявки.';
-                statusEl.className = 'message error';
-            }
-        }
-
-        function startChat(requestId) {
-            currentChatRequestId = requestId;
-            showPage('chatPage');
-            fetchChatMessages();
-            // Обновляем сообщения каждые 5 секунд
-            setInterval(fetchChatMessages, 5000); 
-        }
-
-        async function fetchChatMessages() {
-            const chatBox = document.getElementById('chatBox');
-            try {
-                const response = await fetch(`${API_URL}/chat/${currentChatRequestId}`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    const messages = await response.json();
-                    chatBox.innerHTML = '';
-                    messages.forEach(msg => {
-                        const messageDiv = document.createElement('div');
-                        messageDiv.className = `chat-message ${msg.is_me ? 'me' : 'other'}`;
-                        messageDiv.textContent = msg.message;
-                        const timestampSpan = document.createElement('span');
-                        timestampSpan.className = 'chat-message-info';
-                        const messageDate = new Date(msg.timestamp);
-                        timestampSpan.textContent = messageDate.toLocaleTimeString();
-                        messageDiv.appendChild(timestampSpan);
-                        chatBox.appendChild(messageDiv);
-                    });
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                } else {
-                    const data = await response.json();
-                    chatBox.innerHTML = `<p class="message error">Ошибка загрузки чата: ${data.detail}</p>`;
-                }
-            } catch (error) {
-                chatBox.innerHTML = `<p class="message error">Ошибка сети. Попробуйте позже.</p>`;
-            }
-        }
-
-        document.getElementById('sendMessageBtn').addEventListener('click', async () => {
-            const chatInput = document.getElementById('chatInput');
-            const message = chatInput.value.trim();
-            if (message === "" || !currentChatRequestId) return;
-
-            try {
-                const response = await fetch(`${API_URL}/chat/${currentChatRequestId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({ message: message })
-                });
-                if (response.ok) {
-                    chatInput.value = '';
-                    fetchChatMessages();
-                } else {
-                    const data = await response.json();
-                    alert(`Ошибка отправки: ${data.detail}`);
-                }
-            } catch (error) {
-                alert('Произошла ошибка сети при отправке сообщения.');
-            }
-        });
-
+        // Создание заявки на работу
         document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const workDescription = e.target.workDescription.value;
-            const workSpecialization = e.target.workSpecialization.value;
-            const workBudget = e.target.workBudget.value;
-            const workContact = e.target.workContact.value;
+            const description = document.getElementById('workDescription').value;
+            const specialization = document.getElementById('workSpecialization').value;
+            const budget = parseFloat(document.getElementById('workBudget').value);
+            const contact_info = document.getElementById('workContact').value;
             const statusEl = document.getElementById('workRequestStatus');
+            statusEl.textContent = 'Размещение...';
+            statusEl.className = 'message';
+
+            const payload = { description, specialization, budget, contact_info, city_id: selectedCityId };
 
             try {
-                const response = await fetch(`${API_URL}/work_requests`, {
+                const response = await fetch(`${API_URL}/work_requests/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${accessToken}`
                     },
-                    body: JSON.stringify({
-                        description: workDescription,
-                        specialization: workSpecialization,
-                        budget: workBudget,
-                        contact_info: workContact,
-                        city_id: selectedCityId
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
+
                 if (response.ok) {
-                    statusEl.textContent = 'Заявка на работу успешно размещена!';
+                    statusEl.textContent = 'Заявка успешно размещена!';
                     statusEl.className = 'message success';
                     e.target.reset();
                 } else {
@@ -1004,34 +1080,40 @@
             }
         });
 
+        // Создание заявки на технику **(НОВАЯ ФОРМА)**
         document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const machineryType = e.target.machineryType.value;
-            const machineryDescription = e.target.machineryDescription.value;
-            const machineryRentalPrice = e.target.machineryRentalPrice.value;
-            const machineryContact = e.target.machineryContact.value;
-            const machineryRentalDate = e.target.machineryRentalDate.value || null;
-            const machineryMinHours = e.target.machineryMinHours.value;
+            const machinery_type = document.getElementById('machineryType').value;
+            const description = document.getElementById('machineryDescription').value;
+            const rental_date = document.getElementById('machineryRentalDate').value || null;
+            const min_hours = parseInt(document.getElementById('machineryMinHours').value);
+            const rental_price = parseFloat(document.getElementById('machineryRentalPrice').value);
+            const contact_info = document.getElementById('machineryContact').value;
             const statusEl = document.getElementById('machineryRequestStatus');
+            statusEl.textContent = 'Размещение...';
+            statusEl.className = 'message';
+
+            const payload = { 
+                machinery_type, 
+                description, 
+                rental_date, 
+                min_hours, 
+                rental_price, 
+                contact_info, 
+                city_id: selectedCityId 
+            };
 
             try {
-                const response = await fetch(`${API_URL}/machinery_requests`, {
+                const response = await fetch(`${API_URL}/machinery_requests/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${accessToken}`
                     },
-                    body: JSON.stringify({
-                        machinery_type: machineryType,
-                        description: machineryDescription,
-                        rental_price: machineryRentalPrice,
-                        contact_info: machineryContact,
-                        city_id: selectedCityId,
-                        rental_date: machineryRentalDate,
-                        min_rental_hours: parseInt(machineryMinHours, 10)
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
+
                 if (response.ok) {
                     statusEl.textContent = 'Заявка на спецтехнику успешно размещена!';
                     statusEl.className = 'message success';
@@ -1041,45 +1123,45 @@
                     statusEl.className = 'message error';
                 }
             } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
+                statusEl.textContent = 'Произошла ошибка при размещении заявки на технику.';
                 statusEl.className = 'message error';
             }
         });
-
+        
+        // Создание заявки на инструмент **(НОВАЯ ФОРМА)**
         document.getElementById('toolRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const toolName = e.target.toolName.value;
-            const toolDescription = e.target.toolDescription.value;
-            const toolRentalPrice = e.target.toolRentalPrice.value;
-            const toolCount = e.target.toolCount.value;
-            const toolRentalStartDate = e.target.toolRentalStartDate.value;
-            const toolRentalEndDate = e.target.toolRentalEndDate.value;
-            const toolContact = e.target.toolContact.value;
-            const hasDelivery = e.target.hasDelivery.checked;
-            const deliveryAddress = hasDelivery ? e.target.deliveryAddress.value : null;
+            const tool_name = document.getElementById('toolName').value;
+            const description = document.getElementById('toolDescription').value;
+            const rental_price = parseFloat(document.getElementById('toolRentalPrice').value);
+            const count = parseInt(document.getElementById('toolCount').value);
+            const rental_start_date = document.getElementById('toolRentalStartDate').value;
+            const rental_end_date = document.getElementById('toolRentalEndDate').value;
+            const contact_info = document.getElementById('toolContact').value;
+            const has_delivery = document.getElementById('hasDelivery').checked;
+            const delivery_address = has_delivery ? document.getElementById('deliveryAddress').value : null;
+            
             const statusEl = document.getElementById('toolRequestStatus');
+            statusEl.textContent = 'Размещение...';
+            statusEl.className = 'message';
+
+            const payload = {
+                tool_name, description, rental_price, count, rental_start_date,
+                rental_end_date, contact_info, has_delivery, delivery_address, 
+                city_id: selectedCityId
+            };
 
             try {
-                const response = await fetch(`${API_URL}/tool_requests`, {
+                const response = await fetch(`${API_URL}/tool_requests/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${accessToken}`
                     },
-                    body: JSON.stringify({
-                        tool_name: toolName,
-                        description: toolDescription,
-                        rental_price: toolRentalPrice,
-                        count: toolCount,
-                        rental_start_date: toolRentalStartDate,
-                        rental_end_date: toolRentalEndDate,
-                        contact_info: toolContact,
-                        has_delivery: hasDelivery,
-                        delivery_address: deliveryAddress,
-                        city_id: selectedCityId
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
+
                 if (response.ok) {
                     statusEl.textContent = 'Заявка на инструмент успешно размещена!';
                     statusEl.className = 'message success';
@@ -1089,11 +1171,12 @@
                     statusEl.className = 'message error';
                 }
             } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
+                statusEl.textContent = 'Произошла ошибка при размещении заявки на инструмент.';
                 statusEl.className = 'message error';
             }
         });
-
+        
+        // Переключение адреса доставки
         document.getElementById('hasDelivery').addEventListener('change', (e) => {
             const deliveryAddressGroup = document.getElementById('deliveryAddressGroup');
             if (e.target.checked) {
@@ -1105,32 +1188,32 @@
             }
         });
 
+        // Создание объявления на материалы **(НОВАЯ ФОРМА)**
         document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const materialType = e.target.materialType.value;
-            const materialDescription = e.target.materialDescription.value;
-            const materialPrice = e.target.materialPrice.value;
-            const materialContact = e.target.materialContact.value;
+            const material_type = document.getElementById('materialType').value;
+            const description = document.getElementById('materialDescription').value;
+            const price = parseFloat(document.getElementById('materialPrice').value);
+            const contact_info = document.getElementById('materialContact').value;
             const statusEl = document.getElementById('materialAdStatus');
+            statusEl.textContent = 'Размещение...';
+            statusEl.className = 'message';
+
+            const payload = { material_type, description, price, contact_info, city_id: selectedCityId };
 
             try {
-                const response = await fetch(`${API_URL}/material_ads`, {
+                const response = await fetch(`${API_URL}/material_ads/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${accessToken}`
                     },
-                    body: JSON.stringify({
-                        material_type: materialType,
-                        description: materialDescription,
-                        price: materialPrice,
-                        contact_info: materialContact,
-                        city_id: selectedCityId
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
+
                 if (response.ok) {
-                    statusEl.textContent = 'Объявление о материалах успешно размещено!';
+                    statusEl.textContent = 'Объявление на материалы успешно размещено!';
                     statusEl.className = 'message success';
                     e.target.reset();
                 } else {
@@ -1142,6 +1225,7 @@
                 statusEl.className = 'message error';
             }
         });
+
 
         function checkAuthentication() {
             accessToken = localStorage.getItem('accessToken');
@@ -1155,6 +1239,8 @@
 
         function logout() {
             localStorage.removeItem('accessToken');
+            currentUser = null;
+            selectedCityId = getSelectedCity().id; // Сохраняем выбранный город
             showPage('loginPage');
         }
 
@@ -1163,7 +1249,8 @@
             fetchSpecializations();
             fetchMachineryTypes();
             fetchToolsList();
-
+            fetchMaterialTypes(); // Добавлена
+            
             const selectedCity = getSelectedCity();
             if (selectedCity) {
                 cityNameEl.textContent = selectedCity.name;
