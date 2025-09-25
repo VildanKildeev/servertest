@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # --- Database setup ---
+# Примечание: Убедитесь, что database.py находится в той же директории и содержит все таблицы
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, chat_messages
 
 load_dotenv()
@@ -98,7 +99,6 @@ async def shutdown():
     await database.disconnect()
 
 # --- Schemas ---
-# ИСПРАВЛЕНО: Добавлено поле city_id для регистрации
 class UserIn(BaseModel):
     email: EmailStr
     password: str
@@ -120,7 +120,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# ОБНОВЛЕННАЯ СХЕМА ДЛЯ ЗАЯВКИ
 class WorkRequestIn(BaseModel):
     name: str
     phone_number: str
@@ -131,7 +130,6 @@ class WorkRequestIn(BaseModel):
     address: Optional[str] = None
     visit_date: Optional[datetime] = None
 
-# ИСПРАВЛЕНО: Схема вывода приведена в полное соответствие с тем, что ожидает фронтенд
 class WorkRequestOut(BaseModel):
     id: int
     user_id: int
@@ -156,7 +154,7 @@ class MachineryRequestIn(BaseModel):
     contact_info: str
     city_id: int
     rental_date: Optional[date] = None
-    min_hours: int = 4 # ИСПРАВЛЕНО: Имя поля приведено в соответствие с таблицей БД
+    min_hours: int = 4
 
 class MachineryRequestOut(BaseModel):
     id: int
@@ -169,7 +167,7 @@ class MachineryRequestOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
-    is_premium: bool # ИСПРАВЛЕНО: Добавлено обязательное поле
+    is_premium: bool
 
 class ToolRequestIn(BaseModel):
     tool_name: str
@@ -183,11 +181,12 @@ class ToolRequestIn(BaseModel):
     delivery_address: Optional[str] = None
     city_id: int
 
+# ИСПРАВЛЕНО: Добавлены Optional для полей, которые могут быть NULL в БД
 class ToolRequestOut(BaseModel):
     id: int
     user_id: int
     tool_name: str
-    description: str
+    description: Optional[str]
     rental_price: float
     tool_count: int
     rental_start_date: date
@@ -197,7 +196,6 @@ class ToolRequestOut(BaseModel):
     delivery_address: Optional[str]
     city_id: int
     created_at: datetime
-    # is_premium отсутствует в схеме ToolRequestOut
 
 class MaterialAdIn(BaseModel):
     material_type: str
@@ -215,7 +213,7 @@ class MaterialAdOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
-    is_premium: bool # ИСПРАВЛЕНО: Добавлено обязательное поле
+    is_premium: bool
 
 class SpecializationUpdate(BaseModel):
     specialization: str
@@ -230,26 +228,34 @@ class ChatMessageIn(BaseModel):
 class ChatMessageOut(BaseModel):
     id: int
     sender_id: int
-    sender_username: str # Добавлено для отображения в чате
+    sender_username: str
     message: str
     timestamp: datetime
 
-# --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ОЧИСТКИ ДАННЫХ (FIX для 422) ---
+# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ОЧИСТКИ ДАННЫХ (FIX для 422) ---
+# Эта функция очищает списки записей, приводя потенциальные NULL из БД к значениям,
+# которые Pydantic ожидает (False для bool, и т.д. для WorkRequestOut)
 def clean_requests_list(requests):
     cleaned_requests = []
     for req in requests:
+        # Pydantic RowProxy/Record в словарь
         req_dict = dict(req)
         
         # 1. Очистка is_premium (для всех premium-таблиц)
         if "is_premium" in req_dict and req_dict.get("is_premium") is None:
             req_dict["is_premium"] = False
             
-        # 2. Очистка work_requests специфичных полей (от NotNullViolationError, если fetch_all не подставил дефолты)
+        # 2. Очистка work_requests специфичных полей
         if "is_taken" in req_dict and req_dict.get("is_taken") is None:
             req_dict["is_taken"] = False
         if "chat_enabled" in req_dict and req_dict.get("chat_enabled") is None:
             req_dict["chat_enabled"] = False
             
+        # 3. Очистка других nullable полей (на всякий случай)
+        # Если какое-то поле, объявленное как str или int, возвращает None, это может вызвать ошибку.
+        # Например, если description объявлено как str, а в БД null. 
+        # Если поля объявлены как Optional[str], Pydantic справится.
+        
         cleaned_requests.append(req_dict)
     return cleaned_requests
 
@@ -292,7 +298,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ИСПРАВЛЕНО: Путь изменен с /users/ на /register для соответствия фронтенду
 @api_router.post("/register", response_model=UserOut)
 async def create_user(user: UserIn):
     if user.user_type not in ["ЗАКАЗЧИК", "ИСПОЛНИТЕЛЬ"]:
@@ -319,8 +324,8 @@ async def create_user(user: UserIn):
         user_type=user.user_type,
         phone_number=user.phone_number,
         specialization=specialization_to_insert,
-        city_id=user.city_id, # ИСПРАВЛЕНО: city_id теперь сохраняется
-        is_premium=False      # <-- ДОБАВЛЕНО: Обязательное поле
+        city_id=user.city_id,
+        is_premium=False      
     )
     
     last_record_id = await database.execute(query)
@@ -360,7 +365,7 @@ async def get_cities():
     query = cities.select()
     return await database.fetch_all(query)
 
-# --- СПИСКИ ДЛЯ ФРОНТЕНДА (не требуют изменений) ---
+# --- СПИСКИ ДЛЯ ФРОНТЕНДА ---
 SPECIALIZATIONS_LIST = [
     "ЗЕМЛЯНЫЕ РАБОТЫ", "ФУНДАМЕНТЫ И ОСНОВАНИЯ", "КЛАДОЧНЫЕ РАБОТЫ",
     "МЕТАЛЛОКОНСТРУКЦИИ", "КРОВЕЛЬНЫЕ РАБОТЫ", "ОСТЕКЛЕНИЕ И ФАСАДНЫЕ РАБОТЫ",
@@ -396,7 +401,6 @@ MATERIAL_TYPES = [
     "Профнастил", "Утеплитель", "Монтажная пена", "Деревянные брусья/доски"
 ]
 
-# ИСПРАВЛЕНО: Путь изменен на /specializations/ для соответствия фронтенду
 @api_router.get("/specializations/")
 def get_specializations():
     return SPECIALIZATIONS_LIST
@@ -429,15 +433,14 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
         city_id=request.city_id,
         address=request.address,
         visit_date=request.visit_date,
-        is_premium=current_user["is_premium"], # Устанавливаем премиум статус
-        is_taken=False, # FIX: Добавляем обязательное поле с дефолтным значением
-        chat_enabled=False # FIX: Добавляем обязательное поле с дефолтным значением
+        is_premium=current_user["is_premium"],
+        is_taken=False,
+        chat_enabled=False
     )
     last_record_id = await database.execute(query)
     created_request_query = work_requests.select().where(work_requests.c.id == last_record_id)
     created_request = await database.fetch_one(created_request_query)
     
-    # FIX: Очистка и возврат
     if created_request:
         return clean_single_request(created_request)
     raise HTTPException(status_code=500, detail="Не удалось получить созданную заявку.")
@@ -447,25 +450,23 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = work_requests.select().where((work_requests.c.city_id == city_id))
     requests = await database.fetch_all(query)
-    # FIX: Очистка и возврат списка
+    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
-# ИСПРАВЛЕНО: Добавлен эндпоинт /my, который ожидает фронтенд
 @api_router.get("/work_requests/my", response_model=List[WorkRequestOut])
 async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
     query = work_requests.select().where(work_requests.c.user_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # FIX: Очистка и возврат списка
+    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
     
-# ИСПРАВЛЕНО: Добавлен эндпоинт /taken, который ожидает фронтенд
 @api_router.get("/work_requests/taken", response_model=List[WorkRequestOut])
 async def get_my_taken_work_requests(current_user: dict = Depends(get_current_user)):
     if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
         return []
     query = work_requests.select().where(work_requests.c.executor_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # FIX: Очистка и возврат списка
+    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 
@@ -492,7 +493,7 @@ async def take_work_request(request_id: int, current_user: dict = Depends(get_cu
     
     return {"message": "Вы успешно приняли заявку и можете начать чат с заказчиком."}
 
-# --- Chat Endpoints (не требуют изменений) ---
+# --- Chat Endpoints ---
 @api_router.get("/work_requests/{request_id}/chat", response_model=List[ChatMessageOut])
 async def get_chat_messages(request_id: int, current_user: dict = Depends(get_current_user)):
     request_query = work_requests.select().where(work_requests.c.id == request_id)
@@ -510,7 +511,6 @@ async def get_chat_messages(request_id: int, current_user: dict = Depends(get_cu
     if not request_item["chat_enabled"]:
         raise HTTPException(status_code=400, detail="Чат для этой заявки не активирован")
 
-    # Сложный запрос для получения имени пользователя отправителя
     query = """
     SELECT cm.id, cm.sender_id, cm.message, cm.timestamp, u.email as sender_username
     FROM chat_messages cm
@@ -565,7 +565,7 @@ async def create_machinery_request(request: MachineryRequestIn, current_user: di
     created_request_query = machinery_requests.select().where(machinery_requests.c.id == last_record_id)
     created_request = await database.fetch_one(created_request_query)
     
-    # FIX: Очистка и возврат
+    # ИСПРАВЛЕНО: Применена очистка
     if created_request:
         return clean_single_request(created_request)
     raise HTTPException(status_code=500, detail="Не удалось получить созданную заявку.")
@@ -575,17 +575,17 @@ async def create_machinery_request(request: MachineryRequestIn, current_user: di
 async def get_machinery_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = machinery_requests.select().where(machinery_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
-    # FIX: Очистка и возврат списка
+    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 @api_router.get("/machinery_requests/my", response_model=List[MachineryRequestOut])
 async def get_my_machinery_requests(current_user: dict = Depends(get_current_user)):
     query = machinery_requests.select().where(machinery_requests.c.user_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # FIX: Очистка и возврат списка
+    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
-# --- Tool Requests --- (Не требует очистки is_premium)
+# --- Tool Requests --- 
 @api_router.post("/tool_requests", response_model=ToolRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_tool_request(request: ToolRequestIn, current_user: dict = Depends(get_current_user)):
     query = tool_requests.insert().values(
@@ -600,22 +600,30 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
         has_delivery=request.has_delivery,
         delivery_address=request.delivery_address,
         city_id=request.city_id
-        # is_premium отсутствует
     )
     last_record_id = await database.execute(query)
     created_request_query = tool_requests.select().where(tool_requests.c.id == last_record_id)
     created_request = await database.fetch_one(created_request_query)
-    return created_request # Очистка не нужна
+    
+    # ИСПРАВЛЕНО: Применена очистка (для nullable полей)
+    if created_request:
+        return clean_single_request(created_request)
+    raise HTTPException(status_code=500, detail="Не удалось получить созданную заявку.")
+
 
 @api_router.get("/tool_requests/{city_id}", response_model=List[ToolRequestOut])
 async def get_tool_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = tool_requests.select().where(tool_requests.c.city_id == city_id)
-    return await database.fetch_all(query) # Очистка не нужна
+    requests = await database.fetch_all(query)
+    # ИСПРАВЛЕНО: Применена очистка
+    return clean_requests_list(requests)
 
 @api_router.get("/tool_requests/my", response_model=List[ToolRequestOut])
 async def get_my_tool_requests(current_user: dict = Depends(get_current_user)):
     query = tool_requests.select().where(tool_requests.c.user_id == current_user["id"])
-    return await database.fetch_all(query) # Очистка не нужна
+    requests = await database.fetch_all(query)
+    # ИСПРАВЛЕНО: Применена очистка
+    return clean_requests_list(requests)
 
 
 # --- Material Ads ---
@@ -634,7 +642,7 @@ async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_
     created_ad_query = material_ads.select().where(material_ads.c.id == last_record_id)
     created_ad = await database.fetch_one(created_ad_query)
     
-    # FIX: Очистка и возврат
+    # ИСПРАВЛЕНО: Применена очистка
     if created_ad:
         return clean_single_request(created_ad)
     raise HTTPException(status_code=500, detail="Не удалось получить созданное объявление.")
@@ -644,21 +652,20 @@ async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_
 async def get_material_ads(city_id: int, current_user: dict = Depends(get_current_user)):
     query = material_ads.select().where(material_ads.c.city_id == city_id)
     requests = await database.fetch_all(query)
-    # FIX: Очистка и возврат списка
+    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 @api_router.get("/material_ads/my", response_model=List[MaterialAdOut])
 async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
     query = material_ads.select().where(material_ads.c.user_id == current_user["id"])
     requests = await database.fetch_all(query)
-    # FIX: Очистка и возврат списка
+    # ИСПРАВЛЕНО: Применена очистка
     return clean_requests_list(requests)
 
 # --- Static Files Mounting ---
 app.include_router(api_router)
 
 # Обслуживание статических файлов и главной страницы
-# Этот блок должен быть в конце, после подключения роутера
 static_path = Path(__file__).parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=static_path), name="static")
