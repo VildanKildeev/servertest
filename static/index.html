@@ -190,6 +190,12 @@
                     </div>
                     <button id="saveSpecializationBtn" class="btn btn-primary">Сохранить</button>
                 </div>
+                
+                <div id="profileChatsSection" class="my-requests-section" style="margin-top: 20px;">
+                    <h3>Активные Чаты</h3>
+                    <div id="profileChatsList"></div>
+                </div>
+                
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
@@ -469,6 +475,10 @@
             if (pageId === 'toolRequestsPage') fetchToolRequests();
             if (pageId === 'materialAdsPage') fetchMaterialAds();
             if (pageId === 'myRequestsPage') fetchMyRequests();
+            if (pageId === 'profilePage') {
+                fetchProfile();
+                fetchAndRenderProfileChats(); // НОВЫЙ ВЫЗОВ
+            }
         }
 
         async function fetchProfile() {
@@ -748,8 +758,7 @@
                 container.appendChild(item);
             });
         }
-        // КОНЕЦ НОВОЙ ФУНКЦИИ
-
+        
         // НОВАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ВНУТРЕННЕГО ФЕТЧА
         async function fetchDataInternal(endpoint) {
             try {
@@ -768,6 +777,23 @@
             }
         }
         
+        // НОВАЯ ФУНКЦИЯ: Получает все заявки для чатов
+        async function fetchWorkChats() {
+            if (!accessToken) return [];
+            
+            // 1. Заявки Владельца
+            const myWorkReqs = await fetchDataInternal('work_requests/my');
+             // 2. Взятые заявки
+            const myTakenWorkReqs = currentUser.user_type === 'ИСПОЛНИТЕЛЬ' ? await fetchDataInternal('work_requests/taken') : [];
+            
+            // 3. Объединяем списки (убираем дубликаты, если Заказчик = Исполнитель)
+            const allWorkRequests = [...myWorkReqs, ...myTakenWorkReqs].filter((req, index, self) => 
+                index === self.findIndex((r) => r.id === req.id)
+            );
+            
+            return allWorkRequests;
+        }
+
         async function fetchRequests(endpoint, containerId, type, isMyRequest = false) {
             if (!selectedCityId && !isMyRequest) {
                 alert('Пожалуйста, выберите город.');
@@ -796,27 +822,33 @@
         const fetchMachineryRequests = () => fetchRequests('machinery_requests', 'machineryRequestsList', 'machinery');
         const fetchToolRequests = () => fetchRequests('tool_requests', 'toolRequestsList', 'tool');
         const fetchMaterialAds = () => fetchRequests('material_ads', 'materialAdsList', 'material');
+        
+        // НОВАЯ ФУНКЦИЯ: Рендеринг чатов для Профиля
+        async function fetchAndRenderProfileChats() {
+            const allWorkRequests = await fetchWorkChats();
+            renderChats(allWorkRequests, 'profileChatsList');
+        }
 
         async function fetchMyRequests() {
              if (!accessToken) return;
              
-             // 1. Заявки Владельца (для My Work List и My Chats)
-             const myWorkReqs = await fetchDataInternal('work_requests/my');
+             const allWorkRequests = await fetchWorkChats();
+             
+             // 1. Заявки Владельца (для My Work List)
+             const myWorkReqs = allWorkRequests.filter(req => req.user_id === currentUser.id);
              renderRequests(myWorkReqs, 'myWorkRequestsList', 'work', true);
 
-             // 2. Взятые заявки (для My Taken List и My Chats)
-             let myTakenWorkReqs = [];
+             // 2. Взятые заявки (для My Taken List)
+             const myTakenWorkReqs = allWorkRequests.filter(req => req.executor_id === currentUser.id);
              const takenSection = document.getElementById('myTakenWorkRequestsSection');
              if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
-                 myTakenWorkReqs = await fetchDataInternal('work_requests/taken');
                  takenSection.style.display = 'block';
                  renderRequests(myTakenWorkReqs, 'myTakenWorkRequestsList', 'work', true);
              } else {
                  takenSection.style.display = 'none';
              }
              
-             // 3. Активные Чаты (объединяем списки и рендерим)
-             const allWorkRequests = [...myWorkReqs, ...myTakenWorkReqs];
+             // 3. Активные Чаты (для My Requests Page)
              renderChats(allWorkRequests, 'myChatsList');
              
              // 4. Остальные списки
