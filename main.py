@@ -134,7 +134,7 @@ class UserOut(BaseModel):
     user_type: str
     phone_number: Optional[str] = None
     specialization: Optional[str] = None
-    is_premium: bool
+    is_premium: bool # У UserOut поле is_premium остается bool, так как это данные самого пользователя.
 
 class Token(BaseModel):
     """Схема для токена доступа."""
@@ -154,14 +154,13 @@ class WorkRequestIn(BaseModel):
     address: Optional[str] = None
     visit_date: Optional[datetime] = None
 
-# ✅ ИСПРАВЛЕНИЕ: description сделано Optional[str] для предотвращения HTTP 422/500
 class WorkRequestOut(BaseModel):
     """Схема для выдачи данных заявки на работу."""
     id: int
     user_id: int
     executor_id: Optional[int]
     name: str
-    description: Optional[str] # <-- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ
+    description: Optional[str] 
     specialization: str
     budget: float
     phone_number: str
@@ -171,7 +170,7 @@ class WorkRequestOut(BaseModel):
     chat_enabled: bool
     address: Optional[str]
     visit_date: Optional[datetime]
-    is_premium: bool
+    is_premium: Optional[bool] # ИСПРАВЛЕНИЕ: Сделано Optional[bool] для обхода NULL в старых записях
 
 
 # --- MACHINERY REQUESTS SCHEMAS ---
@@ -197,6 +196,7 @@ class MachineryRequestOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
+    is_premium: Optional[bool] # ИСПРАВЛЕНИЕ: Сделано Optional[bool] для обхода NULL в старых записях
 
 
 # --- TOOL REQUESTS SCHEMAS ---
@@ -213,13 +213,12 @@ class ToolRequestIn(BaseModel):
     delivery_address: Optional[str] = None
     city_id: int
 
-# ✅ ИСПРАВЛЕНИЕ: description сделано Optional[str] для предотвращения HTTP 422/500
 class ToolRequestOut(BaseModel):
     """Схема для выдачи данных заявки на инструмент."""
     id: int
     user_id: int
     tool_name: str
-    description: Optional[str] # <-- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ
+    description: Optional[str]
     rental_price: float
     tool_count: int
     rental_start_date: date
@@ -229,6 +228,7 @@ class ToolRequestOut(BaseModel):
     delivery_address: Optional[str]
     city_id: int
     created_at: datetime
+    # is_premium здесь не нужно, если оно не в базе
 
 
 # --- MATERIAL ADS SCHEMAS ---
@@ -250,6 +250,7 @@ class MaterialAdOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
+    is_premium: Optional[bool] # ИСПРАВЛЕНИЕ: Сделано Optional[bool] для обхода NULL в старых записях
 
 
 # --- UTILITY SCHEMAS ---
@@ -458,9 +459,21 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
     created_request = await database.fetch_one(created_request_query)
     return created_request
 
+# ✅ ИСПРАВЛЕНИЕ: Добавлен маршрут для получения одной заявки по ID
+@api_router.get("/work_requests/{request_id}", response_model=WorkRequestOut)
+async def get_single_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
+    """Получение данных одной заявки по ID."""
+    query = work_requests.select().where(work_requests.c.id == request_id)
+    request_item = await database.fetch_one(query)
 
-@api_router.get("/work_requests/{city_id}", response_model=List[WorkRequestOut])
-async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
+    if not request_item:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+
+    return request_item
+
+# ✅ ИСПРАВЛЕНИЕ: Маршрут для получения по городу переименован
+@api_router.get("/work_requests/by_city/{city_id}", response_model=List[WorkRequestOut])
+async def get_work_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех заявок в определенном городе."""
     query = work_requests.select().where((work_requests.c.city_id == city_id))
     return await database.fetch_all(query)
