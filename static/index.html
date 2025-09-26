@@ -643,7 +643,9 @@
             if (!container) return;
 
             container.innerHTML = '';
-            if (requests.length === 0) {
+            
+            // ИСПРАВЛЕНО: Проверка, что requests является массивом И не пустым.
+            if (!Array.isArray(requests) || requests.length === 0) {
                 container.innerHTML = '<p>Нет доступных заявок.</p>';
                 return;
             }
@@ -800,7 +802,7 @@
                 return;
             }
             try {
-                const url = isMyRequest ? `${API_URL}/${endpoint}` : `${API_URL}/${endpoint}/${selectedCityId}`;
+                const url = isMyRequest ? `${API_URL}/${endpoint}` : `${API_URL}/${endpoint}/by_city/${selectedCityId}`; // ИСПРАВЛЕНО: использование /by_city/
                 const response = await fetch(url, {
                      headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
