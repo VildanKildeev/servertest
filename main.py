@@ -179,8 +179,6 @@ class ToolRequestIn(BaseModel):
     description: str
     rental_price: float
     tool_count: int = 1
-    # Поля с nullable=True в database.py, которые должны быть тут как date, но Pydantic будет ожидать date,
-    # что вызовет 422 для старых записей с NULL. В ToolRequestOut это исправлено.
     rental_start_date: date
     rental_end_date: date
     contact_info: str
@@ -240,7 +238,7 @@ class ChatMessageOut(BaseModel):
     message: str
     timestamp: datetime
 
-# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ОЧИСТКИ ДАННЫХ (FIX для 422) ---
+# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ОЧИСТКИ ДАННЫХ (FIX для 422 и чата) ---
 
 def clean_requests_list(requests):
     """Очищает список записей от NULL-значений для полей Boolean и других, которые Pydantic ожидает."""
@@ -502,7 +500,7 @@ async def take_work_request(request_id: int, current_user: dict = Depends(get_cu
     
     return {"message": "Вы успешно приняли заявку и можете начать чат с заказчиком."}
 
-# --- Chat Endpoints ---
+# --- Chat Endpoints (ИСПРАВЛЕНО) ---
 
 @api_router.get("/work_requests/{request_id}/chat", response_model=List[ChatMessageOut])
 async def get_chat_messages(request_id: int, current_user: dict = Depends(get_current_user)):
@@ -512,12 +510,16 @@ async def get_chat_messages(request_id: int, current_user: dict = Depends(get_cu
     if not request_item:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
 
+    # 🔥 ФИКС: Очищаем запрос, чтобы chat_enabled не был None, если он не был обновлен.
+    request_item = clean_single_request(request_item)
+
     is_owner = request_item["user_id"] == current_user["id"]
     is_executor = request_item["executor_id"] == current_user["id"]
 
     if not (is_owner or is_executor):
         raise HTTPException(status_code=403, detail="У вас нет доступа к этому чату")
     
+    # Теперь эта проверка гарантированно сработает с False, а не с None.
     if not request_item["chat_enabled"]:
         raise HTTPException(status_code=400, detail="Чат для этой заявки не активирован")
 
@@ -539,12 +541,16 @@ async def send_chat_message(request_id: int, message: ChatMessageIn, current_use
     if not request_item:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
 
+    # 🔥 ФИКС: Очищаем запрос, чтобы chat_enabled не был None, если он не был обновлен.
+    request_item = clean_single_request(request_item)
+
     is_owner = request_item["user_id"] == current_user["id"]
     is_executor = request_item["executor_id"] == current_user["id"]
 
     if not (is_owner or is_executor):
         raise HTTPException(status_code=403, detail="У вас нет доступа к этому чату")
 
+    # Теперь эта проверка гарантированно сработает с False, а не с None.
     if not request_item["chat_enabled"]:
         raise HTTPException(status_code=400, detail="Чат для этой заявки не активирован")
 
@@ -622,7 +628,6 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
 async def get_tool_requests(city_id: int, current_user: dict = Depends(get_current_user)):
     query = tool_requests.select().where(tool_requests.c.city_id == city_id)
     requests = await database.fetch_all(query)
-    # Здесь clean_requests_list нужен, чтобы is_premium и has_delivery были bool, а не None
     return clean_requests_list(requests)
 
 @api_router.get("/tool_requests/my", response_model=List[ToolRequestOut])
