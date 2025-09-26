@@ -392,12 +392,16 @@
         <div id="myRequestsPage" class="page">
             <div class="list-container">
                 <h2>Мои заявки</h2>
+                <div id="myChatsSection" class="my-requests-section">
+                    <h3>Активные Чаты</h3>
+                    <div id="myChatsList"></div>
+                </div>
                 <div id="myTakenWorkRequestsSection" class="my-requests-section" style="display: none;">
                     <h3>Взятые мной заявки</h3>
                     <div id="myTakenWorkRequestsList"></div>
                 </div>
                 <div id="myWorkRequests" class="my-requests-section">
-                    <h3>Заявки на работу</h3>
+                    <h3>Заявки на работу (Заказчик)</h3>
                     <div id="myWorkRequestsList"></div>
                 </div>
                 <div id="myMachineryRequests" class="my-requests-section">
@@ -684,16 +688,16 @@
                             item.appendChild(takeBtn);
                         }
                     }
-                    // Кнопка чата для ВЛАДЕЛЬЦА заявки
-                    if (req.user_id === currentUser.id && type === 'work' && req.chat_enabled) {
+                    // Кнопка чата для ВЛАДЕЛЬЦА заявки (видна только в "Мои заявки")
+                    if (req.user_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
                         const chatBtn = document.createElement('button');
                         chatBtn.className = 'chat-btn';
                         chatBtn.textContent = 'Открыть чат';
                         chatBtn.onclick = () => setupChat(req.id, type);
                         item.appendChild(chatBtn);
                     }
-                     // Кнопка чата для ИСПОЛНИТЕЛЯ, который ВЗЯЛ заявку
-                    if (req.executor_id === currentUser.id && type === 'work' && req.chat_enabled) {
+                     // Кнопка чата для ИСПОЛНИТЕЛЯ, который ВЗЯЛ заявку (видна только в "Мои заявки")
+                    if (req.executor_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
                         if (isMyRequest) { // На странице "мои заявки", показываем статус
                             item.innerHTML += `<p class="taken"><strong>Заявка принята вами.</strong></p>`;
                         }
@@ -707,7 +711,63 @@
                 container.appendChild(item);
             });
         }
+        
+        // НОВЫЙ ФУНКЦИЯ: Рендеринг чатов для отдельной секции
+        function renderChats(requests, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
 
+            // Уникальные заявки: убираем дубли, если Заказчик = Исполнитель (хотя это маловероятно)
+            const uniqueRequests = requests.filter((req, index, self) => 
+                index === self.findIndex((r) => r.id === req.id)
+            ).filter(req => req.chat_enabled);
+
+            container.innerHTML = '';
+            if (uniqueRequests.length === 0) {
+                container.innerHTML = '<p>Нет активных чатов по заявкам на работу.</p>';
+                return;
+            }
+
+            uniqueRequests.forEach(req => {
+                const item = document.createElement('div');
+                item.className = 'request-item';
+                
+                const role = req.user_id === currentUser.id ? ' (Вы - Заказчик)' : ' (Вы - Исполнитель)';
+                item.innerHTML = `
+                    <h4>Чат: ${req.specialization} ${role}</h4>
+                    <p><strong>Статус:</strong> ${req.is_taken ? 'Занята' : 'Открыта'}</p>
+                    <p><strong>ID заявки:</strong> ${req.id}</p>
+                `;
+                
+                const chatBtn = document.createElement('button');
+                chatBtn.className = 'chat-btn';
+                chatBtn.textContent = 'Открыть чат';
+                chatBtn.onclick = () => setupChat(req.id, 'work');
+                item.appendChild(chatBtn);
+
+                container.appendChild(item);
+            });
+        }
+        // КОНЕЦ НОВОЙ ФУНКЦИИ
+
+        // НОВАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ВНУТРЕННЕГО ФЕТЧА
+        async function fetchDataInternal(endpoint) {
+            try {
+                const url = `${API_URL}/${endpoint}`;
+                const response = await fetch(url, {
+                     headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (response.ok) {
+                    return await response.json();
+                }
+                // Возвращаем пустой массив при ошибке или не-ок ответе
+                return [];
+            } catch (error) {
+                console.error(`Ошибка при получении ${endpoint}:`, error);
+                return [];
+            }
+        }
+        
         async function fetchRequests(endpoint, containerId, type, isMyRequest = false) {
             if (!selectedCityId && !isMyRequest) {
                 alert('Пожалуйста, выберите город.');
@@ -719,14 +779,16 @@
                      headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 const data = await response.json();
+                const container = document.getElementById(containerId);
                 if (response.ok) {
                     renderRequests(data, containerId, type, isMyRequest);
                 } else {
-                    document.getElementById(containerId).innerHTML = `<p class="message error">Ошибка загрузки: ${data.detail || response.statusText}</p>`;
+                    if(container) container.innerHTML = `<p class="message error">Ошибка загрузки: ${data.detail || response.statusText}</p>`;
                 }
             } catch (error) {
                 console.error(`Ошибка при получении ${type} заявок:`, error);
-                document.getElementById(containerId).innerHTML = '<p class="message error">Не удалось соединиться с сервером.</p>';
+                const container = document.getElementById(containerId);
+                if(container) container.innerHTML = '<p class="message error">Не удалось соединиться с сервером.</p>';
             }
         }
         
@@ -738,18 +800,29 @@
         async function fetchMyRequests() {
              if (!accessToken) return;
              
-             await fetchRequests('work_requests/my', 'myWorkRequestsList', 'work', true);
-             await fetchRequests('machinery_requests/my', 'myMachineryRequestsList', 'machinery', true);
-             await fetchRequests('tool_requests/my', 'myToolRequestsList', 'tool', true);
-             await fetchRequests('material_ads/my', 'myMaterialAdsList', 'material', true);
-             
+             // 1. Заявки Владельца (для My Work List и My Chats)
+             const myWorkReqs = await fetchDataInternal('work_requests/my');
+             renderRequests(myWorkReqs, 'myWorkRequestsList', 'work', true);
+
+             // 2. Взятые заявки (для My Taken List и My Chats)
+             let myTakenWorkReqs = [];
              const takenSection = document.getElementById('myTakenWorkRequestsSection');
              if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
+                 myTakenWorkReqs = await fetchDataInternal('work_requests/taken');
                  takenSection.style.display = 'block';
-                 await fetchRequests('work_requests/taken', 'myTakenWorkRequestsList', 'work', true);
+                 renderRequests(myTakenWorkReqs, 'myTakenWorkRequestsList', 'work', true);
              } else {
                  takenSection.style.display = 'none';
              }
+             
+             // 3. Активные Чаты (объединяем списки и рендерим)
+             const allWorkRequests = [...myWorkReqs, ...myTakenWorkReqs];
+             renderChats(allWorkRequests, 'myChatsList');
+             
+             // 4. Остальные списки
+             await fetchRequests('machinery_requests/my', 'myMachineryRequestsList', 'machinery', true);
+             await fetchRequests('tool_requests/my', 'myToolRequestsList', 'tool', true);
+             await fetchRequests('material_ads/my', 'myMaterialAdsList', 'material', true);
         }
 
         async function setupChat(requestId, type) {
@@ -758,6 +831,13 @@
             showPage('chatPage', false);
             document.getElementById('chatBox').innerHTML = 'Загрузка сообщений...';
             document.getElementById('sendMessageBtn').onclick = sendMessage;
+            // Установка обработчика для Enter в поле ввода
+            document.getElementById('chatInput').onkeypress = (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                    e.preventDefault();
+                }
+            };
             await fetchChatMessages();
         }
         
@@ -770,6 +850,13 @@
                 const messages = await response.json();
                 const chatBox = document.getElementById('chatBox');
                 chatBox.innerHTML = '';
+                
+                if (!response.ok) {
+                    // Обработка случая, когда чат еще не активирован (400 Bad Request)
+                    const data = messages;
+                    chatBox.innerHTML = `<p class="message error">${data.detail || 'Чат не активирован.'}</p>`;
+                    return;
+                }
                 
                 messages.forEach(msg => {
                     const msgEl = document.createElement('div');
@@ -820,12 +907,14 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
+                    // Обновляем список, чтобы кнопка "Взять" исчезла, и открываем чат
+                    fetchWorkRequests(); 
                     setupChat(requestId, type);
                 } else {
                     statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось взять заявку.'}`;
                     statusEl.className = 'message error';
                     setTimeout(() => statusEl.className = 'message', 3000);
-                    fetchWorkRequests(); // Обновляем список, чтобы убрать уже занятую заявку
+                    fetchWorkRequests(); // Обновляем список
                 }
             } catch (error) {
                 statusEl.textContent = 'Произошла ошибка при взятии заявки.';
