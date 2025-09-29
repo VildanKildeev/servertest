@@ -606,8 +606,9 @@ async def create_machinery_request(request: MachineryRequestIn, current_user: di
     return created_request
 
 
-@api_router.get("/machinery_requests/{city_id}", response_model=List[MachineryRequestOut])
-async def get_machinery_requests(city_id: int, current_user: dict = Depends(get_current_user)):
+# 🔥 ИСПРАВЛЕНО: Маршрут изменен для соответствия фронтенду
+@api_router.get("/machinery_requests/by_city/{city_id}", response_model=List[MachineryRequestOut])
+async def get_machinery_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех заявок на спецтехнику в определенном городе."""
     query = machinery_requests.select().where(machinery_requests.c.city_id == city_id)
     return await database.fetch_all(query)
@@ -646,8 +647,9 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
     return created_request
 
 
-@api_router.get("/tool_requests/{city_id}", response_model=List[ToolRequestOut])
-async def get_tool_requests(city_id: int, current_user: dict = Depends(get_current_user)):
+# 🔥 ИСПРАВЛЕНО: Маршрут изменен для соответствия фронтенду
+@api_router.get("/tool_requests/by_city/{city_id}", response_model=List[ToolRequestOut])
+async def get_tool_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех заявок на инструмент в определенном городе."""
     query = tool_requests.select().where(tool_requests.c.city_id == city_id)
     return await database.fetch_all(query)
@@ -682,8 +684,9 @@ async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_
     return created_ad
 
 
-@api_router.get("/material_ads/{city_id}", response_model=List[MaterialAdOut])
-async def get_material_ads(city_id: int, current_user: dict = Depends(get_current_user)):
+# 🔥 ИСПРАВЛЕНО: Маршрут изменен для соответствия фронтенду
+@api_router.get("/material_ads/by_city/{city_id}", response_model=List[MaterialAdOut])
+async def get_material_ads_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех объявлений о материалах в определенном городе."""
     query = material_ads.select().where(material_ads.c.city_id == city_id)
     return await database.fetch_all(query)
