@@ -441,7 +441,14 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
     """Создание новой заявки на работу."""
     if current_user["user_type"] != "ЗАКАЗЧИК":
         raise HTTPException(status_code=403, detail="Только ЗАКАЗЧИК может создавать заявки на работу")
-    
+
+    # 🛑 ИСПРАВЛЕНИЕ ОШИБКИ: Удаляем информацию о часовом поясе (tzinfo)
+    # Используем request.visit_date, так как это входное значение
+    visit_date_data = request.visit_date
+    if visit_date_data and visit_date_data.tzinfo is not None:
+        visit_date_data = visit_date_data.replace(tzinfo=None)
+    # -----------------------------------------------------------
+
     query = work_requests.insert().values(
         user_id=current_user["id"],
         name=request.name,
@@ -451,9 +458,8 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
         phone_number=request.phone_number,
         city_id=request.city_id,
         address=request.address,
-        visit_date=request.visit_date,
+        visit_date=visit_date_data,  # <-- Используем очищенную переменную
         is_premium=current_user["is_premium"],
-        # ✅ ИСПРАВЛЕНИЕ: Добавлены обязательные поля со значением по умолчанию
         is_taken=False,
         chat_enabled=False
     )
