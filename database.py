@@ -60,6 +60,8 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("budget", sqlalchemy.Float),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
+sqlalchemy.Column("budget", sqlalchemy.Float, nullable=False),
+sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=False),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
     sqlalchemy.Column("status", sqlalchemy.String, default="active"),
