@@ -160,7 +160,7 @@ class WorkRequestOut(BaseModel):
     user_id: int
     executor_id: Optional[int]
     name: str
-    description: Optional[str] 
+    description: str # ИСПРАВЛЕНИЕ: Убрано Optional[], чтобы соответствовать nullable=False в базе данных.
     specialization: str
     budget: float
     phone_number: str
@@ -170,7 +170,7 @@ class WorkRequestOut(BaseModel):
     chat_enabled: bool
     address: Optional[str]
     visit_date: Optional[datetime]
-    is_premium: Optional[bool] # ИСПРАВЛЕНИЕ: Сделано Optional[bool] для обхода NULL в старых записях
+    is_premium: Optional[bool]
 
 
 # --- MACHINERY REQUESTS SCHEMAS ---
@@ -196,7 +196,7 @@ class MachineryRequestOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
-    is_premium: Optional[bool] # ИСПРАВЛЕНИЕ: Сделано Optional[bool] для обхода NULL в старых записях
+    is_premium: Optional[bool]
 
 
 # --- TOOL REQUESTS SCHEMAS ---
@@ -228,7 +228,6 @@ class ToolRequestOut(BaseModel):
     delivery_address: Optional[str]
     city_id: int
     created_at: datetime
-    # is_premium здесь не нужно, если оно не в базе
 
 
 # --- MATERIAL ADS SCHEMAS ---
@@ -250,7 +249,7 @@ class MaterialAdOut(BaseModel):
     contact_info: str
     city_id: int
     created_at: datetime
-    is_premium: Optional[bool] # ИСПРАВЛЕНИЕ: Сделано Optional[bool] для обхода NULL в старых записях
+    is_premium: Optional[bool]
 
 
 # --- UTILITY SCHEMAS ---
@@ -339,7 +338,6 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     """Получение данных текущего пользователя."""
     user_dict = dict(current_user)
     
-    # Защита от старых записей без поля is_premium
     if user_dict.get("is_premium") is None:
         user_dict["is_premium"] = False 
         
@@ -442,12 +440,9 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
     if current_user["user_type"] != "ЗАКАЗЧИК":
         raise HTTPException(status_code=403, detail="Только ЗАКАЗЧИК может создавать заявки на работу")
 
-    # 🛑 ИСПРАВЛЕНИЕ ОШИБКИ: Удаляем информацию о часовом поясе (tzinfo)
-    # Используем request.visit_date, так как это входное значение
     visit_date_data = request.visit_date
     if visit_date_data and visit_date_data.tzinfo is not None:
         visit_date_data = visit_date_data.replace(tzinfo=None)
-    # -----------------------------------------------------------
 
     query = work_requests.insert().values(
         user_id=current_user["id"],
@@ -458,7 +453,7 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
         phone_number=request.phone_number,
         city_id=request.city_id,
         address=request.address,
-        visit_date=visit_date_data,  # <-- Используем очищенную переменную
+        visit_date=visit_date_data,
         is_premium=current_user["is_premium"],
         is_taken=False,
         chat_enabled=False
@@ -468,7 +463,6 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
     created_request = await database.fetch_one(created_request_query)
     return created_request
 
-# ✅ ИСПРАВЛЕНИЕ: Добавлен маршрут для получения одной заявки по ID
 @api_router.get("/work_requests/{request_id}", response_model=WorkRequestOut)
 async def get_single_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
     """Получение данных одной заявки по ID."""
@@ -480,7 +474,6 @@ async def get_single_work_request(request_id: int, current_user: dict = Depends(
 
     return request_item
 
-# ✅ ИСПРАВЛЕНИЕ: Маршрут для получения по городу переименован
 @api_router.get("/work_requests/by_city/{city_id}", response_model=List[WorkRequestOut])
 async def get_work_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех заявок в определенном городе."""
@@ -551,7 +544,6 @@ async def get_chat_messages(request_id: int, current_user: dict = Depends(get_cu
     if not request_item["chat_enabled"]:
         raise HTTPException(status_code=400, detail="Чат для этой заявки не активирован")
 
-    # Сложный запрос для получения имени пользователя отправителя
     query = """
     SELECT cm.id, cm.sender_id, cm.message, cm.timestamp, u.email as sender_username
     FROM chat_messages cm
@@ -615,7 +607,6 @@ async def create_machinery_request(request: MachineryRequestIn, current_user: di
     return created_request
 
 
-# 🔥 ИСПРАВЛЕНО: Маршрут изменен для соответствия фронтенду
 @api_router.get("/machinery_requests/by_city/{city_id}", response_model=List[MachineryRequestOut])
 async def get_machinery_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех заявок на спецтехнику в определенном городе."""
@@ -656,7 +647,6 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
     return created_request
 
 
-# 🔥 ИСПРАВЛЕНО: Маршрут изменен для соответствия фронтенду
 @api_router.get("/tool_requests/by_city/{city_id}", response_model=List[ToolRequestOut])
 async def get_tool_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех заявок на инструмент в определенном городе."""
@@ -693,7 +683,6 @@ async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_
     return created_ad
 
 
-# 🔥 ИСПРАВЛЕНО: Маршрут изменен для соответствия фронтенду
 @api_router.get("/material_ads/by_city/{city_id}", response_model=List[MaterialAdOut])
 async def get_material_ads_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
     """Получение всех объявлений о материалах в определенном городе."""
@@ -714,7 +703,6 @@ async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
 app.include_router(api_router)
 
 # Обслуживание статических файлов и главной страницы
-# Этот блок должен быть в конце, после подключения роутера
 static_path = Path(__file__).parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=static_path), name="static")
@@ -723,5 +711,4 @@ if static_path.exists():
     async def read_index():
         return FileResponse(static_path / "index.html")
 else:
-    # Удалено уведомление, чтобы не создавать лишний вывод в логах
     pass
