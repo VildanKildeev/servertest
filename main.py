@@ -134,7 +134,10 @@ class UserOut(BaseModel):
     user_type: str
     phone_number: Optional[str] = None
     specialization: Optional[str] = None
-    is_premium: bool # У UserOut поле is_premium остается bool, так как это данные самого пользователя.
+    is_premium: bool
+    # --- НОВЫЕ ПОЛЯ ДЛЯ РЕЙТИНГА ---
+    rating: Optional[float] = 0.0
+    rating_count: int = 0
 
 class Token(BaseModel):
     """Схема для токена доступа."""
@@ -703,6 +706,7 @@ async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
 app.include_router(api_router)
 
 # Обслуживание статических файлов и главной страницы
+# Этот блок должен быть в конце, после подключения роутера
 static_path = Path(__file__).parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=static_path), name="static")
@@ -711,4 +715,5 @@ if static_path.exists():
     async def read_index():
         return FileResponse(static_path / "index.html")
 else:
+    # Удалено уведомление, чтобы не создавать лишний вывод в логах
     pass

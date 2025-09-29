@@ -44,7 +44,10 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     # ИСПРАВЛЕНО: Добавлен столбец city_id, необходимый для регистрации
-    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=False)
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=False),
+    # --- НОВЫЕ СТОЛБЦЫ ДЛЯ РЕЙТИНГА ---
+    sqlalchemy.Column("rating", sqlalchemy.Float, nullable=True, default=0.0),
+    sqlalchemy.Column("rating_count", sqlalchemy.Integer, nullable=False, default=0)
 )
 
 # Таблица запросов на работу
