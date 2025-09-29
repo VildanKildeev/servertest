@@ -11,15 +11,24 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; color: #4A4A4A; overflow-x: hidden; background: #F5F2EA; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         .background-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; filter: brightness(0.8); }
         .selected-city { margin-top: 12px; font-size: 16px; color: #4A4A4A; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap; cursor: pointer; }
-        .city-modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
-        .city-modal.active { display: flex; }
-        .city-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
-        .city-modal-content h2 { margin-bottom: 20px; font-size: 20px; color: #4A4A4A; }
+        
+        /* --- Стили для модальных окон --- */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; position: relative; }
+        .modal-content h2 { margin-bottom: 20px; font-size: 20px; color: #4A4A4A; }
+        .modal .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; color: #aaa; cursor: pointer; }
+
         .city-list-container { max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 10px; }
         .city-button { width: 100%; padding: 10px; margin: 5px 0; background-color: #F0F0E0; color: #4A4A4A; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
         .city-button:hover { background-color: #E0E0D0; }
 
-        .main-container { width: 100%; max-width: 600px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
+        .contact-options a { display: block; width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; text-decoration: none; color: white; font-size: 16px; }
+        .contact-options .telegram-btn { background-color: #24A1DE; }
+        .contact-options .whatsapp-btn { background-color: #25D366; }
+
+        /* --- Основные контейнеры --- */
+        .main-container { width: 100%; max-width: 600px; padding: 20px; padding-bottom: 80px; /* Отступ для нижней панели */ display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
         .logo { width: 80px; margin-bottom: 10px; }
         h1 { font-size: 20px; text-align: center; color: #4A4A4A; margin-bottom: 20px; }
         .page { display: none; width: 100%; }
@@ -42,10 +51,6 @@
         .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .button-grid .btn { margin: 0; }
 
-        .toggle-view { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
-        .toggle-view button { padding: 8px 15px; border-radius: 20px; border: 1px solid #DCDCDC; background-color: #fff; color: #4A4A4A; cursor: pointer; }
-        .toggle-view button.active { background-color: #E87D39; border-color: #E87D39; color: white; }
-
         .request-item { background-color: #fff; padding: 15px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #E0E0D0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .request-item h4 { margin-bottom: 5px; color: #E87D39; }
         .request-item p { margin-bottom: 5px; font-size: 14px; line-height: 1.4; color: #6B6B6B; }
@@ -65,14 +70,17 @@
         .message.success { background-color: #d4edda; color: #155724; }
         .message.error { background-color: #f8d7da; color: #721c24; }
 
+        /* --- Стили для профиля и рейтинга --- */
         #profileInfo p, #profileInfo button { margin-top: 10px; }
+        #profileRating { margin-top: 15px; font-size: 16px; color: #6B6B6B; }
+        .stars { color: #FFC107; }
         #subscribeBtn { background-color: #FFC107; color: black; border: none; }
         #subscribeBtn:hover { background-color: #E0A800; }
         #updateSpecializationBtn { background-color: #28a745; color: white; }
         #updateSpecializationBtn:hover { background-color: #218838; }
         #editSpecializationForm { display: none; }
 
-        /* Стили для чата */
+        /* --- Стили для чата --- */
         #chatPage { display: none; padding: 15px; }
         #chatBox { border: 1px solid #DCDCDC; border-radius: 10px; padding: 10px; max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; background-color: #fff; }
         .chat-message { padding: 8px; border-radius: 8px; max-width: 80%; }
@@ -82,6 +90,41 @@
         .chat-input-container { display: flex; gap: 10px; }
         #chatInput { flex-grow: 1; padding: 10px; border-radius: 5px; border: 1px solid #DCDCDC; }
         #sendMessageBtn { width: auto; padding: 10px 15px; background-color: #E87D39; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        /* --- НОВАЯ НИЖНЯЯ ПАНЕЛЬ --- */
+        .bottom-nav {
+            display: none; /* Скрыта по умолчанию */
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            padding: 10px;
+            z-index: 50;
+            border-top: 1px solid #DCDCDC;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .bottom-nav.visible {
+            display: flex; /* Показывается на нужных страницах */
+        }
+        .nav-btn {
+            background: none;
+            border: none;
+            color: #4A4A4A;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .nav-btn i {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
     </style>
 </head>
 <body>
@@ -99,10 +142,21 @@
         <h1>СМЗ.РФ - Заявки для Самозанятых и Мастеров</h1>
         <div id="loadingMessage">Загрузка...</div>
 
-        <div id="cityModal" class="city-modal">
-            <div class="city-modal-content">
+        <div id="cityModal" class="modal">
+            <div class="modal-content">
                 <h2>Выберите ваш город</h2>
                 <div id="cityList" class="city-list-container"></div>
+            </div>
+        </div>
+        
+        <div id="contactModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn" onclick="document.getElementById('contactModal').classList.remove('active')">&times;</span>
+                <h2>Связаться с нами</h2>
+                <div class="contact-options">
+                    <a href="#" class="telegram-btn"><i class="fab fa-telegram-plane"></i> Написать в Telegram</a>
+                    <a href="#" class="whatsapp-btn"><i class="fab fa-whatsapp"></i> Написать в WhatsApp</a>
+                </div>
             </div>
         </div>
 
@@ -183,6 +237,8 @@
             <div class="form-container">
                 <h2>Профиль</h2>
                 <div id="profileInfo"></div>
+                <div id="profileRating"></div>
+
                 <div id="editSpecializationForm">
                     <div class="input-group">
                         <label for="newSpecialization">Новая специализация:</label>
@@ -427,6 +483,16 @@
         </div>
     </div>
 
+    <div id="bottomNav" class="bottom-nav">
+        <button class="nav-btn" onclick="document.getElementById('contactModal').classList.add('active')">
+            <i class="fas fa-headset"></i>
+            <span>Связаться с нами</span>
+        </button>
+        <a href="#" class="nav-btn"> <i class="fas fa-users-slash"></i>
+            <span>Форум</span>
+        </a>
+    </div>
+
     <script>
         const API_URL = "/api";
         let accessToken = null;
@@ -446,6 +512,7 @@
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityName');
         const loadingMessage = document.getElementById('loadingMessage');
+        const bottomNav = document.getElementById('bottomNav'); // Получаем панель
 
         function getSelectedCity() {
             const cityData = localStorage.getItem('selectedCity');
@@ -470,6 +537,13 @@
             const activePage = document.getElementById(pageId);
             if (activePage) activePage.classList.add('active');
             
+            // Показываем нижнюю панель только в главном меню
+            if (pageId === 'buttonContainer') {
+                bottomNav.classList.add('visible');
+            } else {
+                bottomNav.classList.remove('visible');
+            }
+            
             if (pageId === 'workRequestsPage') fetchWorkRequests();
             if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
             if (pageId === 'toolRequestsPage') fetchToolRequests();
@@ -477,8 +551,20 @@
             if (pageId === 'myRequestsPage') fetchMyRequests();
             if (pageId === 'profilePage') {
                 fetchProfile();
-                fetchAndRenderProfileChats(); // НОВЫЙ ВЫЗОВ
+                fetchAndRenderProfileChats();
             }
+        }
+        
+        // НОВАЯ ФУНКЦИЯ для отрисовки звезд рейтинга
+        function renderStars(rating) {
+            const fullStars = Math.floor(rating);
+            const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+            const emptyStars = 5 - fullStars - halfStar;
+            let starsHTML = '';
+            for (let i = 0; i < fullStars; i++) starsHTML += '<i class="fas fa-star"></i>';
+            if (halfStar) starsHTML += '<i class="fas fa-star-half-alt"></i>';
+            for (let i = 0; i < emptyStars; i++) starsHTML += '<i class="far fa-star"></i>';
+            return starsHTML;
         }
 
         async function fetchProfile() {
@@ -500,13 +586,26 @@
 
         function updateProfilePage(profile) {
             const profileInfo = document.getElementById('profileInfo');
+            const profileRating = document.getElementById('profileRating');
             const editSpecializationForm = document.getElementById('editSpecializationForm');
+            
             profileInfo.innerHTML = `
                 <p><strong>Ваш email:</strong> ${profile.email}</p>
                 <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
                 ${profile.user_type === 'ИСПОЛНИТЕЛЬ' ? `<p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>` : ''}
                 <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
             `;
+            
+            // ОБНОВЛЕНО: Отображение рейтинга
+            if (profile.rating_count > 0) {
+                 profileRating.innerHTML = `
+                    <strong>Рейтинг:</strong>
+                    <span class="stars">${renderStars(profile.rating)}</span>
+                    <span>${profile.rating.toFixed(1)} на основе ${profile.rating_count} оценок</span>
+                 `;
+            } else {
+                 profileRating.innerHTML = `<strong>Рейтинг:</strong> Пока нет оценок`;
+            }
 
             if (document.getElementById('subscribeBtn')) document.getElementById('subscribeBtn').remove();
             if (document.getElementById('updateSpecializationBtn')) document.getElementById('updateSpecializationBtn').remove();
@@ -618,7 +717,6 @@
             }
         }
         
-        // Функции для загрузки списков для форм
         const fetchAndPopulateSelect = async (url, elementId) => {
             try {
                 const response = await fetch(`${API_URL}/${url}/`);
@@ -644,7 +742,6 @@
 
             container.innerHTML = '';
             
-            // ИСПРАВЛЕНО: Проверка, что requests является массивом И не пустым.
             if (!Array.isArray(requests) || requests.length === 0) {
                 container.innerHTML = '<p>Нет доступных заявок.</p>';
                 return;
@@ -686,9 +783,7 @@
                 
                 item.innerHTML = content;
                 
-                // ИСПРАВЛЕНО: Логика отображения кнопок
                 if (currentUser) {
-                    // Кнопки для исполнителя на странице поиска работы
                     if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ' && type === 'work' && !isMyRequest) {
                         if (req.is_taken) {
                              item.innerHTML += `<p class="taken"><strong>Заявка занята.</strong></p>`;
@@ -700,7 +795,6 @@
                             item.appendChild(takeBtn);
                         }
                     }
-                    // Кнопка чата для ВЛАДЕЛЬЦА заявки (видна только в "Мои заявки")
                     if (req.user_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
                         const chatBtn = document.createElement('button');
                         chatBtn.className = 'chat-btn';
@@ -708,9 +802,8 @@
                         chatBtn.onclick = () => setupChat(req.id, type);
                         item.appendChild(chatBtn);
                     }
-                     // Кнопка чата для ИСПОЛНИТЕЛЯ, который ВЗЯЛ заявку (видна только в "Мои заявки")
                     if (req.executor_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
-                        if (isMyRequest) { // На странице "мои заявки", показываем статус
+                        if (isMyRequest) {
                             item.innerHTML += `<p class="taken"><strong>Заявка принята вами.</strong></p>`;
                         }
                         const chatBtn = document.createElement('button');
@@ -724,12 +817,10 @@
             });
         }
         
-        // НОВЫЙ ФУНКЦИЯ: Рендеринг чатов для отдельной секции
         function renderChats(requests, containerId) {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            // Уникальные заявки: убираем дубли, если Заказчик = Исполнитель (хотя это маловероятно)
             const uniqueRequests = requests.filter((req, index, self) => 
                 index === self.findIndex((r) => r.id === req.id)
             ).filter(req => req.chat_enabled);
@@ -761,7 +852,6 @@
             });
         }
         
-        // НОВАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ВНУТРЕННЕГО ФЕТЧА
         async function fetchDataInternal(endpoint) {
             try {
                 const url = `${API_URL}/${endpoint}`;
@@ -771,7 +861,6 @@
                 if (response.ok) {
                     return await response.json();
                 }
-                // Возвращаем пустой массив при ошибке или не-ок ответе
                 return [];
             } catch (error) {
                 console.error(`Ошибка при получении ${endpoint}:`, error);
@@ -779,16 +868,12 @@
             }
         }
         
-        // НОВАЯ ФУНКЦИЯ: Получает все заявки для чатов
         async function fetchWorkChats() {
             if (!accessToken) return [];
             
-            // 1. Заявки Владельца
             const myWorkReqs = await fetchDataInternal('work_requests/my');
-             // 2. Взятые заявки
             const myTakenWorkReqs = currentUser.user_type === 'ИСПОЛНИТЕЛЬ' ? await fetchDataInternal('work_requests/taken') : [];
             
-            // 3. Объединяем списки (убираем дубликаты, если Заказчик = Исполнитель)
             const allWorkRequests = [...myWorkReqs, ...myTakenWorkReqs].filter((req, index, self) => 
                 index === self.findIndex((r) => r.id === req.id)
             );
@@ -802,7 +887,7 @@
                 return;
             }
             try {
-                const url = isMyRequest ? `${API_URL}/${endpoint}` : `${API_URL}/${endpoint}/by_city/${selectedCityId}`; // ИСПРАВЛЕНО: использование /by_city/
+                const url = isMyRequest ? `${API_URL}/${endpoint}` : `${API_URL}/${endpoint}/by_city/${selectedCityId}`;
                 const response = await fetch(url, {
                      headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
@@ -825,7 +910,6 @@
         const fetchToolRequests = () => fetchRequests('tool_requests', 'toolRequestsList', 'tool');
         const fetchMaterialAds = () => fetchRequests('material_ads', 'materialAdsList', 'material');
         
-        // НОВАЯ ФУНКЦИЯ: Рендеринг чатов для Профиля
         async function fetchAndRenderProfileChats() {
             const allWorkRequests = await fetchWorkChats();
             renderChats(allWorkRequests, 'profileChatsList');
@@ -836,11 +920,9 @@
              
              const allWorkRequests = await fetchWorkChats();
              
-             // 1. Заявки Владельца (для My Work List)
              const myWorkReqs = allWorkRequests.filter(req => req.user_id === currentUser.id);
              renderRequests(myWorkReqs, 'myWorkRequestsList', 'work', true);
 
-             // 2. Взятые заявки (для My Taken List)
              const myTakenWorkReqs = allWorkRequests.filter(req => req.executor_id === currentUser.id);
              const takenSection = document.getElementById('myTakenWorkRequestsSection');
              if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
@@ -850,10 +932,8 @@
                  takenSection.style.display = 'none';
              }
              
-             // 3. Активные Чаты (для My Requests Page)
              renderChats(allWorkRequests, 'myChatsList');
              
-             // 4. Остальные списки
              await fetchRequests('machinery_requests/my', 'myMachineryRequestsList', 'machinery', true);
              await fetchRequests('tool_requests/my', 'myToolRequestsList', 'tool', true);
              await fetchRequests('material_ads/my', 'myMaterialAdsList', 'material', true);
@@ -865,7 +945,6 @@
             showPage('chatPage', false);
             document.getElementById('chatBox').innerHTML = 'Загрузка сообщений...';
             document.getElementById('sendMessageBtn').onclick = sendMessage;
-            // Установка обработчика для Enter в поле ввода
             document.getElementById('chatInput').onkeypress = (e) => {
                 if (e.key === 'Enter') {
                     sendMessage();
@@ -886,7 +965,6 @@
                 chatBox.innerHTML = '';
                 
                 if (!response.ok) {
-                    // Обработка случая, когда чат еще не активирован (400 Bad Request)
                     const data = messages;
                     chatBox.innerHTML = `<p class="message error">${data.detail || 'Чат не активирован.'}</p>`;
                     return;
@@ -941,14 +1019,13 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    // Обновляем список, чтобы кнопка "Взять" исчезла, и открываем чат
                     fetchWorkRequests(); 
                     setupChat(requestId, type);
                 } else {
                     statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось взять заявку.'}`;
                     statusEl.className = 'message error';
                     setTimeout(() => statusEl.className = 'message', 3000);
-                    fetchWorkRequests(); // Обновляем список
+                    fetchWorkRequests();
                 }
             } catch (error) {
                 statusEl.textContent = 'Произошла ошибка при взятии заявки.';
@@ -956,7 +1033,6 @@
             }
         }
         
-        // --- ОБРАБОТКА ФОРМ ---
         const handleFormSubmit = async (formId, url, payload, statusElId) => {
             const statusEl = document.getElementById(statusElId);
             statusEl.textContent = 'Отправка...';
@@ -1033,7 +1109,6 @@
                 specialization: userType === 'ИСПОЛНИТЕЛЬ' ? document.getElementById('registerSpecialization').value : null,
                 city_id: selectedCityId
             };
-            // ИСПРАВЛЕНО: URL для регистрации
             await handleFormSubmit('registerForm', `${API_URL}/register`, payload, 'registerStatus');
         });
         
@@ -1042,7 +1117,6 @@
             specGroup.style.display = (e.target.value === 'ИСПОЛНИТЕЛЬ') ? 'block' : 'none';
         });
 
-        // ИСПРАВЛЕНО: Логика отправки формы заявки на работу
         document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             let visitDate = document.getElementById('workVisitDate').value;
