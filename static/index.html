@@ -1200,7 +1200,7 @@
                     statusEl.textContent = `Ошибка: ${data.detail || 'Неверный email или пароль.'}`;
                     statusEl.className = 'message error';
                 }
-            } catch (error)
+            } catch (error) {
                 statusEl.textContent = 'Произошла ошибка при входе.';
                 statusEl.className = 'message error';
             }
