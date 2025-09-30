@@ -530,7 +530,7 @@
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityName');
         const loadingMessage = document.getElementById('loadingMessage');
-        const bottomNav = document.getElementById('bottomNav'); // Получаем панель
+        const bottomNav = document.getElementById('bottomNav');
 
         function getSelectedCity() {
             const cityData = localStorage.getItem('selectedCity');
@@ -555,7 +555,6 @@
             const activePage = document.getElementById(pageId);
             if (activePage) activePage.classList.add('active');
             
-            // Показываем нижнюю панель только в главном меню
             if (pageId === 'buttonContainer') {
                 bottomNav.classList.add('visible');
             } else {
@@ -772,15 +771,8 @@
                 item.className = 'request-item';
                 let content = '';
                 
-                // Основной контент заявки
                 if (type === 'work') {
-                    content = `
-                        <h4>Работа: ${req.specialization} ${req.is_premium ? '<span class="premium">(ПРЕМИУМ)</span>' : ''}</h4>
-                        <p><strong>Описание:</strong> ${req.description}</p>
-                        <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
-                        <p><strong>Адрес:</strong> ${req.address || 'Не указан'}</p>
-                        <p class="contact"><strong>Контакт:</strong> ${req.phone_number}</p>
-                    `;
+                    content = `<h4>Работа: ${req.specialization} ${req.is_premium ? '<span class="premium">(ПРЕМИУМ)</span>' : ''}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Бюджет:</strong> ${req.budget} руб.</p><p><strong>Адрес:</strong> ${req.address || 'Не указан'}</p><p class="contact"><strong>Контакт:</strong> ${req.phone_number}</p>`;
                 } else if (type === 'machinery') {
                     content = `<h4>Техника: ${req.machinery_type}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Цена (за час):</strong> ${req.rental_price} руб.</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
                 } else if (type === 'tool') {
@@ -793,9 +785,7 @@
                 contentDiv.innerHTML = content;
                 item.appendChild(contentDiv);
                 
-                // Добавление кнопок и форм
                 if (currentUser) {
-                    // Кнопка "Взять заявку" для исполнителя
                     if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ' && type === 'work' && !isMyRequest) {
                         if (req.is_taken) {
                              const takenP = document.createElement('p');
@@ -811,7 +801,6 @@
                         }
                     }
                     
-                    // Кнопка чата для заказчика (если заявка принята)
                     if (req.user_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
                         const chatBtn = document.createElement('button');
                         chatBtn.className = 'chat-btn';
@@ -820,7 +809,6 @@
                         item.appendChild(chatBtn);
                     }
                     
-                    // Кнопка чата и статус для исполнителя (если он взял заявку)
                     if (req.executor_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
                         if (isMyRequest) {
                              const takenP = document.createElement('p');
@@ -835,23 +823,12 @@
                         item.appendChild(chatBtn);
                     }
 
-                    // --- НОВЫЙ БЛОК: ФОРМА РЕЙТИНГА ДЛЯ ЗАКАЗЧИКА ---
                     if (type === 'work' && isMyRequest && req.user_id === currentUser.id && req.is_taken && req.executor_id) {
                         const ratingDiv = document.createElement('div');
                         ratingDiv.className = 'rating-container';
                         ratingDiv.id = `rating-container-${req.id}`;
                         ratingDiv.setAttribute('data-rating', '0');
-                        ratingDiv.innerHTML = `
-                            <p>Оцените работу исполнителя:</p>
-                            <div class="rating-stars">
-                                <i class="far fa-star" onclick="selectRating(${req.id}, 1)"></i>
-                                <i class="far fa-star" onclick="selectRating(${req.id}, 2)"></i>
-                                <i class="far fa-star" onclick="selectRating(${req.id}, 3)"></i>
-                                <i class="far fa-star" onclick="selectRating(${req.id}, 4)"></i>
-                                <i class="far fa-star" onclick="selectRating(${req.id}, 5)"></i>
-                            </div>
-                            <button class="btn btn-primary rating-submit-btn" onclick="submitRating(${req.id})">Отправить оценку</button>
-                        `;
+                        ratingDiv.innerHTML = `<p>Оцените работу исполнителя:</p><div class="rating-stars"><i class="far fa-star" onclick="selectRating(${req.id}, 1)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 2)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 3)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 4)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 5)"></i></div><button class="btn btn-primary rating-submit-btn" onclick="submitRating(${req.id})">Отправить оценку</button>`;
                         item.appendChild(ratingDiv);
                     }
                 }
@@ -859,7 +836,6 @@
             });
         }
         
-        // --- НОВАЯ ФУНКЦИЯ: ВЫБОР РЕЙТИНГА ---
         function selectRating(requestId, ratingValue) {
             const container = document.getElementById(`rating-container-${requestId}`);
             container.setAttribute('data-rating', ratingValue);
@@ -873,7 +849,6 @@
             });
         }
         
-        // --- НОВАЯ ФУНКЦИЯ: ОТПРАВКА РЕЙТИНГА ---
         async function submitRating(requestId) {
             const container = document.getElementById(`rating-container-${requestId}`);
             const ratingValue = parseInt(container.getAttribute('data-rating'));
@@ -911,26 +886,20 @@
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            const uniqueRequests = requests.filter((req, index, self) => 
-                index === self.findIndex((r) => r.id === req.id)
-            ).filter(req => req.chat_enabled);
+            const chatEnabledRequests = requests.filter(req => req.chat_enabled);
 
             container.innerHTML = '';
-            if (uniqueRequests.length === 0) {
-                container.innerHTML = '<p>Нет активных чатов по заявкам на работу.</p>';
+            if (chatEnabledRequests.length === 0) {
+                container.innerHTML = '<p>Нет активных чатов.</p>';
                 return;
             }
 
-            uniqueRequests.forEach(req => {
+            chatEnabledRequests.forEach(req => {
                 const item = document.createElement('div');
                 item.className = 'request-item';
                 
                 const role = req.user_id === currentUser.id ? ' (Вы - Заказчик)' : ' (Вы - Исполнитель)';
-                item.innerHTML = `
-                    <h4>Чат: ${req.specialization} ${role}</h4>
-                    <p><strong>Статус:</strong> ${req.is_taken ? 'Занята' : 'Открыта'}</p>
-                    <p><strong>ID заявки:</strong> ${req.id}</p>
-                `;
+                item.innerHTML = `<h4>Чат: ${req.specialization} ${role}</h4><p><strong>Статус:</strong> ${req.is_taken ? 'В работе' : 'Открыта'}</p><p><strong>ID заявки:</strong> ${req.id}</p>`;
                 
                 const chatBtn = document.createElement('button');
                 chatBtn.className = 'chat-btn';
@@ -958,17 +927,25 @@
             }
         }
         
-        async function fetchWorkChats() {
-            if (!accessToken) return [];
+        // --- ИСПРАВЛЕНИЕ: Новая надежная функция для загрузки всех заявок, связанных с пользователем ---
+        async function fetchMyAndTakenWorkRequests() {
+            if (!accessToken || !currentUser) return [];
             
-            const myWorkReqs = await fetchDataInternal('work_requests/my');
-            const myTakenWorkReqs = currentUser.user_type === 'ИСПОЛНИТЕЛЬ' ? await fetchDataInternal('work_requests/taken') : [];
+            // Получаем заявки, созданные мной
+            const myCreatedReqs = await fetchDataInternal('work_requests/my');
             
-            const allWorkRequests = [...myWorkReqs, ...myTakenWorkReqs].filter((req, index, self) => 
+            // Получаем заявки, взятые мной (если я исполнитель)
+            const myTakenReqs = currentUser.user_type === 'ИСПОЛНИТЕЛЬ' 
+                ? await fetchDataInternal('work_requests/taken') 
+                : [];
+            
+            // Объединяем и убираем дубликаты, чтобы каждая заявка была в списке один раз
+            const allReqs = [...myCreatedReqs, ...myTakenReqs];
+            const uniqueReqs = allReqs.filter((req, index, self) => 
                 index === self.findIndex((r) => r.id === req.id)
             );
             
-            return allWorkRequests;
+            return uniqueReqs;
         }
 
         async function fetchRequests(endpoint, containerId, type, isMyRequest = false) {
@@ -1000,36 +977,42 @@
         const fetchToolRequests = () => fetchRequests('tool_requests', 'toolRequestsList', 'tool');
         const fetchMaterialAds = () => fetchRequests('material_ads', 'materialAdsList', 'material');
         
+        // --- ИСПРАВЛЕНИЕ: Используем новую надежную функцию ---
         async function fetchAndRenderProfileChats() {
-            const allWorkRequests = await fetchWorkChats();
-            renderChats(allWorkRequests, 'profileChatsList');
+            const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
+            renderChats(allMyWorkRequests, 'profileChatsList');
         }
-
+        
+        // --- ИСПРАВЛЕНИЕ: Логика отображения "Моих заявок" переписана для надежности ---
         async function fetchMyRequests() {
              if (!accessToken) return;
              
-             const allWorkRequests = await fetchWorkChats();
+             // 1. Получаем единый список всех моих заявок на работу
+             const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
              
-             const myWorkReqs = allWorkRequests.filter(req => req.user_id === currentUser.id);
-             renderRequests(myWorkReqs, 'myWorkRequestsList', 'work', true);
+             // 2. Отображаем Активные чаты
+             renderChats(allMyWorkRequests, 'myChatsList');
+             
+             // 3. Отображаем заявки, созданные мной
+             const myCreatedWorkRequests = allMyWorkRequests.filter(req => req.user_id === currentUser.id);
+             renderRequests(myCreatedWorkRequests, 'myWorkRequestsList', 'work', true);
 
-             const myTakenWorkReqs = allWorkRequests.filter(req => req.executor_id === currentUser.id);
+             // 4. Отображаем заявки, взятые мной
              const takenSection = document.getElementById('myTakenWorkRequestsSection');
              if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
+                 const myTakenWorkRequests = allMyWorkRequests.filter(req => req.executor_id === currentUser.id);
                  takenSection.style.display = 'block';
-                 renderRequests(myTakenWorkReqs, 'myTakenWorkRequestsList', 'work', true);
+                 renderRequests(myTakenWorkRequests, 'myTakenWorkRequestsList', 'work', true);
              } else {
                  takenSection.style.display = 'none';
              }
              
-             renderChats(allWorkRequests, 'myChatsList');
-             
+             // 5. Загружаем остальные типы заявок (как и раньше)
              await fetchRequests('machinery_requests/my', 'myMachineryRequestsList', 'machinery', true);
              await fetchRequests('tool_requests/my', 'myToolRequestsList', 'tool', true);
              await fetchRequests('material_ads/my', 'myMaterialAdsList', 'material', true);
         }
-        
-        // --- ОБНОВЛЕННАЯ ФУНКЦИЯ НАСТРОЙКИ ЧАТА ---
+
         async function setupChat(request) {
             currentChatRequest = request;
             showPage('chatPage', false);
@@ -1046,7 +1029,6 @@
             await fetchChatMessages();
         }
         
-        // --- ОБНОВЛЕННАЯ ФУНКЦИЯ ЗАГРУЗКИ СООБЩЕНИЙ ЧАТА ---
         async function fetchChatMessages() {
             if (!currentChatRequest) return;
             try {
@@ -1089,7 +1071,6 @@
             }
         }
         
-        // --- ОБНОВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ ---
         async function sendMessage() {
             const chatInput = document.getElementById('chatInput');
             const message = chatInput.value.trim();
@@ -1124,7 +1105,6 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
-                     // После успешного взятия заявки, нужно получить её данные для открытия чата
                     const requestDetailsResponse = await fetch(`${API_URL}/work_requests/${requestId}`, {
                         headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
