@@ -268,10 +268,15 @@ class ChatMessageIn(BaseModel):
 
 class ChatMessageOut(BaseModel):
     id: int
+    request_id: int
     sender_id: int
     sender_username: str
     message: str
     timestamp: datetime
+
+# --- СХЕМА ДЛЯ РЕЙТИНГА ---
+class RatingIn(BaseModel):
+    rating_value: int = Field(..., ge=1, le=5) # Оценка от 1 до 5
 
 
 # ----------------------------------------------------
@@ -347,6 +352,110 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     user_dict["username"] = user_dict["email"]
     return user_dict
 
+@api_router.post("/chat/{request_id}", response_model=ChatMessageOut)
+async def send_chat_message(request_id: int, message: ChatMessageIn, current_user: dict = Depends(get_current_user)):
+    """Отправка нового сообщения в чат заявки на работу."""
+    request_query = work_requests.select().where(work_requests.c.id == request_id)
+    request = await database.fetch_one(request_query)
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Заявка на работу не найдена.")
+    
+    # Проверка, является ли пользователь заказчиком или исполнителем
+    if current_user["id"] != request["user_id"] and current_user["id"] != request["executor_id"]:
+        raise HTTPException(status_code=403, detail="Вы не являетесь участником этого чата.")
+    
+    query = chat_messages.insert().values(
+        request_id=request_id,
+        sender_id=current_user["id"],
+        message=message.message,
+        timestamp=datetime.utcnow()
+    )
+    last_record_id = await database.execute(query)
+    
+    return {
+        "id": last_record_id,
+        "request_id": request_id,
+        "sender_id": current_user["id"],
+        "sender_username": current_user["email"], 
+        "message": message.message,
+        "timestamp": datetime.utcnow()
+    }
+
+
+@api_router.get("/chat/{request_id}", response_model=List[ChatMessageOut])
+async def get_chat_messages(request_id: int, current_user: dict = Depends(get_current_user)):
+    """Получение истории сообщений для чата заявки на работу."""
+    request_query = work_requests.select().where(work_requests.c.id == request_id)
+    request = await database.fetch_one(request_query)
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Заявка на работу не найдена.")
+        
+    if current_user["id"] != request["user_id"] and current_user["id"] != request["executor_id"]:
+        raise HTTPException(status_code=403, detail="Вы не являетесь участником этого чата.")
+
+    query = chat_messages.select().where(chat_messages.c.request_id == request_id).order_by(chat_messages.c.timestamp)
+    messages = await database.fetch_all(query)
+    
+    # Получаем данные отправителей для корректного отображения в ChatMessageOut
+    user_ids = list(set([msg["sender_id"] for msg in messages]))
+    users_query = users.select().where(users.c.id.in_(user_ids))
+    users_map = {user["id"]: user["email"] for user in await database.fetch_all(users_query)}
+    
+    output_messages = []
+    for msg in messages:
+        output_messages.append({
+            "id": msg["id"],
+            "request_id": msg["request_id"],
+            "sender_id": msg["sender_id"],
+            "sender_username": users_map.get(msg["sender_id"], "Unknown"),
+            "message": msg["message"],
+            "timestamp": msg["timestamp"]
+        })
+        
+    return output_messages
+
+@api_router.post("/work_requests/{request_id}/rate")
+async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = Depends(get_current_user)):
+    """Поставить оценку исполнителю по завершенной заявке."""
+    request_query = work_requests.select().where(work_requests.c.id == request_id)
+    request = await database.fetch_one(request_query)
+
+    if not request:
+        raise HTTPException(status_code=404, detail="Заявка на работу не найдена.")
+    
+    # Проверка: только заказчик может оценить
+    if current_user["id"] != request["user_id"]:
+        raise HTTPException(status_code=403, detail="Только заказчик может поставить оценку.")
+    
+    # Проверка: заявка должна быть взята в работу
+    if not request["is_taken"] or request["executor_id"] is None:
+        raise HTTPException(status_code=400, detail="Заявка должна быть взята в работу исполнителем.")
+        
+    executor_id = request["executor_id"]
+    
+    # 1. Получаем текущий рейтинг исполнителя
+    executor_query = users.select().where(users.c.id == executor_id)
+    executor = await database.fetch_one(executor_query)
+    
+    if not executor:
+        raise HTTPException(status_code=404, detail="Исполнитель не найден.")
+        
+    # 2. Пересчитываем новый рейтинг
+    old_total_rating = executor["rating"] * executor["rating_count"]
+    new_rating_count = executor["rating_count"] + 1
+    new_total_rating = old_total_rating + rating.rating_value
+    new_average_rating = new_total_rating / new_rating_count
+    
+    # 3. Обновляем запись пользователя
+    update_query = users.update().where(users.c.id == executor_id).values(
+        rating=new_average_rating,
+        rating_count=new_rating_count
+    )
+    await database.execute(update_query)
+    
+    return {"message": f"Исполнитель {executor['email']} успешно оценен. Новый средний рейтинг: {new_average_rating:.2f}", "new_rating": new_average_rating, "new_rating_count": new_rating_count}
 
 @api_router.put("/users/update-specialization")
 async def update_specialization(specialization_update: SpecializationUpdate, current_user: dict = Depends(get_current_user)):
