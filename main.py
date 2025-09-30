@@ -352,69 +352,10 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     user_dict["username"] = user_dict["email"]
     return user_dict
 
-@api_router.post("/chat/{request_id}", response_model=ChatMessageOut)
-async def send_chat_message(request_id: int, message: ChatMessageIn, current_user: dict = Depends(get_current_user)):
-    """Отправка нового сообщения в чат заявки на работу."""
-    request_query = work_requests.select().where(work_requests.c.id == request_id)
-    request = await database.fetch_one(request_query)
-    
-    if not request:
-        raise HTTPException(status_code=404, detail="Заявка на работу не найдена.")
-    
-    # Проверка, является ли пользователь заказчиком или исполнителем
-    if current_user["id"] != request["user_id"] and current_user["id"] != request["executor_id"]:
-        raise HTTPException(status_code=403, detail="Вы не являетесь участником этого чата.")
-    
-    query = chat_messages.insert().values(
-        request_id=request_id,
-        sender_id=current_user["id"],
-        message=message.message,
-        timestamp=datetime.utcnow()
-    )
-    last_record_id = await database.execute(query)
-    
-    return {
-        "id": last_record_id,
-        "request_id": request_id,
-        "sender_id": current_user["id"],
-        "sender_username": current_user["email"], 
-        "message": message.message,
-        "timestamp": datetime.utcnow()
-    }
-
-
-@api_router.get("/chat/{request_id}", response_model=List[ChatMessageOut])
-async def get_chat_messages(request_id: int, current_user: dict = Depends(get_current_user)):
-    """Получение истории сообщений для чата заявки на работу."""
-    request_query = work_requests.select().where(work_requests.c.id == request_id)
-    request = await database.fetch_one(request_query)
-    
-    if not request:
-        raise HTTPException(status_code=404, detail="Заявка на работу не найдена.")
-        
-    if current_user["id"] != request["user_id"] and current_user["id"] != request["executor_id"]:
-        raise HTTPException(status_code=403, detail="Вы не являетесь участником этого чата.")
-
-    query = chat_messages.select().where(chat_messages.c.request_id == request_id).order_by(chat_messages.c.timestamp)
-    messages = await database.fetch_all(query)
-    
-    # Получаем данные отправителей для корректного отображения в ChatMessageOut
-    user_ids = list(set([msg["sender_id"] for msg in messages]))
-    users_query = users.select().where(users.c.id.in_(user_ids))
-    users_map = {user["id"]: user["email"] for user in await database.fetch_all(users_query)}
-    
-    output_messages = []
-    for msg in messages:
-        output_messages.append({
-            "id": msg["id"],
-            "request_id": msg["request_id"],
-            "sender_id": msg["sender_id"],
-            "sender_username": users_map.get(msg["sender_id"], "Unknown"),
-            "message": msg["message"],
-            "timestamp": msg["timestamp"]
-        })
-        
-    return output_messages
+# --- ИСПРАВЛЕНИЕ: Удалены дублирующиеся эндпоинты для чата ---
+# Первая пара обработчиков чата была удалена, чтобы избежать конфликтов.
+# Оставлены более специфичные эндпоинты, привязанные к /work_requests/{request_id}/chat,
+# которые корректно используются фронтендом.
 
 @api_router.post("/work_requests/{request_id}/rate")
 async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = Depends(get_current_user)):
@@ -657,7 +598,7 @@ async def get_chat_messages(request_id: int, current_user: dict = Depends(get_cu
         raise HTTPException(status_code=400, detail="Чат для этой заявки не активирован")
 
     query = """
-    SELECT cm.id, cm.sender_id, cm.message, cm.timestamp, u.email as sender_username
+    SELECT cm.id, cm.request_id, cm.sender_id, cm.message, cm.timestamp, u.email as sender_username
     FROM chat_messages cm
     JOIN users u ON cm.sender_id = u.id
     WHERE cm.request_id = :request_id
