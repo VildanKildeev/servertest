@@ -323,16 +323,23 @@
         </div>
 
         <div id="chatPage" class="page">
-            <div class="form-container" style="padding: 0;">
-                <h3 id="chatHeader">Чат по заявке</h3>
-                <div id="chatBox"></div>
-                <div class="chat-input-container">
-                    <input type="text" id="chatInput" placeholder="Введите сообщение...">
-                    <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
-                </div>
+    <div class="form-container">
+        <h2 id="chatHeader">Чат по заявке: <span id="chatRequestName"></span></h2>
+        
+        <div id="chatBox">
             </div>
-            <button class="btn btn-secondary" onclick="goBackToRequests()">Назад к заявкам</button>
-        </div>
+
+        <p id="chatStatus" class="message error" style="display:none;"></p>
+
+        <form id="chatForm">
+            <div class="input-group" style="margin-top: 10px; display: flex; gap: 10px;">
+                <input type="text" id="chatInput" placeholder="Введите сообщение..." required style="flex-grow: 1;">
+                <button type="submit" id="chatSendBtn" class="btn btn-primary" style="width: auto; margin-top: 0;"><i class="fa fa-paper-plane"></i></button>
+            </div>
+            <button class="btn btn-secondary" style="margin-top: 10px;" onclick="showPage('myRequestsPage')">Назад к моим заявкам</button>
+        </form>
+    </div>
+</div>
         
         <div id="createMachineryRequestPage" class="page">
             <div class="form-container">
@@ -656,6 +663,104 @@ async function fetchMyChats() {
     }
 }
 
+async function fetchMessages(requestId) {
+        const chatBox = document.getElementById('chatBox');
+        chatBox.innerHTML = ''; // Очистка перед загрузкой
+        const chatStatus = document.getElementById('chatStatus');
+        chatStatus.style.display = 'none'; // Скрыть статус по умолчанию
+        
+        try {
+            const response = await fetch(`${API_URL}/work_requests/${requestId}/chat`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (response.status === 403) {
+                chatStatus.textContent = 'Чат еще не активирован или у вас нет доступа.';
+                chatStatus.style.display = 'block';
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error('Не удалось загрузить сообщения чата.');
+            }
+
+            const messages = await response.json();
+            
+            messages.forEach(msg => {
+                const messageEl = document.createElement('div');
+                // 'me' class for the current user, 'other' for the counterpart
+                const senderClass = msg.sender_id === currentUser.id ? 'me' : 'other';
+                const timestamp = new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+                messageEl.className = `chat-message ${senderClass}`;
+                messageEl.innerHTML = `
+                    <div class="msg-content">
+                        <p class="msg-text">${msg.message}</p>
+                        <p class="msg-info">${timestamp}</p>
+                    </div>
+                `;
+                chatBox.appendChild(messageEl);
+            });
+
+            // Прокрутка вниз
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+        } catch (error) {
+            console.error('Ошибка загрузки чата:', error);
+            chatStatus.textContent = error.message;
+            chatStatus.style.display = 'block';
+        }
+    }
+
+    async function sendMessage(requestId) {
+        const chatInput = document.getElementById('chatInput');
+        const message = chatInput.value.trim();
+        
+        if (!message) return;
+
+        const payload = { message: message };
+        const chatStatus = document.getElementById('chatStatus');
+        chatStatus.style.display = 'none';
+
+        try {
+            const response = await fetch(`${API_URL}/work_requests/${requestId}/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Не удалось отправить сообщение.');
+            }
+
+            chatInput.value = '';
+            // Обновление чата после отправки
+            await fetchMessages(requestId);
+
+        } catch (error) {
+            console.error('Ошибка отправки сообщения:', error);
+            chatStatus.textContent = 'Ошибка: ' + error.message;
+            chatStatus.style.display = 'block';
+        }
+    }
+
+
+    function openChat(requestId, requestName) {
+        currentChatRequestId = requestId;
+        document.getElementById('chatRequestName').textContent = requestName;
+        // Назначаем обработчик отправки сообщения
+        document.getElementById('chatForm').onsubmit = (e) => {
+            e.preventDefault();
+            sendMessage(requestId);
+        };
+        
+        fetchMessages(requestId);
+        showPage('chatPage');
+    }
 
 /**
  * Открывает страницу чата для конкретной заявки.
@@ -785,6 +890,88 @@ document.getElementById('sendMessageBtn').addEventListener('click', async () => 
     }
 });
 
+function showWorkRequests(requests, containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        if (requests.length === 0) {
+            container.innerHTML = '<p style="text-align: center; margin-top: 20px;">Нет доступных заявок.</p>';
+            return;
+        }
+
+        requests.forEach(request => {
+            const item = document.createElement('div');
+            item.className = 'request-item';
+
+            // Основная информация о заявке
+            let itemContent = `
+                <h4>${request.name} ${request.is_premium ? '<span class="premium"><i class="fa fa-star"></i> PREMIUM</span>' : ''}</h4>
+                <p><strong>Специализация:</strong> ${request.specialization}</p>
+                <p><strong>Бюджет:</strong> ${request.budget.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 })}</p>
+                <p><strong>Описание:</strong> ${request.description.substring(0, 100)}...</p>
+                <p><strong>Адрес:</strong> ${request.address || 'Не указан'}</p>
+                <p><strong>Дата визита:</strong> ${request.visit_date ? new Date(request.visit_date).toLocaleDateString('ru-RU') : 'Не требуется'}</p>
+                <p><strong>Создано:</strong> ${new Date(request.created_at).toLocaleDateString('ru-RU')}</p>
+            `;
+            
+            let buttons = '';
+            let status = '';
+            
+            if (request.is_taken) {
+                status = `<p class="${request.is_completed ? 'taken' : 'in-progress'}" style="color: ${request.is_completed ? '#28a745' : '#E87D39'}; font-weight: bold;">Статус: ${request.is_completed ? 'Завершена' : 'В работе'}</p>`;
+                
+                // Добавляем контактную информацию, если заявка взята
+                itemContent += `<p class="contact"><strong>Контакт:</strong> ${request.phone_number}</p>`;
+
+                // Кнопка чата для участников
+                if (request.chat_enabled && (request.executor_id === currentUser.id || request.user_id === currentUser.id)) {
+                    // Экранируем одинарные кавычки в имени заявки для корректной передачи в JS функцию
+                    const safeRequestName = request.name.replace(/'/g, "\\'");
+                    buttons += `<button class="btn chat-btn" onclick="openChat(${request.id}, '${safeRequestName}')">Открыть чат</button>`;
+                }
+                
+                // Кнопка завершения заявки (только для заказчика, если не завершена)
+                if (request.user_id === currentUser.id && !request.is_completed) {
+                    buttons += `<button class="btn take-btn" style="background-color: #007bff;" onclick="completeRequest(${request.id})">Завершить заявку</button>`;
+                }
+
+                // Раздел рейтинга (только для заказчика, если завершена)
+                if (request.is_completed && request.user_id === currentUser.id) {
+                     buttons += `<div class="rating-container" id="ratingContainer-${request.id}"> 
+                                    <p>Оцените исполнителя:</p>
+                                    <div class="rating-stars" data-request-id="${request.id}">
+                                        <i class="fa fa-star" data-rating="1"></i>
+                                        <i class="fa fa-star" data-rating="2"></i>
+                                        <i class="fa fa-star" data-rating="3"></i>
+                                        <i class="fa fa-star" data-rating="4"></i>
+                                        <i class="fa fa-star" data-rating="5"></i>
+                                    </div>
+                                    <button class="btn rating-submit-btn" onclick="submitRating(${request.id})">Оценить</button>
+                                 </div>`;
+                }
+
+            } else if (currentUser && currentUser.user_type === 'worker') {
+                buttons += `<button class="btn take-btn" onclick="takeRequest(${request.id})">Взять в работу</button>`;
+            }
+            
+            item.innerHTML = itemContent + status + '<div class="button-container">' + buttons + '</div>';
+            container.appendChild(item);
+        });
+
+        // После создания элементов, привязываем обработчики событий для звезд
+        document.querySelectorAll('.rating-stars').forEach(starsContainer => {
+            const stars = starsContainer.querySelectorAll('.fa-star');
+            let selectedRating = 0;
+
+            stars.forEach(star => {
+                star.addEventListener('click', function() {
+                    selectedRating = parseInt(this.getAttribute('data-rating'));
+                    stars.forEach(s => s.classList.remove('selected'));
+                    for(let i = 0; i < selectedRating; i++) {
+                        stars[i].classList.add('selected');
+                    }
+                    starsContainer.setAttribute('data-selected-rating', selectedRating);
+                });
 
 // --- ОБНОВЛЕНИЕ ФУНКЦИИ showPage ---
 
