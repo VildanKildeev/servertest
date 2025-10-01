@@ -705,15 +705,15 @@ async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
 # ----------------------------------------------------
 app.include_router(api_router)
 
-# Обслуживание статических файлов
-static_path = Path(__file__).parent
-app.mount("/static", StaticFiles(directory=static_path), name="static")
+static_path = Path(__file__).parent / "static" # Эта строка у вас есть
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
+
 
 @app.get("/", include_in_schema=False)
 async def serve_index():
-    """Обслуживание главной страницы index.html."""
-    # ИСПРАВЛЕНИЕ: Обслуживаем index.html из корня проекта
-    return FileResponse("index.html")
+    # ИСПРАВЛЕНИЕ: Используем Path для создания правильного пути
+    return FileResponse(static_path / "index.html") 
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
