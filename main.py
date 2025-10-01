@@ -127,17 +127,26 @@ class UserIn(BaseModel):
     city_id: int
 
 class UserOut(BaseModel):
-    """Схема для выдачи данных пользователя (без пароля)."""
     id: int
     email: EmailStr
-    username: Optional[str] = None
-    user_type: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone_number: Optional[str] = None
+    is_active: Optional[bool] = True
+    created_at: datetime
+    city_id: Optional[int] = None
     specialization: Optional[str] = None
-    is_premium: bool
-    # --- НОВЫЕ ПОЛЯ ДЛЯ РЕЙТИНГА ---
-    rating: float = Field(..., description="Рейтинг пользователя", ge=0.0, le=5.0)
-    rating_count: Optional[int] = Field(None, description="Количество оценок")
+    is_premium: Optional[bool] = False
+    user_type: str
+    
+    # ИСПРАВЛЕНИЕ ДЛЯ ТЕКУЩЕЙ ОШИБКИ ('rating'):
+    rating: Optional[float] = Field(None, description="Рейтинг пользователя", ge=0.0, le=5.0)
+    
+    # ИСПРАВЛЕНИЕ ДЛЯ ПРЕДЫДУЩЕЙ ОШИБКИ ('rating_count'):
+    rating_count: Optional[int] = Field(None, description="Количество оценок", ge=0)
+    
+    class Config:
+        from_attributes = True
 
 class Token(BaseModel):
     """Схема для токена доступа."""
