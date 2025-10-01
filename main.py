@@ -521,7 +521,7 @@ async def send_chat_message(request_id: int, message_in: ChatMessageIn, current_
     return created_message
 
 
-# --- MACHINERY REQUESTS ENDPOINTS (ВОССТАНОВЛЕННЫЕ БЛОКИ) ---
+# --- MACHINERY REQUESTS ENDPOINTS ---
 
 @api_router.post("/machinery_requests", response_model=MachineryRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_machinery_request(request_in: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
@@ -561,7 +561,7 @@ async def get_my_machinery_requests(current_user: dict = Depends(get_current_use
     return await database.fetch_all(query)
 
 
-# --- TOOL REQUESTS ENDPOINTS (ВОССТАНОВЛЕННЫЕ БЛОКИ) ---
+# --- TOOL REQUESTS ENDPOINTS ---
 
 @api_router.post("/tool_requests", response_model=ToolRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_tool_request(request_in: ToolRequestIn, current_user: dict = Depends(get_current_user)):
@@ -604,7 +604,7 @@ async def get_my_tool_requests(current_user: dict = Depends(get_current_user)):
     return await database.fetch_all(query)
 
 
-# --- MATERIAL ADS ENDPOINTS (ВОССТАНОВЛЕННЫЕ БЛОКИ) ---
+# --- MATERIAL ADS ENDPOINTS ---
 
 @api_router.post("/material_ads", response_model=MaterialAdOut, status_code=status.HTTP_201_CREATED)
 async def create_material_ad(ad_in: MaterialAdIn, current_user: dict = Depends(get_current_user)):
@@ -655,7 +655,9 @@ if static_path.exists():
 
 @app.get("/", include_in_schema=False)
 async def serve_index():
-    return FileResponse("index.html")
+    # ИСПРАВЛЕНИЕ: Указываем полный путь к index.html внутри папки static
+    index_file_path = Path(__file__).parent / "static" / "index.html"
+    return FileResponse(index_file_path)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
