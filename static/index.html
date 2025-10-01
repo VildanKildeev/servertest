@@ -513,658 +513,800 @@
     </div>
 
     <script>
-    const API_URL = "/api";
-    let accessToken = null;
-    let selectedCityId = null;
-    let currentUser = null;
-    let currentChatRequestId = null;
-    let chatPollInterval = null;
-    let currentChatRequest = null;
-    let lastPage = 'buttonContainer';
+        const API_URL = "/api";
+        let accessToken = null;
+        let selectedCityId = null;
+        let currentUser = null;
+        let currentChatRequest = null;
+        let lastPage = 'buttonContainer';
 
-    const pages = [
-        'loginPage', 'registerPage', 'buttonContainer', 'profilePage',
-        'createWorkRequestPage', 'workRequestsPage',
-        'createMachineryRequestPage', 'machineryRequestsPage',
-        'createToolRequestPage', 'toolRequestsPage',
-        'createMaterialAdPage', 'materialAdsPage', 'myRequestsPage', 'chatPage'
-    ];
-    const cityModal = document.getElementById('cityModal');
-    const cityNameEl = document.getElementById('cityName');
-    const loadingMessage = document.getElementById('loadingMessage');
-    const bottomNav = document.getElementById('bottomNav');
+        const pages = [
+            'loginPage', 'registerPage', 'buttonContainer', 'profilePage',
+            'createWorkRequestPage', 'workRequestsPage',
+            'createMachineryRequestPage', 'machineryRequestsPage',
+            'createToolRequestPage', 'toolRequestsPage',
+            'createMaterialAdPage', 'materialAdsPage', 'myRequestsPage', 'chatPage'
+        ];
+        const cityModal = document.getElementById('cityModal');
+        const cityNameEl = document.getElementById('cityName');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const bottomNav = document.getElementById('bottomNav');
 
-    function getSelectedCity() {
-        const cityData = localStorage.getItem('selectedCity');
-        return cityData ? JSON.parse(cityData) : null;
-    }
-
-    function goBackToRequests() {
-        showPage(lastPage);
-    }
-
-    function showPage(pageId, setLastPage = true) {
-        if (setLastPage) {
-            const currentPage = document.querySelector('.page.active');
-            if (currentPage && currentPage.id !== 'loginPage' && currentPage.id !== 'registerPage' && currentPage.id !== 'chatPage') {
-                lastPage = currentPage.id;
-            }
+        function getSelectedCity() {
+            const cityData = localStorage.getItem('selectedCity');
+            return cityData ? JSON.parse(cityData) : null;
         }
-        pages.forEach(id => {
-            const page = document.getElementById(id);
-            if (page) page.classList.remove('active');
-        });
-        const activePage = document.getElementById(pageId);
-        if (activePage) activePage.classList.add('active');
-
-        if (pageId === 'buttonContainer') {
-            bottomNav.classList.add('visible');
-        } else {
-            bottomNav.classList.remove('visible');
+        
+        function goBackToRequests() {
+            showPage(lastPage);
         }
 
-        // Останавливаем пулинг, если уходим со страницы чата
-        if (pageId !== 'chatPage' && chatPollInterval) {
-            clearInterval(chatPollInterval);
-            chatPollInterval = null;
-            currentChatRequestId = null;
-        }
-
-        if (pageId === 'workRequestsPage') fetchWorkRequests();
-        if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
-        if (pageId === 'toolRequestsPage') fetchToolRequests();
-        if (pageId === 'materialAdsPage') fetchMaterialAds();
-        if (pageId === 'myRequestsPage') fetchMyRequests();
-        if (pageId === 'profilePage') {
-            fetchProfile();
-            fetchMyChats(); 
-        }
-    }
-
-    function renderStars(rating) {
-        const fullStars = Math.floor(rating);
-        const halfStar = rating % 1 >= 0.5 ? 1 : 0;
-        const emptyStars = 5 - fullStars - halfStar;
-        let starsHTML = '';
-        for (let i = 0; i < fullStars; i++) starsHTML += '<i class="fas fa-star"></i>';
-        if (halfStar) starsHTML += '<i class="fas fa-star-half-alt"></i>';
-        for (let i = 0; i < emptyStars; i++) starsHTML += '<i class="far fa-star"></i>';
-        return starsHTML;
-    }
-
-    async function fetchProfile() {
-        try {
-            const response = await fetch(`${API_URL}/users/me`, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            if (response.ok) {
-                currentUser = await response.json();
-                updateProfilePage(currentUser);
-            } else {
-                logout();
-            }
-        } catch (error) {
-            console.error('Ошибка при получении профиля:', error);
-            logout();
-        }
-    }
-
-    // --- CORRECTED ---
-    // This function now correctly reuses existing logic to fetch all work requests
-    // related to the user and then renders the chats from them.
-    async function fetchMyChats() {
-        const chatsListEl = document.getElementById('profileChatsList');
-        chatsListEl.innerHTML = 'Загрузка активных чатов...';
-        try {
-            const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
-            renderChats(allMyWorkRequests, 'profileChatsList');
-        } catch (error) {
-             console.error('Error fetching chats for profile:', error);
-             chatsListEl.innerHTML = '<p class="message error">Ошибка сети при загрузке чатов.</p>';
-        }
-    }
-
-
-    /**
-     * Открывает страницу чата для конкретной заявки.
-     */
-    function openChat(requestId, chatTitle) {
-        currentChatRequestId = requestId;
-
-        document.getElementById('chatHeader').textContent = chatTitle;
-        document.getElementById('chatBox').innerHTML = 'Загрузка сообщений...';
-        showPage('chatPage', false); // Не меняем lastPage при переходе в чат
-
-        // 1. Загружаем сообщения и прокручиваем
-        fetchChatMessages(true);
-
-        // 2. Начинаем пулинг для обновления
-        if (chatPollInterval) {
-            clearInterval(chatPollInterval);
-        }
-        // Пулинг каждые 3 секунды
-        chatPollInterval = setInterval(() => fetchChatMessages(false), 3000);
-    }
-
-    /**
-     * Загружает сообщения из API.
-     */
-    async function fetchChatMessages(shouldScroll = true) {
-        if (!currentChatRequestId) return;
-
-        try {
-            // --- CORRECTED --- 
-            // Removed the incorrect "/messages" from the URL path.
-            const response = await fetch(`${API_URL}/work_requests/${currentChatRequestId}/chat`, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-
-            if (response.ok) {
-                const messages = await response.json();
-                renderChatMessages(messages, shouldScroll);
-            } else {
-                console.error("Error fetching messages:", response.status);
-                if (document.getElementById('chatBox').innerHTML.includes('Загрузка')) {
-                    document.getElementById('chatBox').innerHTML = '<p style="text-align: center; color: red;">Не удалось загрузить сообщения.</p>';
+        function showPage(pageId, setLastPage = true) {
+             if (setLastPage) {
+                const currentPage = document.querySelector('.page.active');
+                if (currentPage && currentPage.id !== 'loginPage' && currentPage.id !== 'registerPage' && currentPage.id !== 'chatPage') {
+                    lastPage = currentPage.id;
                 }
             }
-        } catch (error) {
-            console.error('Network error fetching messages:', error);
+            pages.forEach(id => {
+                const page = document.getElementById(id);
+                if (page) page.classList.remove('active');
+            });
+            const activePage = document.getElementById(pageId);
+            if (activePage) activePage.classList.add('active');
+            
+            if (pageId === 'buttonContainer') {
+                bottomNav.classList.add('visible');
+            } else {
+                bottomNav.classList.remove('visible');
+            }
+            
+            if (pageId === 'workRequestsPage') fetchWorkRequests();
+            if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
+            if (pageId === 'toolRequestsPage') fetchToolRequests();
+            if (pageId === 'materialAdsPage') fetchMaterialAds();
+            if (pageId === 'myRequestsPage') fetchMyRequests();
+            if (pageId === 'profilePage') {
+                fetchProfile();
+                fetchAndRenderProfileChats();
+            }
         }
-    }
-
-    /**
-     * Отображает сообщения в окне чата.
-     */
-    function renderChatMessages(messages, shouldScroll) {
-        const chatBox = document.getElementById('chatBox');
-
-        // Оптимизация: не обновлять, если количество сообщений не изменилось
-        if (messages.length === chatBox.children.length && !shouldScroll && chatBox.children.length > 0) {
-            return;
+        
+        function renderStars(rating) {
+            const fullStars = Math.floor(rating);
+            const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+            const emptyStars = 5 - fullStars - halfStar;
+            let starsHTML = '';
+            for (let i = 0; i < fullStars; i++) starsHTML += '<i class="fas fa-star"></i>';
+            if (halfStar) starsHTML += '<i class="fas fa-star-half-alt"></i>';
+            for (let i = 0; i < emptyStars; i++) starsHTML += '<i class="far fa-star"></i>';
+            return starsHTML;
         }
 
-        chatBox.innerHTML = '';
-
-        if (messages.length === 0) {
-            chatBox.innerHTML = '<p style="text-align: center; color: #6B6B6B;">Здесь пока нет сообщений. Начните диалог!</p>';
-            return;
+        async function fetchProfile() {
+            try {
+                const response = await fetch(`${API_URL}/users/me`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (response.ok) {
+                    currentUser = await response.json();
+                    updateProfilePage(currentUser);
+                } else {
+                    logout();
+                }
+            } catch (error) {
+                console.error('Ошибка при получении профиля:', error);
+                logout();
+            }
         }
 
-        messages.forEach(msg => {
-            const isMe = msg.sender_id === currentUser.id;
-            const chatMessage = document.createElement('div');
-            chatMessage.className = `chat-message ${isMe ? 'me' : 'other'}`;
-
-            const date = new Date(msg.timestamp);
-            const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
-            chatMessage.innerHTML = `
-                <div class="msg-content">
-                    <p class="msg-text">${msg.message}</p>
-                </div>
-                <div class="msg-info">${isMe ? 'Вы' : msg.sender_username} в ${time}</div>
+        function updateProfilePage(profile) {
+            const profileInfo = document.getElementById('profileInfo');
+            const profileRating = document.getElementById('profileRating');
+            const editSpecializationForm = document.getElementById('editSpecializationForm');
+            
+            profileInfo.innerHTML = `
+                <p><strong>Ваш email:</strong> ${profile.email}</p>
+                <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
+                ${profile.user_type === 'ИСПОЛНИТЕЛЬ' ? `<p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>` : ''}
+                <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
             `;
-            chatBox.appendChild(chatMessage);
+            
+            if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+                if (profile.rating_count > 0) {
+                     profileRating.innerHTML = `
+                        <strong>Рейтинг:</strong>
+                        <span class="stars">${renderStars(profile.rating)}</span>
+                        <span>${profile.rating.toFixed(1)} на основе ${profile.rating_count} оценок</span>
+                     `;
+                } else {
+                     profileRating.innerHTML = `<strong>Рейтинг:</strong> Пока нет оценок`;
+                }
+            } else {
+                profileRating.innerHTML = '';
+            }
+
+            if (document.getElementById('subscribeBtn')) document.getElementById('subscribeBtn').remove();
+            if (document.getElementById('updateSpecializationBtn')) document.getElementById('updateSpecializationBtn').remove();
+            
+            editSpecializationForm.style.display = 'none';
+
+            if (!profile.is_premium) {
+                const subscribeBtn = document.createElement('button');
+                subscribeBtn.id = 'subscribeBtn';
+                subscribeBtn.textContent = 'Активировать премиум-подписку';
+                subscribeBtn.className = 'btn';
+                subscribeBtn.onclick = async () => {
+                    const response = await fetch(`${API_URL}/subscribe`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    const data = await response.json();
+                    alert(response.ok ? data.message : `Ошибка: ${data.detail}`);
+                    if(response.ok) fetchProfile();
+                };
+                profileInfo.appendChild(subscribeBtn);
+            }
+
+            if (profile.user_type === "ИСПОЛНИТЕЛЬ") {
+                const updateBtn = document.createElement('button');
+                updateBtn.id = 'updateSpecializationBtn';
+                updateBtn.textContent = 'Изменить специализацию';
+                updateBtn.className = 'btn';
+                updateBtn.onclick = () => {
+                    editSpecializationForm.style.display = 'block';
+                    updateBtn.style.display = 'none';
+                };
+                profileInfo.appendChild(updateBtn);
+            }
+        }
+
+        document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
+            const newSpecialization = document.getElementById('newSpecialization').value;
+            try {
+                const response = await fetch(`${API_URL}/users/update-specialization`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ specialization: newSpecialization })
+                });
+                const data = await response.json();
+                alert(response.ok ? 'Специализация успешно обновлена.' : `Ошибка: ${data.detail}`);
+                if (response.ok) {
+                    document.getElementById('editSpecializationForm').style.display = 'none';
+                    document.getElementById('updateSpecializationBtn').style.display = 'block';
+                    fetchProfile();
+                }
+            } catch (error) {
+                console.error('Ошибка при обновлении специализации:', error);
+                alert('Не удалось обновить специализацию.');
+            }
         });
 
-        if (shouldScroll) {
-            // Прокручиваем к последнему сообщению
-            chatBox.scrollTop = chatBox.scrollHeight;
+        async function fetchCities() {
+            loadingMessage.style.display = 'block';
+            try {
+                const response = await fetch(`${API_URL}/cities/`);
+                const cities = await response.json();
+                const cityList = document.getElementById('cityList');
+                cityList.innerHTML = '';
+                cities.forEach(city => {
+                    const button = document.createElement('button');
+                    button.className = 'city-button';
+                    button.textContent = city.name;
+                    button.onclick = () => {
+                        localStorage.setItem('selectedCity', JSON.stringify(city));
+                        cityNameEl.textContent = city.name;
+                        cityModal.classList.remove('active');
+                        selectedCityId = city.id;
+                        checkAuthentication();
+                    };
+                    cityList.appendChild(button);
+                });
+            } catch (error) {
+                console.error('Ошибка при загрузке городов:', error);
+            } finally {
+                loadingMessage.style.display = 'none';
+            }
         }
-    }
 
-
-    // --- ОБРАБОТЧИК ОТПРАВКИ СООБЩЕНИЯ ---
-    document.getElementById('sendMessageBtn')?.addEventListener('click', async () => {
-        const chatInput = document.getElementById('chatInput');
-        const message = chatInput.value.trim();
-
-        if (!message || !currentChatRequestId) {
-            return;
+        async function fetchSpecializations() {
+            try {
+                const response = await fetch(`${API_URL}/specializations/`);
+                const specializations = await response.json();
+                const els = [document.getElementById('workSpecialization'), document.getElementById('newSpecialization'), document.getElementById('registerSpecialization')];
+                els.forEach(el => {
+                    if (el) {
+                        el.innerHTML = '';
+                        if (el.id === 'registerSpecialization') {
+                             el.innerHTML = '<option value="">Выберите специализацию</option>';
+                        }
+                        specializations.forEach(spec => {
+                            const option = document.createElement('option');
+                            option.value = spec;
+                            option.textContent = spec;
+                            el.appendChild(option);
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка при загрузке специализаций:', error);
+            }
         }
+        
+        const fetchAndPopulateSelect = async (url, elementId) => {
+            try {
+                const response = await fetch(`${API_URL}/${url}/`);
+                const items = await response.json();
+                const selectEl = document.getElementById(elementId);
+                if (selectEl) {
+                    selectEl.innerHTML = '';
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item;
+                        option.textContent = item;
+                        selectEl.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error(`Ошибка при загрузке ${url}:`, error);
+            }
+        };
 
-        // Временно отключаем кнопку и очищаем поле
-        chatInput.value = '';
-        document.getElementById('sendMessageBtn').disabled = true;
+        function renderRequests(requests, containerId, type, isMyRequest = false) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
 
-        try {
-            // --- CORRECTED ---
-            // Removed the incorrect "/messages" from the URL path.
-            const response = await fetch(`${API_URL}/work_requests/${currentChatRequestId}/chat`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({ message: message })
+            container.innerHTML = '';
+            
+            if (!Array.isArray(requests) || requests.length === 0) {
+                container.innerHTML = '<p>Нет доступных заявок.</p>';
+                return;
+            }
+
+            requests.forEach(req => {
+                const item = document.createElement('div');
+                item.className = 'request-item';
+                let content = '';
+                
+                if (type === 'work') {
+                    content = `<h4>Работа: ${req.specialization} ${req.is_premium ? '<span class="premium">(ПРЕМИУМ)</span>' : ''}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Бюджет:</strong> ${req.budget} руб.</p><p><strong>Адрес:</strong> ${req.address || 'Не указан'}</p><p class="contact"><strong>Контакт:</strong> ${req.phone_number}</p>`;
+                } else if (type === 'machinery') {
+                    content = `<h4>Техника: ${req.machinery_type}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Цена (за час):</strong> ${req.rental_price} руб.</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
+                } else if (type === 'tool') {
+                    content = `<h4>Инструмент: ${req.tool_name} (x${req.tool_count})</h4><p><strong>Цена аренды:</strong> ${req.rental_price} руб./сутки</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
+                } else if (type === 'material') {
+                     content = `<h4>Материал: ${req.material_type}</h4><p><strong>Цена:</strong> ${req.price} руб.</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
+                }
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.innerHTML = content;
+                item.appendChild(contentDiv);
+                
+                if (currentUser) {
+                    if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ' && type === 'work' && !isMyRequest) {
+                        if (req.is_taken) {
+                             const takenP = document.createElement('p');
+                             takenP.className = 'taken';
+                             takenP.innerHTML = '<strong>Заявка занята.</strong>';
+                             item.appendChild(takenP);
+                        } else {
+                            const takeBtn = document.createElement('button');
+                            takeBtn.className = 'take-btn';
+                            takeBtn.textContent = 'Взять заявку';
+                            takeBtn.onclick = () => takeRequest(req.id, type);
+                            item.appendChild(takeBtn);
+                        }
+                    }
+                    
+                    if (req.user_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
+                        const chatBtn = document.createElement('button');
+                        chatBtn.className = 'chat-btn';
+                        chatBtn.textContent = 'Открыть чат';
+                        chatBtn.onclick = () => setupChat(req);
+                        item.appendChild(chatBtn);
+                    }
+                    
+                    if (req.executor_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
+                        if (isMyRequest) {
+                             const takenP = document.createElement('p');
+                             takenP.className = 'taken';
+                             takenP.innerHTML = '<strong>Заявка принята вами.</strong>';
+                            item.appendChild(takenP);
+                        }
+                        const chatBtn = document.createElement('button');
+                        chatBtn.className = 'chat-btn';
+                        chatBtn.textContent = 'Открыть чат с заказчиком';
+                        chatBtn.onclick = () => setupChat(req);
+                        item.appendChild(chatBtn);
+                    }
+
+                    if (type === 'work' && isMyRequest && req.user_id === currentUser.id && req.is_taken && req.executor_id) {
+                        const ratingDiv = document.createElement('div');
+                        ratingDiv.className = 'rating-container';
+                        ratingDiv.id = `rating-container-${req.id}`;
+                        ratingDiv.setAttribute('data-rating', '0');
+                        ratingDiv.innerHTML = `<p>Оцените работу исполнителя:</p><div class="rating-stars"><i class="far fa-star" onclick="selectRating(${req.id}, 1)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 2)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 3)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 4)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 5)"></i></div><button class="btn btn-primary rating-submit-btn" onclick="submitRating(${req.id})">Отправить оценку</button>`;
+                        item.appendChild(ratingDiv);
+                    }
+                }
+                container.appendChild(item);
             });
-
-            if (response.ok) {
-                // Успешно, обновляем чат с прокруткой
-                fetchChatMessages(true);
-            } else {
-                // В случае ошибки возвращаем текст в поле ввода
-                chatInput.value = message;
-                alert('Ошибка при отправке сообщения. Код: ' + response.status);
-            }
-        } catch (error) {
-            console.error('Error sending message:', error);
-            chatInput.value = message;
-            alert('Ошибка сети при отправке сообщения.');
-        } finally {
-            document.getElementById('sendMessageBtn').disabled = false;
         }
-    });
-
-
-    // --- ФУНКЦИИ ПРОФИЛЯ ---
-
-    function updateProfilePage(profile) {
-        const profileInfo = document.getElementById('profileInfo');
-        const profileRating = document.getElementById('profileRating');
-        const editSpecializationForm = document.getElementById('editSpecializationForm');
-
-        profileInfo.innerHTML = `
-            <p><strong>Ваш email:</strong> ${profile.email}</p>
-            <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
-            ${profile.user_type === 'ИСПОЛНИТЕЛЬ' ? `<p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>` : ''}
-            <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
-        `;
-
-        if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-            if (profile.rating_count > 0) {
-                profileRating.innerHTML = `
-                    <strong>Рейтинг:</strong>
-                    <span class="stars">${renderStars(profile.rating)}</span>
-                    <span>${profile.rating.toFixed(1)} на основе ${profile.rating_count} оценок</span>
-                `;
-            } else {
-                profileRating.innerHTML = `<strong>Рейтинг:</strong> Пока нет оценок`;
+        
+        function selectRating(requestId, ratingValue) {
+            const container = document.getElementById(`rating-container-${requestId}`);
+            container.setAttribute('data-rating', ratingValue);
+            const stars = container.querySelectorAll('.rating-stars i');
+            stars.forEach((star, index) => {
+                if (index < ratingValue) {
+                    star.className = 'fas fa-star selected';
+                } else {
+                    star.className = 'far fa-star';
+                }
+            });
+        }
+        
+        async function submitRating(requestId) {
+            const container = document.getElementById(`rating-container-${requestId}`);
+            const ratingValue = parseInt(container.getAttribute('data-rating'));
+            const statusEl = document.getElementById('myRequestsStatus');
+            
+            if (ratingValue === 0) {
+                alert('Пожалуйста, выберите оценку от 1 до 5 звезд.');
+                return;
             }
-        } else {
-            profileRating.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_URL}/work_requests/${requestId}/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    body: JSON.stringify({ rating_value: ratingValue })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = data.message || 'Оценка успешно отправлена!';
+                    statusEl.className = 'message success';
+                    container.innerHTML = `<p class="taken">Спасибо за вашу оценку!</p>`;
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось отправить оценку'}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла сетевая ошибка при отправке оценки.';
+                statusEl.className = 'message error';
+            }
+            statusEl.style.display = 'block';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
         }
 
-        if (document.getElementById('subscribeBtn')) document.getElementById('subscribeBtn').remove();
-        if (document.getElementById('updateSpecializationBtn')) document.getElementById('updateSpecializationBtn').remove();
+        function renderChats(requests, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
 
-        editSpecializationForm.style.display = 'none';
+            const chatEnabledRequests = requests.filter(req => req.chat_enabled);
 
-        if (!profile.is_premium) {
-            const subscribeBtn = document.createElement('button');
-            subscribeBtn.id = 'subscribeBtn';
-            subscribeBtn.textContent = 'Активировать премиум-подписку';
-            subscribeBtn.className = 'btn';
-            subscribeBtn.onclick = async () => {
-                const response = await fetch(`${API_URL}/subscribe`, {
+            container.innerHTML = '';
+            if (chatEnabledRequests.length === 0) {
+                container.innerHTML = '<p>Нет активных чатов.</p>';
+                return;
+            }
+
+            chatEnabledRequests.forEach(req => {
+                const item = document.createElement('div');
+                item.className = 'request-item';
+                
+                const role = req.user_id === currentUser.id ? ' (Вы - Заказчик)' : ' (Вы - Исполнитель)';
+                item.innerHTML = `<h4>Чат: ${req.specialization} ${role}</h4><p><strong>Статус:</strong> ${req.is_taken ? 'В работе' : 'Открыта'}</p><p><strong>ID заявки:</strong> ${req.id}</p>`;
+                
+                const chatBtn = document.createElement('button');
+                chatBtn.className = 'chat-btn';
+                chatBtn.textContent = 'Открыть чат';
+                chatBtn.onclick = () => setupChat(req);
+                item.appendChild(chatBtn);
+
+                container.appendChild(item);
+            });
+        }
+        
+        async function fetchDataInternal(endpoint) {
+            try {
+                const url = `${API_URL}/${endpoint}`;
+                const response = await fetch(url, {
+                     headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (response.ok) {
+                    return await response.json();
+                }
+                return [];
+            } catch (error) {
+                console.error(`Ошибка при получении ${endpoint}:`, error);
+                return [];
+            }
+        }
+        
+        // --- ИСПРАВЛЕНИЕ: Новая надежная функция для загрузки всех заявок, связанных с пользователем ---
+        async function fetchMyAndTakenWorkRequests() {
+            if (!accessToken || !currentUser) return [];
+            
+            // Получаем заявки, созданные мной
+            const myCreatedReqs = await fetchDataInternal('work_requests/my');
+            
+            // Получаем заявки, взятые мной (если я исполнитель)
+            const myTakenReqs = currentUser.user_type === 'ИСПОЛНИТЕЛЬ' 
+                ? await fetchDataInternal('work_requests/taken') 
+                : [];
+            
+            // Объединяем и убираем дубликаты, чтобы каждая заявка была в списке один раз
+            const allReqs = [...myCreatedReqs, ...myTakenReqs];
+            const uniqueReqs = allReqs.filter((req, index, self) => 
+                index === self.findIndex((r) => r.id === req.id)
+            );
+            
+            return uniqueReqs;
+        }
+
+        async function fetchRequests(endpoint, containerId, type, isMyRequest = false) {
+            if (!selectedCityId && !isMyRequest) {
+                alert('Пожалуйста, выберите город.');
+                return;
+            }
+            try {
+                const url = isMyRequest ? `${API_URL}/${endpoint}` : `${API_URL}/${endpoint}/by_city/${selectedCityId}`;
+                const response = await fetch(url, {
+                     headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await response.json();
+                const container = document.getElementById(containerId);
+                if (response.ok) {
+                    renderRequests(data, containerId, type, isMyRequest);
+                } else {
+                    if(container) container.innerHTML = `<p class="message error">Ошибка загрузки: ${data.detail || response.statusText}</p>`;
+                }
+            } catch (error) {
+                console.error(`Ошибка при получении ${type} заявок:`, error);
+                const container = document.getElementById(containerId);
+                if(container) container.innerHTML = '<p class="message error">Не удалось соединиться с сервером.</p>';
+            }
+        }
+        
+        const fetchWorkRequests = () => fetchRequests('work_requests', 'workRequestsList', 'work');
+        const fetchMachineryRequests = () => fetchRequests('machinery_requests', 'machineryRequestsList', 'machinery');
+        const fetchToolRequests = () => fetchRequests('tool_requests', 'toolRequestsList', 'tool');
+        const fetchMaterialAds = () => fetchRequests('material_ads', 'materialAdsList', 'material');
+        
+        // --- ИСПРАВЛЕНИЕ: Используем новую надежную функцию ---
+        async function fetchAndRenderProfileChats() {
+            const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
+            renderChats(allMyWorkRequests, 'profileChatsList');
+        }
+        
+        // --- ИСПРАВЛЕНИЕ: Логика отображения "Моих заявок" переписана для надежности ---
+        async function fetchMyRequests() {
+             if (!accessToken) return;
+             
+             // 1. Получаем единый список всех моих заявок на работу
+             const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
+             
+             // 2. Отображаем Активные чаты
+             renderChats(allMyWorkRequests, 'myChatsList');
+             
+             // 3. Отображаем заявки, созданные мной
+             const myCreatedWorkRequests = allMyWorkRequests.filter(req => req.user_id === currentUser.id);
+             renderRequests(myCreatedWorkRequests, 'myWorkRequestsList', 'work', true);
+
+             // 4. Отображаем заявки, взятые мной
+             const takenSection = document.getElementById('myTakenWorkRequestsSection');
+             if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
+                 const myTakenWorkRequests = allMyWorkRequests.filter(req => req.executor_id === currentUser.id);
+                 takenSection.style.display = 'block';
+                 renderRequests(myTakenWorkRequests, 'myTakenWorkRequestsList', 'work', true);
+             } else {
+                 takenSection.style.display = 'none';
+             }
+             
+             // 5. Загружаем остальные типы заявок (как и раньше)
+             await fetchRequests('machinery_requests/my', 'myMachineryRequestsList', 'machinery', true);
+             await fetchRequests('tool_requests/my', 'myToolRequestsList', 'tool', true);
+             await fetchRequests('material_ads/my', 'myMaterialAdsList', 'material', true);
+        }
+
+        async function setupChat(request) {
+            currentChatRequest = request;
+            showPage('chatPage', false);
+
+            document.getElementById('chatHeader').textContent = `Чат: ${request.specialization}`;
+            document.getElementById('chatBox').innerHTML = '<p style="text-align: center; color: #6B6B6B;">Загрузка сообщений...</p>';
+            document.getElementById('sendMessageBtn').onclick = sendMessage;
+            document.getElementById('chatInput').onkeypress = (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                    e.preventDefault();
+                }
+            };
+            await fetchChatMessages();
+        }
+        
+        async function fetchChatMessages() {
+            if (!currentChatRequest) return;
+            try {
+                const response = await fetch(`${API_URL}/work_requests/${currentChatRequest.id}/chat`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const messages = await response.json();
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML = '';
+                
+                if (!response.ok) {
+                    const data = messages;
+                    chatBox.innerHTML = `<p class="message error">${data.detail || 'Чат не активирован.'}</p>`;
+                    return;
+                }
+                
+                if (messages.length === 0) {
+                    chatBox.innerHTML = '<p style="text-align: center; color: #6B6B6B;">Сообщений пока нет. Начните диалог!</p>';
+                    return;
+                }
+
+                messages.forEach(msg => {
+                    const msgEl = document.createElement('div');
+                    const isMe = msg.sender_id === currentUser.id;
+                    msgEl.className = `chat-message ${isMe ? 'me' : 'other'}`;
+                    const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                    
+                    msgEl.innerHTML = `
+                        <div class="msg-content">
+                            <p class="msg-text">${msg.message}</p>
+                        </div>
+                        <div class="msg-info">${isMe ? 'Вы' : msg.sender_username.split('@')[0]}, ${time}</div>
+                    `;
+                    chatBox.appendChild(msgEl);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                console.error('Ошибка при загрузке чата:', error);
+                document.getElementById('chatBox').innerHTML = '<p class="message error">Ошибка при загрузке сообщений.</p>';
+            }
+        }
+        
+        async function sendMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            if (!message || !currentChatRequest) return;
+
+            try {
+                const response = await fetch(`${API_URL}/work_requests/${currentChatRequest.id}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    body: JSON.stringify({ message: message })
+                });
+                if (response.ok) {
+                    chatInput.value = '';
+                    await fetchChatMessages(); 
+                } else {
+                    const data = await response.json();
+                    alert(`Ошибка отправки сообщения: ${data.detail}`);
+                }
+            } catch (error) {
+                console.error('Ошибка при отправке сообщения:', error);
+                alert('Не удалось отправить сообщение.');
+            }
+        }
+
+        async function takeRequest(requestId, type) {
+            if (!confirm('Вы уверены, что хотите взять эту заявку? Это откроет чат с заказчиком.')) return;
+            const statusEl = document.getElementById('takeOrderStatus');
+            try {
+                const response = await fetch(`${API_URL}/${type}_requests/${requestId}/take`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 const data = await response.json();
-                alert(response.ok ? data.message : `Ошибка: ${data.detail}`);
-                if(response.ok) fetchProfile();
-            };
-            profileInfo.appendChild(subscribeBtn);
-        }
-
-        if (profile.user_type === "ИСПОЛНИТЕЛЬ") {
-            const updateBtn = document.createElement('button');
-            updateBtn.id = 'updateSpecializationBtn';
-            updateBtn.textContent = 'Изменить специализацию';
-            updateBtn.className = 'btn';
-            updateBtn.onclick = () => {
-                editSpecializationForm.style.display = 'block';
-                updateBtn.style.display = 'none';
-            };
-            profileInfo.appendChild(updateBtn);
-        }
-    }
-
-    document.getElementById('saveSpecializationBtn')?.addEventListener('click', async () => {
-        const newSpecialization = document.getElementById('newSpecialization').value;
-        try {
-            const response = await fetch(`${API_URL}/users/update-specialization`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({ specialization: newSpecialization })
-            });
-            const data = await response.json();
-            alert(response.ok ? 'Специализация успешно обновлена.' : `Ошибка: ${data.detail}`);
-            if (response.ok) {
-                document.getElementById('editSpecializationForm').style.display = 'none';
-                document.getElementById('updateSpecializationBtn').style.display = 'block';
-                fetchProfile();
-            }
-        } catch (error) {
-            console.error('Ошибка при обновлении специализации:', error);
-            alert('Не удалось обновить специализацию.');
-        }
-    });
-
-    // --- ФУНКЦИИ ДЛЯ ДАННЫХ ---
-    async function fetchCities() {
-        loadingMessage.style.display = 'block';
-        try {
-            const response = await fetch(`${API_URL}/cities/`);
-            const cities = await response.json();
-            const cityList = document.getElementById('cityList');
-            cityList.innerHTML = '';
-            cities.forEach(city => {
-                const button = document.createElement('button');
-                button.className = 'city-button';
-                button.textContent = city.name;
-                button.onclick = () => {
-                    localStorage.setItem('selectedCity', JSON.stringify(city));
-                    cityNameEl.textContent = city.name;
-                    cityModal.classList.remove('active');
-                    selectedCityId = city.id;
-                    checkAuthentication();
-                };
-                cityList.appendChild(button);
-            });
-        } catch (error) {
-            console.error('Ошибка при загрузке городов:', error);
-        } finally {
-            loadingMessage.style.display = 'none';
-        }
-    }
-
-    async function fetchSpecializations() {
-        try {
-            const response = await fetch(`${API_URL}/specializations/`);
-            const specializations = await response.json();
-            const els = [document.getElementById('workSpecialization'), document.getElementById('newSpecialization'), document.getElementById('registerSpecialization')];
-            els.forEach(el => {
-                if (el) {
-                    el.innerHTML = '';
-                    if (el.id === 'registerSpecialization') {
-                        el.innerHTML = '<option value="">Выберите специализацию</option>';
-                    }
-                    specializations.forEach(spec => {
-                        const option = document.createElement('option');
-                        option.value = spec;
-                        option.textContent = spec;
-                        el.appendChild(option);
+                if (response.ok) {
+                    const requestDetailsResponse = await fetch(`${API_URL}/work_requests/${requestId}`, {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
-                }
-            });
-        } catch (error) {
-            console.error('Ошибка при загрузке специализаций:', error);
-        }
-    }
-
-    const fetchAndPopulateSelect = async (url, elementId) => {
-        try {
-            const response = await fetch(`${API_URL}/${url}/`);
-            const items = await response.json();
-            const selectEl = document.getElementById(elementId);
-            if (selectEl) {
-                selectEl.innerHTML = '';
-                items.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item;
-                    option.textContent = item;
-                    selectEl.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error(`Ошибка при загрузке ${url}:`, error);
-        }
-    };
-
-    function renderRequests(requests, containerId, type, isMyRequest = false) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        if (!Array.isArray(requests) || requests.length === 0) {
-            container.innerHTML = '<p>Нет доступных заявок.</p>';
-            return;
-        }
-
-        requests.forEach(req => {
-            const item = document.createElement('div');
-            item.className = 'request-item';
-            let content = '';
-
-            if (type === 'work') {
-                content = `<h4>Работа: ${req.specialization} ${req.is_premium ? '<span class="premium">(ПРЕМИУМ)</span>' : ''}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Бюджет:</strong> ${req.budget} руб.</p><p><strong>Адрес:</strong> ${req.address || 'Не указан'}</p><p class="contact"><strong>Контакт:</strong> ${req.phone_number}</p>`;
-            } else if (type === 'machinery') {
-                content = `<h4>Техника: ${req.machinery_type}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Цена (за час):</strong> ${req.rental_price} руб.</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
-            } else if (type === 'tool') {
-                content = `<h4>Инструмент: ${req.tool_name} (x${req.tool_count})</h4><p><strong>Цена аренды:</strong> ${req.rental_price} руб./сутки</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
-            } else if (type === 'material') {
-                content = `<h4>Материал: ${req.material_type}</h4><p><strong>Цена:</strong> ${req.price} руб.</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
-            }
-
-            const contentDiv = document.createElement('div');
-            contentDiv.innerHTML = content;
-            item.appendChild(contentDiv);
-
-            if (currentUser) {
-                if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ' && type === 'work' && !isMyRequest) {
-                    if (req.is_taken) {
-                        const takenP = document.createElement('p');
-                        takenP.className = 'taken';
-                        takenP.innerHTML = '<strong>Заявка занята.</strong>';
-                        item.appendChild(takenP);
+                    if (requestDetailsResponse.ok) {
+                        const requestDetails = await requestDetailsResponse.json();
+                        fetchWorkRequests(); 
+                        setupChat(requestDetails);
                     } else {
-                        const takeBtn = document.createElement('button');
-                        takeBtn.className = 'take-btn';
-                        takeBtn.textContent = 'Взять заявку';
-                        takeBtn.onclick = () => takeRequest(req.id, type);
-                        item.appendChild(takeBtn);
+                        throw new Error('Не удалось получить детали заявки для открытия чата.');
                     }
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось взять заявку.'}`;
+                    statusEl.className = 'message error';
+                    setTimeout(() => statusEl.className = 'message', 3000);
+                    fetchWorkRequests();
                 }
-
-                // Логика чата для заказчика (моя заявка)
-                if (req.user_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
-                    const chatBtn = document.createElement('button');
-                    chatBtn.className = 'chat-btn';
-                    chatBtn.textContent = 'Открыть чат';
-                    chatBtn.onclick = () => openChat(req.id, `Заявка №${req.id}: ${req.specialization}`); // Используем openChat
-                    item.appendChild(chatBtn);
-                }
-
-                // Логика чата для исполнителя (взятая заявка)
-                if (req.executor_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
-                    if (isMyRequest) {
-                        const takenP = document.createElement('p');
-                        takenP.className = 'taken';
-                        takenP.innerHTML = '<strong>Заявка принята вами.</strong>';
-                        item.appendChild(takenP);
-                    }
-                    const chatBtn = document.createElement('button');
-                    chatBtn.className = 'chat-btn';
-                    chatBtn.textContent = 'Открыть чат с заказчиком';
-                    chatBtn.onclick = () => openChat(req.id, `Заявка №${req.id}: ${req.specialization}`); // Используем openChat
-                    item.appendChild(chatBtn);
-                }
-
-                // Логика оценки
-                if (type === 'work' && isMyRequest && req.user_id === currentUser.id && req.is_taken && req.executor_id && !req.is_rated) { // Добавлено !req.is_rated
-                    const ratingDiv = document.createElement('div');
-                    ratingDiv.className = 'rating-container';
-                    ratingDiv.id = `rating-container-${req.id}`;
-                    ratingDiv.setAttribute('data-rating', '0');
-                    ratingDiv.innerHTML = `<p>Оцените работу исполнителя:</p><div class="rating-stars"><i class="far fa-star" onclick="selectRating(${req.id}, 1)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 2)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 3)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 4)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 5)"></i></div><button class="btn btn-primary rating-submit-btn" onclick="submitRating(${req.id})">Отправить оценку</button>`;
-                    item.appendChild(ratingDiv);
-                }
-            }
-            container.appendChild(item);
-        });
-    }
-
-    function selectRating(requestId, ratingValue) {
-        const container = document.getElementById(`rating-container-${requestId}`);
-        container.setAttribute('data-rating', ratingValue);
-        const stars = container.querySelectorAll('.rating-stars i');
-        stars.forEach((star, index) => {
-            if (index < ratingValue) {
-                star.className = 'fas fa-star selected';
-            } else {
-                star.className = 'far fa-star';
-            }
-        });
-    }
-
-    async function submitRating(requestId) {
-        const container = document.getElementById(`rating-container-${requestId}`);
-        const ratingValue = parseInt(container.getAttribute('data-rating'));
-        const statusEl = document.getElementById('myRequestsStatus');
-
-        if (ratingValue === 0) {
-            alert('Пожалуйста, выберите оценку от 1 до 5 звезд.');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/work_requests/${requestId}/rate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                body: JSON.stringify({ rating_value: ratingValue })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                statusEl.textContent = data.message || 'Оценка успешно отправлена!';
-                statusEl.className = 'message success';
-                container.innerHTML = `<p class="taken">Спасибо за вашу оценку!</p>`;
-            } else {
-                statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось отправить оценку'}`;
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при взятии заявки.';
                 statusEl.className = 'message error';
             }
-        } catch (error) {
-            statusEl.textContent = 'Произошла сетевая ошибка при отправке оценки.';
-            statusEl.className = 'message error';
         }
-        statusEl.style.display = 'block';
-        setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
-    }
+        
+        const handleFormSubmit = async (formId, url, payload, statusElId) => {
+            const statusEl = document.getElementById(statusElId);
+            statusEl.textContent = 'Отправка...';
+            statusEl.className = 'message';
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = 'Заявка успешно создана!';
+                    statusEl.className = 'message success';
+                    document.getElementById(formId).reset();
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось создать заявку'}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла сетевая ошибка.';
+                statusEl.className = 'message error';
+            }
+        };
 
-    function renderChats(requests, containerId) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-
-        const chatEnabledRequests = requests.filter(req => req.chat_enabled);
-
-        container.innerHTML = '';
-        if (chatEnabledRequests.length === 0) {
-            container.innerHTML = '<p>Нет активных чатов.</p>';
-            return;
-        }
-
-        chatEnabledRequests.forEach(req => {
-            const item = document.createElement('div');
-            item.className = 'request-item';
-
-            const role = req.user_id === currentUser.id ? ' (Вы - Заказчик)' : ' (Вы - Исполнитель)';
-            item.innerHTML = `<h4>Чат: ${req.specialization} ${role}</h4><p><strong>Статус:</strong> ${req.is_taken ? 'В работе' : 'Открыта'}</p><p><strong>ID заявки:</strong> ${req.id}</p>`;
-
-            const chatBtn = document.createElement('button');
-            chatBtn.className = 'chat-btn';
-            chatBtn.textContent = 'Открыть чат';
-            chatBtn.onclick = () => openChat(req.id, `Заявка №${req.id}: ${req.specialization}`); // Используем openChat
-            item.appendChild(chatBtn);
-
-            container.appendChild(item);
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusEl = document.getElementById('loginStatus');
+            if (!selectedCityId) {
+                 statusEl.textContent = 'Пожалуйста, выберите город перед входом.';
+                 statusEl.className = 'message error';
+                 return;
+            }
+            const formBody = new URLSearchParams({
+                username: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            });
+            try {
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formBody.toString()
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    accessToken = data.access_token;
+                    localStorage.setItem('accessToken', accessToken);
+                    await fetchProfile();
+                    showPage('buttonContainer');
+                } else {
+                    statusEl.textContent = `Ошибка: ${data.detail || 'Неверный email или пароль.'}`;
+                    statusEl.className = 'message error';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Произошла ошибка при входе.';
+                statusEl.className = 'message error';
+            }
         });
-    }
 
-    async function fetchDataInternal(endpoint) {
-        try {
-            const url = `${API_URL}/${endpoint}`;
-            const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            if (response.ok) {
-                return await response.json();
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusEl = document.getElementById('registerStatus');
+             if (!selectedCityId) {
+                 statusEl.textContent = 'Пожалуйста, выберите город перед регистрацией.';
+                 statusEl.className = 'message error';
+                 return;
             }
-            return [];
-        } catch (error) {
-            console.error(`Ошибка при получении ${endpoint}:`, error);
-            return [];
-        }
-    }
+            const userType = document.getElementById('registerUserType').value;
+            const payload = {
+                email: document.getElementById('registerEmail').value,
+                password: document.getElementById('registerPassword').value,
+                phone_number: document.getElementById('registerPhoneNumber').value,
+                user_type: userType,
+                specialization: userType === 'ИСПОЛНИТЕЛЬ' ? document.getElementById('registerSpecialization').value : null,
+                city_id: selectedCityId
+            };
+            await handleFormSubmit('registerForm', `${API_URL}/register`, payload, 'registerStatus');
+        });
+        
+        document.getElementById('registerUserType').addEventListener('change', (e) => {
+            const specGroup = document.getElementById('specializationGroup');
+            specGroup.style.display = (e.target.value === 'ИСПОЛНИТЕЛЬ') ? 'block' : 'none';
+        });
 
-    // --- Новая надежная функция для загрузки всех заявок, связанных с пользователем ---
-    async function fetchMyAndTakenWorkRequests() {
-        if (!accessToken || !currentUser) return [];
+        document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            let visitDate = document.getElementById('workVisitDate').value;
+            const payload = {
+                name: document.getElementById('workName').value,
+                phone_number: document.getElementById('workPhoneNumber').value,
+                description: document.getElementById('workDescription').value,
+                specialization: document.getElementById('workSpecialization').value,
+                budget: parseFloat(document.getElementById('workBudget').value),
+                address: document.getElementById('workAddress').value || null,
+                visit_date: visitDate ? new Date(visitDate).toISOString() : null,
+                city_id: selectedCityId
+            };
+            await handleFormSubmit('workRequestForm', `${API_URL}/work_requests`, payload, 'workRequestStatus');
+        });
 
-        // Получаем заявки, созданные мной
-        const myCreatedReqs = await fetchDataInternal('work_requests/my');
+        document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = { 
+                machinery_type: document.getElementById('machineryType').value,
+                description: document.getElementById('machineryDescription').value,
+                rental_date: document.getElementById('machineryRentalDate').value || null,
+                min_hours: parseInt(document.getElementById('machineryMinHours').value),
+                rental_price: parseFloat(document.getElementById('machineryRentalPrice').value),
+                contact_info: document.getElementById('machineryContact').value,
+                city_id: selectedCityId 
+            };
+            await handleFormSubmit('machineryRequestForm', `${API_URL}/machinery_requests`, payload, 'machineryRequestStatus');
+        });
+        
+        document.getElementById('toolRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const has_delivery = document.getElementById('hasDelivery').checked;
+            const payload = {
+                tool_name: document.getElementById('toolName').value,
+                description: document.getElementById('toolDescription').value,
+                rental_price: parseFloat(document.getElementById('toolRentalPrice').value),
+                tool_count: parseInt(document.getElementById('toolCount').value),
+                rental_start_date: document.getElementById('toolRentalStartDate').value,
+                rental_end_date: document.getElementById('toolRentalEndDate').value,
+                contact_info: document.getElementById('toolContact').value,
+                has_delivery: has_delivery,
+                delivery_address: has_delivery ? document.getElementById('deliveryAddress').value : null, 
+                city_id: selectedCityId
+            };
+            await handleFormSubmit('toolRequestForm', `${API_URL}/tool_requests`, payload, 'toolRequestStatus');
+        });
+        
+        document.getElementById('hasDelivery').addEventListener('change', (e) => {
+            document.getElementById('deliveryAddressGroup').style.display = e.target.checked ? 'block' : 'none';
+        });
 
-        // Получаем заявки, взятые мной (если я исполнитель)
-        const myTakenReqs = currentUser.user_type === 'ИСПОЛНИТЕЛЬ'
-            ? await fetchDataInternal('work_requests/taken')
-            : [];
+        document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = { 
+                material_type: document.getElementById('materialType').value,
+                description: document.getElementById('materialDescription').value,
+                price: parseFloat(document.getElementById('materialPrice').value),
+                contact_info: document.getElementById('materialContact').value,
+                city_id: selectedCityId 
+            };
+            await handleFormSubmit('materialAdForm', `${API_URL}/material_ads`, payload, 'materialAdStatus');
+        });
 
-        // Объединяем и убираем дубликаты, чтобы каждая заявка была в списке один раз
-        const allReqs = [...myCreatedReqs, ...myTakenReqs];
-        const uniqueReqs = allReqs.filter((req, index, self) =>
-            index === self.findIndex((r) => r.id === req.id)
-        );
-
-        return uniqueReqs;
-    }
-
-    async function fetchRequests(endpoint, containerId, type, isMyRequest = false) {
-        if (!selectedCityId && !isMyRequest) {
-            alert('Пожалуйста, выберите город.');
-            return;
-        }
-        try {
-            const url = isMyRequest ? `${API_URL}/${endpoint}` : `${API_URL}/${endpoint}/by_city/${selectedCityId}`;
-            const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            const data = await response.json();
-            const container = document.getElementById(containerId);
-            if (response.ok) {
-                renderRequests(data, containerId, type, isMyRequest);
+        function checkAuthentication() {
+            accessToken = localStorage.getItem('accessToken');
+            if (accessToken) {
+                fetchProfile().then(() => showPage('buttonContainer'));
             } else {
-                if(container) container.innerHTML = `<p class="message error">Ошибка загрузки: ${data.detail || response.statusText}</p>`;
+                showPage('loginPage');
             }
-        } catch (error) {
-            console.error(`Ошибка при получении ${type} заявок:`, error);
-            const container = document.getElementById(containerId);
-            if(container) container.innerHTML = '<p class="message error">Не удалось соединиться с сервером.</p>';
         }
-    }
 
-    const fetchWorkRequests = () => fetchRequests('work_requests', 'workRequestsList', 'work');
-    const fetchMachineryRequests = () => fetchRequests('machinery_requests', 'machineryRequestsList', 'machinery');
-    const fetchToolRequests = () => fetchRequests('tool_requests', 'toolRequestsList', 'tool');
-    const fetchMaterialAds = () => fetchRequests('material_ads', 'materialAdsList', 'material');
-
-    // --- Логика отображения "Моих заявок" ---
-    async function fetchMyRequests() {
-        if (!accessToken) return;
-
-        // 1. Получаем единый список всех моих заявок на работу
-        const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
-
-        // 2. Отображаем Активные чаты
-        renderChats(allMyWorkRequests, 'myChatsList');
-
-        // 3. Отображаем заявки, созданные мной (Секция "Мои Заявки на работу")
-        const myCreatedWorkRequests = allMyWorkRequests.filter(req => req.user_id === currentUser.id);
-        renderRequests(myCreatedWorkRequests, 'myWorkRequestsList', 'work', true);
-
-        // 4. Отображаем заявки, взятые мной (Секция "Взятые Заявки")
-        const takenSection = document.getElementById('myTakenWorkRequestsSection');
-        if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
-            const myTakenWorkRequests = allMyWorkRequests.filter(req => req.executor_id === currentUser.id);
-            takenSection.style.display = 'block';
-            renderRequests(myTakenWorkRequests, 'myTakenWorkRequestsList', 'work', true);
-        } else {
-            takenSection.style.display = 'none';
+        function logout() {
+            localStorage.removeItem('accessToken');
+            accessToken = null;
+            currentUser = null;
+            showPage('loginPage');
         }
-    }
-</script>
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchCities();
+            fetchSpecializations();
+            fetchAndPopulateSelect('machinery_types', 'machineryType');
+            fetchAndPopulateSelect('tools_list', 'toolName');
+            fetchAndPopulateSelect('material_types', 'materialType');
+            
+            const selectedCity = getSelectedCity();
+            if (selectedCity) {
+                cityNameEl.textContent = selectedCity.name;
+                selectedCityId = selectedCity.id;
+                checkAuthentication();
+            } else {
+                cityModal.classList.add('active');
+            }
+        });
+    </script>
 </body>
 </html>
