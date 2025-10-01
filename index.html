@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>СМЗ.РФ - Рабочие и спецтехника</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Новая палитра: Бежево-оранжевая тема */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; color: #4A4A4A; overflow-x: hidden; background: #F5F2EA; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .background-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; filter: brightness(0.8); }
+        .selected-city { margin-top: 12px; font-size: 16px; color: #4A4A4A; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap; cursor: pointer; }
+        
+        /* --- Стили для модальных окон --- */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; position: relative; }
+        .modal-content h2 { margin-bottom: 20px; font-size: 20px; color: #4A4A4A; }
+        .modal .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; color: #aaa; cursor: pointer; }
+
+        .city-list-container { max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 10px; }
+        .city-button { width: 100%; padding: 10px; margin: 5px 0; background-color: #F0F0E0; color: #4A4A4A; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        .city-button:hover { background-color: #E0E0D0; }
+
+        .contact-options a { display: block; width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; text-decoration: none; color: white; font-size: 16px; }
+        .contact-options .telegram-btn { background-color: #24A1DE; }
+        .contact-options .whatsapp-btn { background-color: #25D366; }
+
+        /* --- Основные контейнеры --- */
+        .main-container { width: 100%; max-width: 600px; padding: 20px; padding-bottom: 80px; /* Отступ для нижней панели */ display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
+        .logo { width: 80px; margin-bottom: 10px; }
+        h1 { font-size: 20px; text-align: center; color: #4A4A4A; margin-bottom: 20px; }
+        .page { display: none; width: 100%; }
+        .page.active { display: block; }
+        .form-container, .button-container, .list-container { background-color: rgba(255, 255, 255, 0.9); padding: 20px; border-radius: 10px; width: 100%; max-width: 400px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .form-container h2, .button-container h2, .list-container h2 { text-align: center; margin-bottom: 15px; font-size: 18px; color: #4A4A4A; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #6B6B6B; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #DCDCDC; background-color: #fff; color: #4A4A4A; font-size: 14px; }
+        .input-group input[type="checkbox"] { width: auto; margin-right: 10px; }
+        .input-group label.checkbox-label { display: flex; align-items: center; }
+        .btn { width: 100%; padding: 10px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
+        .btn-primary { background-color: #E87D39; color: white; }
+        .btn-primary:hover { background-color: #D66D29; }
+        .btn-secondary { background-color: #6B6B6B; color: white; }
+        .btn-secondary:hover { background-color: #5A5A5A; }
+        .btn-link { background: none; color: #E87D39; text-decoration: none; border: none; padding: 0; margin-top: 10px; font-size: 14px; cursor: pointer; }
+        .btn-link:hover { text-decoration: underline; }
+
+        .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .button-grid .btn { margin: 0; }
+
+        .request-item { background-color: #fff; padding: 15px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #E0E0D0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .request-item h4 { margin-bottom: 5px; color: #E87D39; }
+        .request-item p { margin-bottom: 5px; font-size: 14px; line-height: 1.4; color: #6B6B6B; }
+        .request-item .contact { font-weight: bold; }
+        .request-item .premium { color: #B8860B; font-weight: bold; }
+        .request-item .taken { color: #28a745; font-weight: bold; }
+        .request-item .take-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+        .request-item .take-btn:hover { background-color: #218838; }
+        .request-item .chat-btn { background-color: #E87D39; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+        .request-item .chat-btn:hover { background-color: #D66D29; }
+
+        .my-requests-section { border-bottom: 1px solid #DCDCDC; padding-bottom: 15px; margin-bottom: 15px; }
+        .my-requests-section:last-of-type { border-bottom: none; }
+        .my-requests-section h3 { margin-bottom: 10px; color: #E87D39; }
+
+        .message { padding: 10px; margin-top: 10px; border-radius: 5px; text-align: center; }
+        .message.success { background-color: #d4edda; color: #155724; }
+        .message.error { background-color: #f8d7da; color: #721c24; }
+
+        /* --- Стили для профиля и рейтинга --- */
+        #profileInfo p, #profileInfo button { margin-top: 10px; }
+        #profileRating { margin-top: 15px; font-size: 16px; color: #6B6B6B; }
+        .stars { color: #FFC107; }
+        #subscribeBtn { background-color: #FFC107; color: black; border: none; }
+        #subscribeBtn:hover { background-color: #E0A800; }
+        #updateSpecializationBtn { background-color: #28a745; color: white; }
+        #updateSpecializationBtn:hover { background-color: #218838; }
+        #editSpecializationForm { display: none; }
+
+        /* --- НОВЫЕ СТИЛИ ДЛЯ РЕЙТИНГА В ЗАЯВКАХ --- */
+        .rating-container { margin-top: 15px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        .rating-container p { font-weight: bold; margin-bottom: 8px; }
+        .rating-stars { font-size: 24px; color: #ccc; cursor: pointer; }
+        .rating-stars .fa-star:hover { color: #FFC107; }
+        .rating-stars .fa-star.selected { color: #FFC107; }
+        .rating-submit-btn { background-color: #007bff; color: white; font-size: 14px; padding: 6px 10px; width: auto; }
+
+        /* --- ОБНОВЛЕННЫЕ СТИЛИ ДЛЯ ЧАТА --- */
+        #chatPage { background-color: #fff; border-radius: 10px; }
+        #chatHeader { padding: 15px 15px 10px 15px; font-size: 18px; color: #4A4A4A; border-bottom: 1px solid #DCDCDC; margin-bottom: 10px; text-align: center; }
+        #chatBox { border: none; padding: 10px; max-height: 450px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background-color: #f9f9f9; }
+        .chat-message { display: flex; flex-direction: column; max-width: 85%; }
+        .chat-message .msg-content { padding: 10px 15px; border-radius: 18px; }
+        .chat-message .msg-text { margin: 0; font-size: 15px; line-height: 1.4; }
+        .chat-message .msg-info { font-size: 11px; margin-top: 5px; opacity: 0.8; }
+
+        .chat-message.me { align-self: flex-end; }
+        .chat-message.me .msg-content { background-color: #E87D39; color: white; border-bottom-right-radius: 4px; }
+        .chat-message.me .msg-info { text-align: right; color: #f0f0f0; }
+
+        .chat-message.other { align-self: flex-start; }
+        .chat-message.other .msg-content { background-color: #e9e9eb; color: #4A4A4A; border-bottom-left-radius: 4px; }
+        .chat-message.other .msg-info { text-align: left; color: #6B6B6B; }
+
+        .chat-input-container { display: flex; gap: 10px; padding: 15px; border-top: 1px solid #DCDCDC; align-items: center; }
+        #chatInput { flex-grow: 1; padding: 12px; border-radius: 20px; border: 1px solid #DCDCDC; font-size: 15px; }
+        #sendMessageBtn { background: none; border: none; color: #E87D39; font-size: 24px; cursor: pointer; padding: 5px; }
+        
+        /* --- НОВАЯ НИЖНЯЯ ПАНЕЛЬ --- */
+        .bottom-nav {
+            display: none; /* Скрыта по умолчанию */
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            padding: 10px;
+            z-index: 50;
+            border-top: 1px solid #DCDCDC;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .bottom-nav.visible {
+            display: flex; /* Показывается на нужных страницах */
+        }
+        .nav-btn {
+            background: none;
+            border: none;
+            color: #4A4A4A;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .nav-btn i {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <video autoplay muted loop class="background-video">
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-hand-holding-and-drilling-into-a-wooden-plank-25217-large.mp4" type="video/mp4">
+    </video>
+
+    <div class="selected-city" onclick="cityModal.classList.add('active')">
+        <i class="fas fa-map-marker-alt"></i>
+        <span id="cityName">Выберите город</span>
+    </div>
+
+    <div class="main-container">
+        <img src="https://smz.rf-dev.ru/img/logo_smz.png" alt="СМЗ.РФ Логотип" class="logo">
+        <h1>СМЗ.РФ - Заявки для Самозанятых и Мастеров</h1>
+        <div id="loadingMessage">Загрузка...</div>
+
+        <div id="cityModal" class="modal">
+            <div class="modal-content">
+                <h2>Выберите ваш город</h2>
+                <div id="cityList" class="city-list-container"></div>
+            </div>
+        </div>
+        
+        <div id="contactModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn" onclick="document.getElementById('contactModal').classList.remove('active')">&times;</span>
+                <h2>Связаться с нами</h2>
+                <div class="contact-options">
+                    <a href="#" class="telegram-btn"><i class="fab fa-telegram-plane"></i> Написать в Telegram</a>
+                    <a href="#" class="whatsapp-btn"><i class="fab fa-whatsapp"></i> Написать в WhatsApp</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="loginPage" class="page active">
+            <div class="form-container">
+                <h2>Вход</h2>
+                <div id="loginStatus" class="message"></div>
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label for="loginEmail">Email:</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="loginPassword">Пароль:</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                    <button type="button" class="btn-link" onclick="showPage('registerPage')">Создать аккаунт</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="registerPage" class="page">
+            <div class="form-container">
+                <h2>Регистрация</h2>
+                <div id="registerStatus" class="message"></div>
+                <form id="registerForm">
+                    <div class="input-group">
+                        <label for="registerEmail">Email:</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerPassword">Пароль:</label>
+                        <input type="password" id="registerPassword" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerPhoneNumber">Номер телефона:</label>
+                        <input type="tel" id="registerPhoneNumber" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerUserType">Тип аккаунта:</label>
+                        <select id="registerUserType" required>
+                            <option value="">Выберите тип</option>
+                            <option value="ЗАКАЗЧИК">Заказчик</option>
+                            <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="specializationGroup" style="display: none;">
+                        <label for="registerSpecialization">Специализация:</label>
+                        <select id="registerSpecialization"></select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                    <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="buttonContainer" class="page">
+            <div class="button-container">
+                <h2>Меню</h2>
+                <div class="button-grid">
+                    <button class="btn btn-primary" onclick="showPage('createWorkRequestPage')">Создать заявку на работу</button>
+                    <button class="btn btn-primary" onclick="showPage('workRequestsPage')">Найти работу</button>
+                    <button class="btn btn-primary" onclick="showPage('createMachineryRequestPage')">Создать заявку на технику</button>
+                    <button class="btn btn-primary" onclick="showPage('machineryRequestsPage')">Найти технику</button>
+                    <button class="btn btn-primary" onclick="showPage('createToolRequestPage')">Создать заявку на инструмент</button>
+                    <button class="btn btn-primary" onclick="showPage('toolRequestsPage')">Найти инструмент</button>
+                    <button class="btn btn-primary" onclick="showPage('createMaterialAdPage')">Разместить объявление</button>
+                    <button class="btn btn-primary" onclick="showPage('materialAdsPage')">Найти материалы</button>
+                </div>
+                <button class="btn btn-secondary" onclick="showPage('myRequestsPage')">Мои заявки</button>
+                <button class="btn btn-secondary" onclick="showPage('profilePage')">Профиль</button>
+                <button class="btn btn-link" onclick="logout()">Выйти</button>
+            </div>
+        </div>
+
+        <div id="profilePage" class="page">
+            <div class="form-container">
+                <h2>Профиль</h2>
+                <div id="profileInfo"></div>
+                <div id="profileRating"></div>
+
+                <div id="editSpecializationForm">
+                    <div class="input-group">
+                        <label for="newSpecialization">Новая специализация:</label>
+                        <select id="newSpecialization"></select>
+                    </div>
+                    <button id="saveSpecializationBtn" class="btn btn-primary">Сохранить</button>
+                </div>
+                
+                <div id="profileChatsSection" class="my-requests-section" style="margin-top: 20px;">
+                    <h3>Активные Чаты</h3>
+                    <div id="profileChatsList"></div>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="createWorkRequestPage" class="page">
+            <div class="form-container">
+                <h2>Новая заявка на работу</h2>
+                <div id="workRequestStatus" class="message"></div>
+                <form id="workRequestForm">
+                    <div class="input-group">
+                        <label for="workName">Ваше имя:</label>
+                        <input type="text" id="workName" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="workPhoneNumber">Ваш номер телефона:</label>
+                        <input type="tel" id="workPhoneNumber" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="workSpecialization">Специализация:</label>
+                        <select id="workSpecialization" required></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="workDescription">Описание задачи:</label>
+                        <textarea id="workDescription" required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="workBudget">Бюджет (руб.):</label>
+                        <input type="number" id="workBudget" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="workAddress">Адрес объекта (необязательно):</label>
+                        <input type="text" id="workAddress">
+                    </div>
+                    <div class="input-group">
+                        <label for="workVisitDate">Желаемая дата визита (необязательно):</label>
+                        <input type="date" id="workVisitDate">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
+                </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="workRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на работу</h2>
+                <div id="workRequestsList"></div>
+                <div id="takeOrderStatus" class="message"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="chatPage" class="page">
+            <div class="form-container" style="padding: 0;">
+                <h3 id="chatHeader">Чат по заявке</h3>
+                <div id="chatBox"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" placeholder="Введите сообщение...">
+                    <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="goBackToRequests()">Назад к заявкам</button>
+        </div>
+        
+        <div id="createMachineryRequestPage" class="page">
+            <div class="form-container">
+                <h2>Заявка на спецтехнику</h2>
+                <div id="machineryRequestStatus" class="message"></div>
+                <form id="machineryRequestForm">
+                    <div class="input-group">
+                        <label for="machineryType">Тип техники:</label>
+                        <select id="machineryType"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryDescription">Описание задачи:</label>
+                        <textarea id="machineryDescription" required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryRentalDate">Дата (необязательно):</label>
+                        <input type="date" id="machineryRentalDate">
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryMinHours">Минимальное кол-во часов:</label>
+                        <input type="number" id="machineryMinHours" value="4" min="1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryRentalPrice">Цена аренды (за час):</label>
+                        <input type="number" id="machineryRentalPrice" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="machineryContact">Контакт:</label>
+                        <input type="text" id="machineryContact" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
+                </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="machineryRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на спецтехнику</h2>
+                <div id="machineryRequestsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="createToolRequestPage" class="page">
+            <div class="form-container">
+                <h2>Заявка на инструмент</h2>
+                <div id="toolRequestStatus" class="message"></div>
+                <form id="toolRequestForm">
+                    <div class="input-group">
+                        <label for="toolName">Название инструмента:</label>
+                        <select id="toolName"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolDescription">Описание:</label>
+                        <textarea id="toolDescription" required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalPrice">Цена аренды:</label>
+                        <input type="number" id="toolRentalPrice" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolCount">Количество:</label>
+                        <input type="number" id="toolCount" value="1" min="1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalStartDate">Срок аренды (Начало):</label>
+                        <input type="date" id="toolRentalStartDate" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalEndDate">Срок аренды (Окончание):</label>
+                        <input type="date" id="toolRentalEndDate" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolContact">Контакт:</label>
+                        <input type="text" id="toolContact" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="hasDelivery" class="checkbox-label">
+                            <input type="checkbox" id="hasDelivery">
+                            Нужна доставка?
+                        </label>
+                    </div>
+                    <div class="input-group" id="deliveryAddressGroup" style="display: none;">
+                        <label for="deliveryAddress">Адрес доставки:</label>
+                        <input type="text" id="deliveryAddress">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
+                </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="toolRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на инструмент</h2>
+                <div id="toolRequestsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="createMaterialAdPage" class="page">
+            <div class="form-container">
+                <h2>Объявление на материалы</h2>
+                <div id="materialAdStatus" class="message"></div>
+                <form id="materialAdForm">
+                    <div class="input-group">
+                        <label for="materialType">Тип материала:</label>
+                        <select id="materialType"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="materialDescription">Описание:</label>
+                        <textarea id="materialDescription" required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="materialPrice">Цена:</label>
+                        <input type="number" id="materialPrice" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="materialContact">Контакт:</label>
+                        <input type="text" id="materialContact" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
+                </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="materialAdsPage" class="page">
+            <div class="list-container">
+                <h2>Объявления на материалы</h2>
+                <div id="materialAdsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="myRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Мои заявки</h2>
+                <div id="myRequestsStatus" class="message" style="display: none;"></div>
+                <div id="myChatsSection" class="my-requests-section">
+                    <h3>Активные Чаты</h3>
+                    <div id="myChatsList"></div>
+                </div>
+                <div id="myTakenWorkRequestsSection" class="my-requests-section" style="display: none;">
+                    <h3>Взятые мной заявки</h3>
+                    <div id="myTakenWorkRequestsList"></div>
+                </div>
+                <div id="myWorkRequests" class="my-requests-section">
+                    <h3>Заявки на работу (Заказчик)</h3>
+                    <div id="myWorkRequestsList"></div>
+                </div>
+                <div id="myMachineryRequests" class="my-requests-section">
+                    <h3>Заявки на спецтехнику</h3>
+                    <div id="myMachineryRequestsList"></div>
+                </div>
+                <div id="myToolRequests" class="my-requests-section">
+                    <h3>Заявки на инструмент</h3>
+                    <div id="myToolRequestsList"></div>
+                </div>
+                <div id="myMaterialAds" class="my-requests-section">
+                    <h3>Объявления о материалах</h3>
+                    <div id="myMaterialAdsList"></div>
+                </div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="bottomNav" class="bottom-nav">
+        <button class="nav-btn" onclick="document.getElementById('contactModal').classList.add('active')">
+            <i class="fas fa-headset"></i>
+            <span>Связаться с нами</span>
+        </button>
+        <a href="#" class="nav-btn"> <i class="fas fa-users-slash"></i>
+            <span>Форум</span>
+        </a>
+    </div>
+
+    <script>
+    const API_URL = "/api";
+    let accessToken = null;
+    let selectedCityId = null;
+    let currentUser = null;
+    let currentChatRequestId = null;
+    let chatPollInterval = null;
+    let currentChatRequest = null;
+    let lastPage = 'buttonContainer';
+
+    const pages = [
+        'loginPage', 'registerPage', 'buttonContainer', 'profilePage',
+        'createWorkRequestPage', 'workRequestsPage',
+        'createMachineryRequestPage', 'machineryRequestsPage',
+        'createToolRequestPage', 'toolRequestsPage',
+        'createMaterialAdPage', 'materialAdsPage', 'myRequestsPage', 'chatPage'
+    ];
+    const cityModal = document.getElementById('cityModal');
+    const cityNameEl = document.getElementById('cityName');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const bottomNav = document.getElementById('bottomNav');
+
+    function getSelectedCity() {
+        const cityData = localStorage.getItem('selectedCity');
+        return cityData ? JSON.parse(cityData) : null;
+    }
+
+    function goBackToRequests() {
+        showPage(lastPage);
+    }
+
+    function showPage(pageId, setLastPage = true) {
+        if (setLastPage) {
+            const currentPage = document.querySelector('.page.active');
+            if (currentPage && currentPage.id !== 'loginPage' && currentPage.id !== 'registerPage' && currentPage.id !== 'chatPage') {
+                lastPage = currentPage.id;
+            }
+        }
+        pages.forEach(id => {
+            const page = document.getElementById(id);
+            if (page) page.classList.remove('active');
+        });
+        const activePage = document.getElementById(pageId);
+        if (activePage) activePage.classList.add('active');
+
+        if (pageId === 'buttonContainer') {
+            bottomNav.classList.add('visible');
+        } else {
+            bottomNav.classList.remove('visible');
+        }
+
+        // Останавливаем пулинг, если уходим со страницы чата
+        if (pageId !== 'chatPage' && chatPollInterval) {
+            clearInterval(chatPollInterval);
+            chatPollInterval = null;
+            currentChatRequestId = null;
+        }
+
+        if (pageId === 'workRequestsPage') fetchWorkRequests();
+        if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
+        if (pageId === 'toolRequestsPage') fetchToolRequests();
+        if (pageId === 'materialAdsPage') fetchMaterialAds();
+        if (pageId === 'myRequestsPage') fetchMyRequests();
+        if (pageId === 'profilePage') {
+            fetchProfile();
+            fetchMyChats(); 
+        }
+    }
+
+    function renderStars(rating) {
+        const fullStars = Math.floor(rating);
+        const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+        const emptyStars = 5 - fullStars - halfStar;
+        let starsHTML = '';
+        for (let i = 0; i < fullStars; i++) starsHTML += '<i class="fas fa-star"></i>';
+        if (halfStar) starsHTML += '<i class="fas fa-star-half-alt"></i>';
+        for (let i = 0; i < emptyStars; i++) starsHTML += '<i class="far fa-star"></i>';
+        return starsHTML;
+    }
+
+    async function fetchProfile() {
+        try {
+            const response = await fetch(`${API_URL}/users/me`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (response.ok) {
+                currentUser = await response.json();
+                updateProfilePage(currentUser);
+            } else {
+                logout();
+            }
+        } catch (error) {
+            console.error('Ошибка при получении профиля:', error);
+            logout();
+        }
+    }
+
+    async function fetchMyChats() {
+        const chatsListEl = document.getElementById('profileChatsList');
+        chatsListEl.innerHTML = 'Загрузка активных чатов...';
+
+        try {
+            const response = await fetch(`${API_URL}/chats/my`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (response.ok) {
+                const chats = await response.json();
+
+                if (chats.length === 0) {
+                    chatsListEl.innerHTML = '<p>Активных чатов пока нет (или нет заявок, в которых вы участвуете).</p>';
+                    return;
+                }
+
+                chatsListEl.innerHTML = '';
+                chats.forEach(chat => {
+                    // Определяем, кто "другая сторона" и роль
+                    const isRequester = chat.user_id === currentUser.id;
+
+                    let chatRole;
+                    if (isRequester) {
+                        chatRole = chat.executor_id ? 'Исполнитель' : 'Ожидание Исполнителя';
+                    } else {
+                        chatRole = 'Заказчик';
+                    }
+
+                    // Определяем статус заявки для заголовка
+                    const isActive = chat.is_taken && chat.executor_id !== null;
+                    const statusText = isActive ? 'Активен' : (isRequester && !chat.executor_id ? 'Новая' : 'Закрыт/Не взят');
+
+                    const chatTitle = `Заявка №${chat.id} (${chat.specialization || 'Без специализации'})`;
+
+                    const chatItem = document.createElement('div');
+                    chatItem.className = 'request-item';
+                    chatItem.innerHTML = `
+                        <h4>${chatTitle}</h4>
+                        <p><b>Роль:</b> ${chatRole} (${statusText})</p>
+                        <p>Описание: ${chat.description.substring(0, 70)}${chat.description.length > 70 ? '...' : ''}</p>
+                        <button class="btn chat-btn" onclick="openChat(${chat.id}, '${chatTitle.replace(/'/g, "\\'")}')">Открыть чат</button>
+                    `;
+                    chatsListEl.appendChild(chatItem);
+                });
+            } else {
+                chatsListEl.innerHTML = '<p class="message error">Ошибка загрузки чатов.</p>';
+            }
+        } catch (error) {
+            console.error('Error fetching chats:', error);
+            chatsListEl.innerHTML = '<p class="message error">Ошибка сети при загрузке чатов.</p>';
+        }
+    }
+
+
+    /**
+     * Открывает страницу чата для конкретной заявки.
+     */
+    function openChat(requestId, chatTitle) {
+        currentChatRequestId = requestId;
+
+        document.getElementById('chatHeader').textContent = chatTitle;
+        document.getElementById('chatBox').innerHTML = 'Загрузка сообщений...';
+        showPage('chatPage', false); // Не меняем lastPage при переходе в чат
+
+        // 1. Загружаем сообщения и прокручиваем
+        fetchChatMessages(true);
+
+        // 2. Начинаем пулинг для обновления
+        if (chatPollInterval) {
+            clearInterval(chatPollInterval);
+        }
+        // Пулинг каждые 3 секунды
+        chatPollInterval = setInterval(() => fetchChatMessages(false), 3000);
+    }
+
+    /**
+     * Загружает сообщения из API.
+     */
+    async function fetchChatMessages(shouldScroll = true) {
+        if (!currentChatRequestId) return;
+
+        try {
+            const response = await fetch(`${API_URL}/work_requests/${currentChatRequestId}/chat/messages`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (response.ok) {
+                const messages = await response.json();
+                renderChatMessages(messages, shouldScroll);
+            } else {
+                console.error("Error fetching messages:", response.status);
+                if (document.getElementById('chatBox').innerHTML.includes('Загрузка')) {
+                    document.getElementById('chatBox').innerHTML = '<p style="text-align: center; color: red;">Не удалось загрузить сообщения.</p>';
+                }
+            }
+        } catch (error) {
+            console.error('Network error fetching messages:', error);
+        }
+    }
+
+    /**
+     * Отображает сообщения в окне чата.
+     */
+    function renderChatMessages(messages, shouldScroll) {
+        const chatBox = document.getElementById('chatBox');
+
+        // Оптимизация: не обновлять, если количество сообщений не изменилось
+        if (messages.length === chatBox.children.length && !shouldScroll && chatBox.children.length > 0) {
+            return;
+        }
+
+        chatBox.innerHTML = '';
+
+        if (messages.length === 0) {
+            chatBox.innerHTML = '<p style="text-align: center; color: #6B6B6B;">Здесь пока нет сообщений. Начните диалог!</p>';
+            return;
+        }
+
+        messages.forEach(msg => {
+            const isMe = msg.sender_id === currentUser.id;
+            const chatMessage = document.createElement('div');
+            chatMessage.className = `chat-message ${isMe ? 'me' : 'other'}`;
+
+            const date = new Date(msg.timestamp);
+            const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+            chatMessage.innerHTML = `
+                <div class="msg-content">
+                    <p class="msg-text">${msg.message}</p>
+                </div>
+                <div class="msg-info">${isMe ? 'Вы' : msg.sender_username} в ${time}</div>
+            `;
+            chatBox.appendChild(chatMessage);
+        });
+
+        if (shouldScroll) {
+            // Прокручиваем к последнему сообщению
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    }
+
+
+    // --- ОБРАБОТЧИК ОТПРАВКИ СООБЩЕНИЯ ---
+    document.getElementById('sendMessageBtn')?.addEventListener('click', async () => {
+        const chatInput = document.getElementById('chatInput');
+        const message = chatInput.value.trim();
+
+        if (!message || !currentChatRequestId) {
+            return;
+        }
+
+        // Временно отключаем кнопку и очищаем поле
+        chatInput.value = '';
+        document.getElementById('sendMessageBtn').disabled = true;
+
+        try {
+            const response = await fetch(`${API_URL}/work_requests/${currentChatRequestId}/chat/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({ message: message })
+            });
+
+            if (response.ok) {
+                // Успешно, обновляем чат с прокруткой
+                fetchChatMessages(true);
+            } else {
+                // В случае ошибки возвращаем текст в поле ввода
+                chatInput.value = message;
+                alert('Ошибка при отправке сообщения. Код: ' + response.status);
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            chatInput.value = message;
+            alert('Ошибка сети при отправке сообщения.');
+        } finally {
+            document.getElementById('sendMessageBtn').disabled = false;
+        }
+    });
+
+
+    // --- ФУНКЦИИ ПРОФИЛЯ ---
+
+    function updateProfilePage(profile) {
+        const profileInfo = document.getElementById('profileInfo');
+        const profileRating = document.getElementById('profileRating');
+        const editSpecializationForm = document.getElementById('editSpecializationForm');
+
+        profileInfo.innerHTML = `
+            <p><strong>Ваш email:</strong> ${profile.email}</p>
+            <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
+            ${profile.user_type === 'ИСПОЛНИТЕЛЬ' ? `<p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>` : ''}
+            <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
+        `;
+
+        if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+            if (profile.rating_count > 0) {
+                profileRating.innerHTML = `
+                    <strong>Рейтинг:</strong>
+                    <span class="stars">${renderStars(profile.rating)}</span>
+                    <span>${profile.rating.toFixed(1)} на основе ${profile.rating_count} оценок</span>
+                `;
+            } else {
+                profileRating.innerHTML = `<strong>Рейтинг:</strong> Пока нет оценок`;
+            }
+        } else {
+            profileRating.innerHTML = '';
+        }
+
+        if (document.getElementById('subscribeBtn')) document.getElementById('subscribeBtn').remove();
+        if (document.getElementById('updateSpecializationBtn')) document.getElementById('updateSpecializationBtn').remove();
+
+        editSpecializationForm.style.display = 'none';
+
+        if (!profile.is_premium) {
+            const subscribeBtn = document.createElement('button');
+            subscribeBtn.id = 'subscribeBtn';
+            subscribeBtn.textContent = 'Активировать премиум-подписку';
+            subscribeBtn.className = 'btn';
+            subscribeBtn.onclick = async () => {
+                const response = await fetch(`${API_URL}/subscribe`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await response.json();
+                alert(response.ok ? data.message : `Ошибка: ${data.detail}`);
+                if(response.ok) fetchProfile();
+            };
+            profileInfo.appendChild(subscribeBtn);
+        }
+
+        if (profile.user_type === "ИСПОЛНИТЕЛЬ") {
+            const updateBtn = document.createElement('button');
+            updateBtn.id = 'updateSpecializationBtn';
+            updateBtn.textContent = 'Изменить специализацию';
+            updateBtn.className = 'btn';
+            updateBtn.onclick = () => {
+                editSpecializationForm.style.display = 'block';
+                updateBtn.style.display = 'none';
+            };
+            profileInfo.appendChild(updateBtn);
+        }
+    }
+
+    document.getElementById('saveSpecializationBtn')?.addEventListener('click', async () => {
+        const newSpecialization = document.getElementById('newSpecialization').value;
+        try {
+            const response = await fetch(`${API_URL}/users/update-specialization`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({ specialization: newSpecialization })
+            });
+            const data = await response.json();
+            alert(response.ok ? 'Специализация успешно обновлена.' : `Ошибка: ${data.detail}`);
+            if (response.ok) {
+                document.getElementById('editSpecializationForm').style.display = 'none';
+                document.getElementById('updateSpecializationBtn').style.display = 'block';
+                fetchProfile();
+            }
+        } catch (error) {
+            console.error('Ошибка при обновлении специализации:', error);
+            alert('Не удалось обновить специализацию.');
+        }
+    });
+
+    // --- ФУНКЦИИ ДЛЯ ДАННЫХ ---
+    async function fetchCities() {
+        loadingMessage.style.display = 'block';
+        try {
+            const response = await fetch(`${API_URL}/cities/`);
+            const cities = await response.json();
+            const cityList = document.getElementById('cityList');
+            cityList.innerHTML = '';
+            cities.forEach(city => {
+                const button = document.createElement('button');
+                button.className = 'city-button';
+                button.textContent = city.name;
+                button.onclick = () => {
+                    localStorage.setItem('selectedCity', JSON.stringify(city));
+                    cityNameEl.textContent = city.name;
+                    cityModal.classList.remove('active');
+                    selectedCityId = city.id;
+                    checkAuthentication();
+                };
+                cityList.appendChild(button);
+            });
+        } catch (error) {
+            console.error('Ошибка при загрузке городов:', error);
+        } finally {
+            loadingMessage.style.display = 'none';
+        }
+    }
+
+    async function fetchSpecializations() {
+        try {
+            const response = await fetch(`${API_URL}/specializations/`);
+            const specializations = await response.json();
+            const els = [document.getElementById('workSpecialization'), document.getElementById('newSpecialization'), document.getElementById('registerSpecialization')];
+            els.forEach(el => {
+                if (el) {
+                    el.innerHTML = '';
+                    if (el.id === 'registerSpecialization') {
+                        el.innerHTML = '<option value="">Выберите специализацию</option>';
+                    }
+                    specializations.forEach(spec => {
+                        const option = document.createElement('option');
+                        option.value = spec;
+                        option.textContent = spec;
+                        el.appendChild(option);
+                    });
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка при загрузке специализаций:', error);
+        }
+    }
+
+    const fetchAndPopulateSelect = async (url, elementId) => {
+        try {
+            const response = await fetch(`${API_URL}/${url}/`);
+            const items = await response.json();
+            const selectEl = document.getElementById(elementId);
+            if (selectEl) {
+                selectEl.innerHTML = '';
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    selectEl.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error(`Ошибка при загрузке ${url}:`, error);
+        }
+    };
+
+    function renderRequests(requests, containerId, type, isMyRequest = false) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (!Array.isArray(requests) || requests.length === 0) {
+            container.innerHTML = '<p>Нет доступных заявок.</p>';
+            return;
+        }
+
+        requests.forEach(req => {
+            const item = document.createElement('div');
+            item.className = 'request-item';
+            let content = '';
+
+            if (type === 'work') {
+                content = `<h4>Работа: ${req.specialization} ${req.is_premium ? '<span class="premium">(ПРЕМИУМ)</span>' : ''}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Бюджет:</strong> ${req.budget} руб.</p><p><strong>Адрес:</strong> ${req.address || 'Не указан'}</p><p class="contact"><strong>Контакт:</strong> ${req.phone_number}</p>`;
+            } else if (type === 'machinery') {
+                content = `<h4>Техника: ${req.machinery_type}</h4><p><strong>Описание:</strong> ${req.description}</p><p><strong>Цена (за час):</strong> ${req.rental_price} руб.</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
+            } else if (type === 'tool') {
+                content = `<h4>Инструмент: ${req.tool_name} (x${req.tool_count})</h4><p><strong>Цена аренды:</strong> ${req.rental_price} руб./сутки</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
+            } else if (type === 'material') {
+                content = `<h4>Материал: ${req.material_type}</h4><p><strong>Цена:</strong> ${req.price} руб.</p><p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
+            }
+
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = content;
+            item.appendChild(contentDiv);
+
+            if (currentUser) {
+                if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ' && type === 'work' && !isMyRequest) {
+                    if (req.is_taken) {
+                        const takenP = document.createElement('p');
+                        takenP.className = 'taken';
+                        takenP.innerHTML = '<strong>Заявка занята.</strong>';
+                        item.appendChild(takenP);
+                    } else {
+                        const takeBtn = document.createElement('button');
+                        takeBtn.className = 'take-btn';
+                        takeBtn.textContent = 'Взять заявку';
+                        takeBtn.onclick = () => takeRequest(req.id, type);
+                        item.appendChild(takeBtn);
+                    }
+                }
+
+                // Логика чата для заказчика (моя заявка)
+                if (req.user_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
+                    const chatBtn = document.createElement('button');
+                    chatBtn.className = 'chat-btn';
+                    chatBtn.textContent = 'Открыть чат';
+                    chatBtn.onclick = () => openChat(req.id, `Заявка №${req.id}: ${req.specialization}`); // Используем openChat
+                    item.appendChild(chatBtn);
+                }
+
+                // Логика чата для исполнителя (взятая заявка)
+                if (req.executor_id === currentUser.id && type === 'work' && req.chat_enabled && isMyRequest) {
+                    if (isMyRequest) {
+                        const takenP = document.createElement('p');
+                        takenP.className = 'taken';
+                        takenP.innerHTML = '<strong>Заявка принята вами.</strong>';
+                        item.appendChild(takenP);
+                    }
+                    const chatBtn = document.createElement('button');
+                    chatBtn.className = 'chat-btn';
+                    chatBtn.textContent = 'Открыть чат с заказчиком';
+                    chatBtn.onclick = () => openChat(req.id, `Заявка №${req.id}: ${req.specialization}`); // Используем openChat
+                    item.appendChild(chatBtn);
+                }
+
+                // Логика оценки
+                if (type === 'work' && isMyRequest && req.user_id === currentUser.id && req.is_taken && req.executor_id && !req.is_rated) { // Добавлено !req.is_rated
+                    const ratingDiv = document.createElement('div');
+                    ratingDiv.className = 'rating-container';
+                    ratingDiv.id = `rating-container-${req.id}`;
+                    ratingDiv.setAttribute('data-rating', '0');
+                    ratingDiv.innerHTML = `<p>Оцените работу исполнителя:</p><div class="rating-stars"><i class="far fa-star" onclick="selectRating(${req.id}, 1)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 2)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 3)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 4)"></i><i class="far fa-star" onclick="selectRating(${req.id}, 5)"></i></div><button class="btn btn-primary rating-submit-btn" onclick="submitRating(${req.id})">Отправить оценку</button>`;
+                    item.appendChild(ratingDiv);
+                }
+            }
+            container.appendChild(item);
+        });
+    }
+
+    function selectRating(requestId, ratingValue) {
+        const container = document.getElementById(`rating-container-${requestId}`);
+        container.setAttribute('data-rating', ratingValue);
+        const stars = container.querySelectorAll('.rating-stars i');
+        stars.forEach((star, index) => {
+            if (index < ratingValue) {
+                star.className = 'fas fa-star selected';
+            } else {
+                star.className = 'far fa-star';
+            }
+        });
+    }
+
+    async function submitRating(requestId) {
+        const container = document.getElementById(`rating-container-${requestId}`);
+        const ratingValue = parseInt(container.getAttribute('data-rating'));
+        const statusEl = document.getElementById('myRequestsStatus');
+
+        if (ratingValue === 0) {
+            alert('Пожалуйста, выберите оценку от 1 до 5 звезд.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/work_requests/${requestId}/rate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                body: JSON.stringify({ rating_value: ratingValue })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                statusEl.textContent = data.message || 'Оценка успешно отправлена!';
+                statusEl.className = 'message success';
+                container.innerHTML = `<p class="taken">Спасибо за вашу оценку!</p>`;
+            } else {
+                statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось отправить оценку'}`;
+                statusEl.className = 'message error';
+            }
+        } catch (error) {
+            statusEl.textContent = 'Произошла сетевая ошибка при отправке оценки.';
+            statusEl.className = 'message error';
+        }
+        statusEl.style.display = 'block';
+        setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+    }
+
+    function renderChats(requests, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const chatEnabledRequests = requests.filter(req => req.chat_enabled);
+
+        container.innerHTML = '';
+        if (chatEnabledRequests.length === 0) {
+            container.innerHTML = '<p>Нет активных чатов.</p>';
+            return;
+        }
+
+        chatEnabledRequests.forEach(req => {
+            const item = document.createElement('div');
+            item.className = 'request-item';
+
+            const role = req.user_id === currentUser.id ? ' (Вы - Заказчик)' : ' (Вы - Исполнитель)';
+            item.innerHTML = `<h4>Чат: ${req.specialization} ${role}</h4><p><strong>Статус:</strong> ${req.is_taken ? 'В работе' : 'Открыта'}</p><p><strong>ID заявки:</strong> ${req.id}</p>`;
+
+            const chatBtn = document.createElement('button');
+            chatBtn.className = 'chat-btn';
+            chatBtn.textContent = 'Открыть чат';
+            chatBtn.onclick = () => openChat(req.id, `Заявка №${req.id}: ${req.specialization}`); // Используем openChat
+            item.appendChild(chatBtn);
+
+            container.appendChild(item);
+        });
+    }
+
+    async function fetchDataInternal(endpoint) {
+        try {
+            const url = `${API_URL}/${endpoint}`;
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (response.ok) {
+                return await response.json();
+            }
+            return [];
+        } catch (error) {
+            console.error(`Ошибка при получении ${endpoint}:`, error);
+            return [];
+        }
+    }
+
+    // --- Новая надежная функция для загрузки всех заявок, связанных с пользователем ---
+    async function fetchMyAndTakenWorkRequests() {
+        if (!accessToken || !currentUser) return [];
+
+        // Получаем заявки, созданные мной
+        const myCreatedReqs = await fetchDataInternal('work_requests/my');
+
+        // Получаем заявки, взятые мной (если я исполнитель)
+        const myTakenReqs = currentUser.user_type === 'ИСПОЛНИТЕЛЬ'
+            ? await fetchDataInternal('work_requests/taken')
+            : [];
+
+        // Объединяем и убираем дубликаты, чтобы каждая заявка была в списке один раз
+        const allReqs = [...myCreatedReqs, ...myTakenReqs];
+        const uniqueReqs = allReqs.filter((req, index, self) =>
+            index === self.findIndex((r) => r.id === req.id)
+        );
+
+        return uniqueReqs;
+    }
+
+    async function fetchRequests(endpoint, containerId, type, isMyRequest = false) {
+        if (!selectedCityId && !isMyRequest) {
+            alert('Пожалуйста, выберите город.');
+            return;
+        }
+        try {
+            const url = isMyRequest ? `${API_URL}/${endpoint}` : `${API_URL}/${endpoint}/by_city/${selectedCityId}`;
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            const data = await response.json();
+            const container = document.getElementById(containerId);
+            if (response.ok) {
+                renderRequests(data, containerId, type, isMyRequest);
+            } else {
+                if(container) container.innerHTML = `<p class="message error">Ошибка загрузки: ${data.detail || response.statusText}</p>`;
+            }
+        } catch (error) {
+            console.error(`Ошибка при получении ${type} заявок:`, error);
+            const container = document.getElementById(containerId);
+            if(container) container.innerHTML = '<p class="message error">Не удалось соединиться с сервером.</p>';
+        }
+    }
+
+    const fetchWorkRequests = () => fetchRequests('work_requests', 'workRequestsList', 'work');
+    const fetchMachineryRequests = () => fetchRequests('machinery_requests', 'machineryRequestsList', 'machinery');
+    const fetchToolRequests = () => fetchRequests('tool_requests', 'toolRequestsList', 'tool');
+    const fetchMaterialAds = () => fetchRequests('material_ads', 'materialAdsList', 'material');
+
+    // --- Используем новую надежную функцию для чатов в профиле ---
+    async function fetchAndRenderProfileChats() {
+        const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
+        renderChats(allMyWorkRequests, 'profileChatsList');
+    }
+
+    // --- Логика отображения "Моих заявок" ---
+    async function fetchMyRequests() {
+        if (!accessToken) return;
+
+        // 1. Получаем единый список всех моих заявок на работу
+        const allMyWorkRequests = await fetchMyAndTakenWorkRequests();
+
+        // 2. Отображаем Активные чаты
+        renderChats(allMyWorkRequests, 'myChatsList');
+
+        // 3. Отображаем заявки, созданные мной (Секция "Мои Заявки на работу")
+        const myCreatedWorkRequests = allMyWorkRequests.filter(req => req.user_id === currentUser.id);
+        renderRequests(myCreatedWorkRequests, 'myWorkRequestsList', 'work', true);
+
+        // 4. Отображаем заявки, взятые мной (Секция "Взятые Заявки")
+        const takenSection = document.getElementById('myTakenWorkRequestsSection');
+        if (currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
+            const myTakenWorkRequests = allMyWorkRequests.filter(req => req.executor_id === currentUser.id);
+            takenSection.style.display = 'block';
+            renderRequests(myTakenWorkRequests, 'myTakenWorkRequestsList', 'work', true);
+        } else {
+            takenSection.style.display = 'none';
+        }
+    }
+</script>
+</body>
+</html>
