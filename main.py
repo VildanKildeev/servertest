@@ -321,7 +321,7 @@ async def create_user(user: UserIn):
             detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
         )
 
-    specialization_to_insert = user.specialization if user.user_type == "ИСПОЛНИТЕль" else None
+    specialization_to_insert = user.specialization if user.user_type == "ИСПОЛНИТЕЛЬ" else None
 
     hashed_password = get_password_hash(user.password)
     query = users.insert().values(
