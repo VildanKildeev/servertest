@@ -136,8 +136,8 @@ class UserOut(BaseModel):
     specialization: Optional[str] = None
     is_premium: bool
     # --- НОВЫЕ ПОЛЯ ДЛЯ РЕЙТИНГА ---
-    rating: Optional[float] = 0.0
-    rating_count: int = 0
+    rating: float = Field(..., description="Рейтинг пользователя", ge=0.0, le=5.0)
+    rating_count: Optional[int] = Field(None, description="Количество оценок")
 
 class Token(BaseModel):
     """Схема для токена доступа."""
