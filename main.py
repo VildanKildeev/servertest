@@ -17,7 +17,7 @@ from sqlalchemy.orm import relationship
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-
+from database import metadata, engine
 
 # --- Database setup ---
 # Импорт объектов базы данных из database.py
