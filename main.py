@@ -96,6 +96,11 @@ async def is_email_taken(email: str) -> bool:
 
 @app.on_event("startup")
 async def startup():
+    # --- ДОБАВЬТЕ ЭТИ ДВЕ СТРОКИ ---
+    # Эта команда создает все таблицы, описанные в database.py, если их еще нет.
+    # Она безопасна для повторного запуска.
+    metadata.create_all(engine)
+    # ------------------------------------
     print("Connecting to the database...")
     await database.connect()
 
