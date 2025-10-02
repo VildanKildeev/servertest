@@ -50,31 +50,26 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("rating_count", sqlalchemy.Integer, nullable=False, default=0)
 )
 
-# Таблица запросов на работу
+# Таблица заявок на работу
 work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    # ИСПРАВЛЕНО: Столбец contact_info был заменен на phone_number для соответствия новым полям формы
-    sqlalchemy.Column("name", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
+    sqlalchemy.Column("name", sqlalchemy.String, nullable=False), # <-- ДОБАВЛЕНО
     sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
-    # УДАЛЕНЫ СТАРЫЕ, МЕНЕЕ ТОЧНЫЕ ОПРЕДЕЛЕНИЯ budget и city_id
     sqlalchemy.Column("budget", sqlalchemy.Float, nullable=False),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=False),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
-    sqlalchemy.Column("status", sqlalchemy.String, default="active"),
-    sqlalchemy.Column("is_taken", sqlalchemy.Boolean, default=False, nullable=False),
-    sqlalchemy.Column("chat_enabled", sqlalchemy.Boolean, default=False, nullable=False),
-    # НОВЫЕ СТОЛБЦЫ
+    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    sqlalchemy.Column("is_taken", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("chat_enabled", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("address", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("visit_date", sqlalchemy.DateTime, nullable=True),
-    # КОНЕЦ НОВЫХ СТОЛБЦОВ
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now())
-)
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
+) 
 
 # Таблица городов
 cities = sqlalchemy.Table(
