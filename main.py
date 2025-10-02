@@ -360,7 +360,7 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
         
     user_dict["username"] = user_dict["email"]
     return user_dict
-return current_user
+# return current_user <--- Удаленная строка, которая вызывала SyntaxError
 
 # --- ИСПРАВЛЕНИЕ: Удалены дублирующиеся эндпоинты для чата ---
 # Первая пара обработчиков чата была удалена, чтобы избежать конфликтов.
