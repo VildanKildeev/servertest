@@ -10,9 +10,8 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 
 # Проверяем, что переменная установлена, иначе приложение не запустится
 if not DATABASE_URL:
-    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
+    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса.")
 
-# --- ВАЖНЫЕ ИЗМЕНЕНИЯ ЗДЕСЬ ---
 # Добавляем параметр SSL для Render.com, если его нет.
 if "?" in DATABASE_URL:
     if "sslmode" not in DATABASE_URL:
@@ -28,9 +27,8 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL)
 database = databases.Database(DATABASE_URL)
 metadata = MetaData()
-# --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
-# Таблица для пользователей (добавлена)
+# Таблица для пользователей
 users = sqlalchemy.Table(
     "users",
     metadata,
@@ -43,21 +41,19 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    # ИСПРАВЛЕНО: Добавлен столбец city_id, необходимый для регистрации
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=False),
-    # --- НОВЫЕ СТОЛБЦЫ ДЛЯ РЕЙТИНГА ---
     sqlalchemy.Column("rating", sqlalchemy.Float, nullable=True, default=0.0),
     sqlalchemy.Column("rating_count", sqlalchemy.Integer, nullable=False, default=0)
 )
 
-# Таблица заявок на работу
+# Таблица заявок на работу (УБРАН СТОЛБЕЦ chat_enabled)
 work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
-    sqlalchemy.Column("name", sqlalchemy.String, nullable=False), # <-- ДОБАВЛЕНО
+    sqlalchemy.Column("name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("budget", sqlalchemy.Float, nullable=False),
@@ -65,11 +61,22 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     sqlalchemy.Column("is_taken", sqlalchemy.Boolean, default=False),
-    sqlalchemy.Column("chat_enabled", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("address", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("visit_date", sqlalchemy.DateTime, nullable=True),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
-) 
+)
+
+# --- НОВАЯ ТАБЛИЦА: ПРЕДЛОЖЕНИЯ ОТ ИСПОЛНИТЕЛЕЙ ---
+# Эта таблица связывает исполнителей с заявками, на которые они откликнулись.
+work_request_offers = sqlalchemy.Table(
+    "work_request_offers",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id")),
+    sqlalchemy.Column("performer_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("timestamp", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    sqlalchemy.Column("status", sqlalchemy.String, default="pending") # 'pending', 'accepted', 'rejected'
+)
 
 # Таблица городов
 cities = sqlalchemy.Table(
@@ -79,7 +86,7 @@ cities = sqlalchemy.Table(
     sqlalchemy.Column("name", sqlalchemy.String, unique=True, index=True)
 )
 
-# Таблица запросов на спецтехнику (ОБНОВЛЕНО)
+# Таблица запросов на спецтехнику
 machinery_requests = sqlalchemy.Table(
     "machinery_requests",
     metadata,
@@ -92,12 +99,9 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    # --- НОВЫЕ СТОЛБЦЫ ---
     sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
-    # ИСПРАВЛЕНО: Имя столбца приведено в соответствие с Pydantic моделью
     sqlalchemy.Column("min_hours", sqlalchemy.Integer, default=4),
 )
-
 
 # Таблица запросов на инструмент
 tool_requests = sqlalchemy.Table(
@@ -111,7 +115,6 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    # ОБНОВЛЕННЫЕ СТОЛБЦЫ:
     sqlalchemy.Column("tool_count", sqlalchemy.Integer, default=1),
     sqlalchemy.Column("rental_start_date", sqlalchemy.Date, nullable=True),
     sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
@@ -134,13 +137,15 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
 
-# Добавление пропущенной таблицы для чата
+# Таблица сообщений чата
 chat_messages = sqlalchemy.Table(
     "chat_messages",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id")),
     sqlalchemy.Column("sender_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    # Добавлен получатель для поддержки диалогов 1-на-1
+    sqlalchemy.Column("recipient_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("message", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("timestamp", sqlalchemy.DateTime, default=sqlalchemy.func.now())
 )
