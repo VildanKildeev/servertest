@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -18,6 +18,9 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from database import metadata, engine
+from fastapi import WebSocket, WebSocketDisconnect # Новые импорты
+from fastapi import Query # Новый импорт
+from sqlalchemy import select, or_, and_ # Обновите для более сложного запроса
 
 # --- Database setup ---
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, chat_messages, work_request_offers
@@ -264,6 +267,36 @@ class CityOut(BaseModel):
     id: int
     name: str
 
+# Определите ConnectionManager сразу после импортов и настроек
+class ConnectionManager:
+    """Управляет активными WebSocket-соединениями по request_id."""
+    def __init__(self):
+        # Словарь: {request_id: [WebSocket, WebSocket, ...]}
+        self.active_connections: Dict[int, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, request_id: int):
+        await websocket.accept()
+        if request_id not in self.active_connections:
+            self.active_connections[request_id] = []
+        self.active_connections[request_id].append(websocket)
+        # Опциональный вывод в лог
+        # print(f"WS: Пользователь подключен к чату {request_id}")
+
+    def disconnect(self, websocket: WebSocket, request_id: int):
+        if request_id in self.active_connections and websocket in self.active_connections[request_id]:
+            self.active_connections[request_id].remove(websocket)
+            if not self.active_connections[request_id]:
+                del self.active_connections[request_id]
+        # print(f"WS: Пользователь отключен от чата {request_id}")
+
+    async def broadcast(self, request_id: int, message: str):
+        """Отправляет сообщение всем участникам чата по данному request_id."""
+        if request_id in self.active_connections:
+            for connection in self.active_connections[request_id]:
+                await connection.send_text(message)
+
+manager = ConnectionManager()
+
 class ChatMessageIn(BaseModel):
     message: str
 
@@ -279,6 +312,13 @@ class ChatMessageOut(BaseModel):
 class RatingIn(BaseModel):
     rating_value: int = Field(..., ge=1, le=5)
 
+class ChatSummary(BaseModel):
+    """Модель для отображения активного диалога в списке."""
+    request_id: int
+    opponent_id: int
+    opponent_name: str
+    last_message: Optional[str]
+    is_work_request_owner: bool # Полезно для логики фронтенда
 
 # ----------------------------------------------------
 # --- API endpoints ---
@@ -380,6 +420,66 @@ async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = 
     
     return {"message": f"Исполнитель {executor['email']} успешно оценен. Новый средний рейтинг: {new_average_rating:.2f}"}
 
+@api_router.get("/chats/my_active_chats", response_model=List[ChatSummary])
+async def get_my_active_chats(current_user: dict = Depends(get_current_user)):
+    """Получает список всех уникальных диалогов, в которых участвует пользователь."""
+    user_id = current_user["id"]
+    
+    # 1. Запрос для поиска всех уникальных request_id и собеседников
+    # Используем Union для объединения запросов, где пользователь — отправитель ИЛИ получатель.
+    # Это позволяет найти все уникальные пары (request_id, opponent_id).
+    
+    # Запрос на все сообщения, где пользователь - отправитель
+    q1 = select([chat_messages.c.request_id, chat_messages.c.recipient_id.label("opponent_id")]) \
+         .where(chat_messages.c.sender_id == user_id)
+    
+    # Запрос на все сообщения, где пользователь - получатель
+    q2 = select([chat_messages.c.request_id, chat_messages.c.sender_id.label("opponent_id")]) \
+         .where(chat_messages.c.recipient_id == user_id)
+
+    # Объединяем, группируем, чтобы получить уникальные диалоги
+    union_query = q1.union(q2).alias("unique_dialogs")
+    final_query = select([union_query.c.request_id, union_query.c.opponent_id]).distinct()
+    
+    chat_participants = await database.fetch_all(final_query)
+
+    result = []
+    
+    for dialog in chat_participants:
+        opponent_id = dialog["opponent_id"]
+        request_id = dialog["request_id"]
+        
+        # Получаем имя собеседника
+        opponent = await database.fetch_one(select([users.c.email]).where(users.c.id == opponent_id))
+        opponent_name = opponent["email"].split("@")[0] if opponent else f"Пользователь #{opponent_id}"
+        
+        # Получаем последнее сообщение для отображения в списке
+        last_message_query = chat_messages.select().where(
+            and_(
+                chat_messages.c.request_id == request_id,
+                or_(
+                    and_(chat_messages.c.sender_id == user_id, chat_messages.c.recipient_id == opponent_id),
+                    and_(chat_messages.c.sender_id == opponent_id, chat_messages.c.recipient_id == user_id)
+                )
+            )
+        ).order_by(chat_messages.c.id.desc()).limit(1)
+        
+        last_message_record = await database.fetch_one(last_message_query)
+        last_message = last_message_record["message"] if last_message_record else "Начать диалог"
+        
+        # Проверяем, является ли пользователь владельцем заявки
+        work_request = await database.fetch_one(select([work_requests.c.user_id]).where(work_requests.c.id == request_id))
+        is_owner = work_request["user_id"] == user_id if work_request else False
+
+        result.append(ChatSummary(
+            request_id=request_id,
+            opponent_id=opponent_id,
+            opponent_name=opponent_name,
+            last_message=last_message,
+            is_work_request_owner=is_owner
+        ))
+
+    return result
 
 @api_router.put("/users/update-specialization")
 async def update_specialization(specialization_update: SpecializationUpdate, current_user: dict = Depends(get_current_user)):
@@ -390,6 +490,62 @@ async def update_specialization(specialization_update: SpecializationUpdate, cur
     await database.execute(query)
     return {"message": "Специализация успешно обновлена"}
 
+# main.py (В разделе @api_router)
+@api_router.websocket("/ws/chat/{request_id}/{opponent_id}")
+async def websocket_endpoint(
+    websocket: WebSocket, 
+    request_id: int, 
+    opponent_id: int,
+    token: str = Query(...) # Токен для аутентификации
+):
+    """
+    Эндпоинт для WebSocket-подключения. 
+    request_id - ID заявки, opponent_id - ID собеседника.
+    """
+    try:
+        # Аутентификация пользователя по токену
+        user = await get_current_user(token)
+        user_id = user["id"]
+        username = user["email"].split("@")[0] # Имя пользователя
+    except HTTPException:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    
+    await manager.connect(websocket, request_id)
+    
+    try:
+        while True:
+            # Получаем сообщение от пользователя
+            data = await websocket.receive_text()
+            
+            # --- Сохранение сообщения в базу данных ---
+            # Сохраняем сообщение с явным указанием отправителя и получателя
+            query = chat_messages.insert().values(
+                request_id=request_id,
+                sender_id=user_id,
+                recipient_id=opponent_id, # Получатель известен из URL
+                message=data,
+                created_at=datetime.utcnow()
+            )
+            await database.execute(query)
+            
+            # --- Отправка сообщения всем подключенным (broadcast) ---
+            # Сообщение в формате JSON, чтобы фронтенд мог определить, кто отправитель
+            message_payload = json.dumps({
+                "sender_id": user_id,
+                "sender_name": username,
+                "message": data,
+                "time": datetime.utcnow().strftime("%H:%M")
+            })
+            
+            await manager.broadcast(request_id, message_payload)
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, request_id)
+    except Exception as e:
+        # print(f"WS Error in chat {request_id}: {e}")
+        manager.disconnect(websocket, request_id)
+        # Опционально: отправить сообщение об ошибке клиенту
 
 @api_router.post("/subscribe")
 async def subscribe(current_user: dict = Depends(get_current_user)):
