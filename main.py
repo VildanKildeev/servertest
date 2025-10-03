@@ -147,7 +147,6 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-
 class ConnectionManager:
     """Класс для управления активными соединениями WebSocket по ID запроса."""
     def __init__(self):
@@ -482,7 +481,7 @@ async def websocket_endpoint(
                 sender_id=sender_id,
                 recipient_id=opponent_id,
                 message=message_text,
-                created_at=datetime.utcnow()
+                timestamp=datetime.utcnow()
             )
             await database.execute(query)
 
@@ -515,12 +514,12 @@ async def get_my_active_chats(current_user: dict = Depends(get_current_user)):
          .where(chat_messages.c.sender_id == user_id)
     
     # Запрос на все сообщения, где пользователь - получатель
-    q2 = select([chat_messages.c.request_id, chat_messages.c.sender_id.label("opponent_id")]) \
+    q2 = select(chat_messages.c.request_id, chat_messages.c.sender_id.label("opponent_id")) \
          .where(chat_messages.c.recipient_id == user_id)
 
     # Объединяем, группируем, чтобы получить уникальные диалоги
     union_query = q1.union(q2).alias("unique_dialogs")
-    final_query = select([union_query.c.request_id, union_query.c.opponent_id]).distinct()
+    final_query = select(union_query.c.request_id, union_query.c.opponent_id).distinct()
     
     chat_participants = await database.fetch_all(final_query)
 
@@ -531,7 +530,7 @@ async def get_my_active_chats(current_user: dict = Depends(get_current_user)):
         request_id = dialog["request_id"]
         
         # Получаем имя собеседника
-        opponent = await database.fetch_one(select([users.c.email]).where(users.c.id == opponent_id))
+        opponent = await database.fetch_one(select(users.c.email).where(users.c.id == opponent_id))
         opponent_name = opponent["email"].split("@")[0] if opponent else f"Пользователь #{opponent_id}"
         
         # Получаем последнее сообщение для отображения в списке
@@ -549,7 +548,7 @@ async def get_my_active_chats(current_user: dict = Depends(get_current_user)):
         last_message = last_message_record["message"] if last_message_record else "Начать диалог"
         
         # Проверяем, является ли пользователь владельцем заявки
-        work_request = await database.fetch_one(select([work_requests.c.user_id]).where(work_requests.c.id == request_id))
+        work_request = await database.fetch_one(select(work_requests.c.user_id).where(work_requests.c.id == request_id))
         is_owner = work_request["user_id"] == user_id if work_request else False
 
         result.append(ChatSummary(
@@ -606,7 +605,7 @@ async def websocket_endpoint(
                 sender_id=user_id,
                 recipient_id=opponent_id, # Получатель известен из URL
                 message=data,
-                created_at=datetime.utcnow()
+                timestamp=datetime.utcnow()
             )
             await database.execute(query)
             
@@ -756,7 +755,7 @@ async def get_offers_for_work_request(request_id: int, current_user: dict = Depe
     if not request_item or request_item["user_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
 
-    query = select([work_request_offers, users]).where(
+    query = select(work_request_offers, users).where(
         work_request_offers.c.request_id == request_id
     ).select_from(work_request_offers.join(users, work_request_offers.c.performer_id == users.c.id))
     
