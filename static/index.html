@@ -333,6 +333,8 @@
             </div>
         </div>
 
+
+
         <div id="chatPage" class="page">
             <div class="form-container" style="padding: 0;">
                 <h3 id="chatHeader">Чат по заявке</h3>
@@ -668,6 +670,98 @@
             }
         }
 
+async function fetchActiveChats() {
+    try {
+        const response = await fetch(`${API_URL}/chats/my_active_chats`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        if (response.ok) {
+            const chats = await response.json();
+            const chatsListEl = document.getElementById('activeChatsList'); // Убедитесь, что такой элемент есть в HTML
+            chatsListEl.innerHTML = ''; // Очистка списка
+            
+            if (chats.length === 0) {
+                chatsListEl.innerHTML = '<p class="status-msg">Активных диалогов нет.</p>';
+            }
+            
+            chats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item';
+                // При клике открываем чат
+                chatItem.onclick = () => showChat(chat.request_id, chat.opponent_id, chat.opponent_name); 
+                chatItem.innerHTML = `
+                    <h4>Чат по Заявке #${chat.request_id}</h4>
+                    <p>Собеседник: ${chat.opponent_name}</p>
+                    <p class="last-message">${chat.last_message}</p>
+                `;
+                chatsListEl.appendChild(chatItem);
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке активных чатов:', error);
+    }
+}
+
+let chatSocket = null; // Для хранения активного WebSocket
+
+function showChat(requestId, opponentId, opponentName) {
+    // 1. Закрыть предыдущее соединение, если оно есть
+    if (chatSocket) {
+        chatSocket.close();
+    }
+    
+    // 2. Сменить отображаемую страницу на страницу чата (вам нужно добавить этот div в HTML)
+    showPage('chatPage'); 
+    document.getElementById('chatTitle').textContent = `Чат по Заявке #${requestId} с ${opponentName}`;
+    const chatLog = document.getElementById('chatLog');
+    chatLog.innerHTML = '<h4>Загрузка сообщений...</h4>';
+    
+    // 3. Установить соединение
+    const ws_url = `ws://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    // ВАЖНО: Render не поддерживает WS, вам может понадобиться использовать WSS (защищенный протокол)
+    // Если ваш Render-сервис доступен по HTTPS, используйте WSS:
+    // const ws_url = `wss://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    
+    chatSocket = new WebSocket(ws_url);
+
+    // 4. Обработка событий
+    chatSocket.onopen = function(e) {
+        // Здесь можно загрузить историю чата с помощью обычного HTTP GET-запроса
+        chatLog.innerHTML = '<h4>Соединение установлено.</h4>'; 
+    };
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const isSelf = data.sender_id === currentUser.id;
+        
+        const messageEl = document.createElement('p');
+        messageEl.className = isSelf ? 'chat-message self' : 'chat-message other';
+        messageEl.textContent = `${data.sender_name}: ${data.message} (${data.time})`;
+        chatLog.appendChild(messageEl);
+        chatLog.scrollTop = chatLog.scrollHeight; // Прокрутка вниз
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('WebSocket закрыт:', e);
+        chatLog.innerHTML += '<h4>Соединение потеряно.</h4>';
+    };
+
+    chatSocket.onerror = function(e) {
+        console.error('WebSocket ошибка:', e);
+    };
+    
+    // 5. Логика отправки сообщения
+    document.getElementById('chatForm').onsubmit = function(event) {
+        event.preventDefault();
+        const input = document.getElementById('chatInput');
+        if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(input.value);
+            input.value = '';
+        }
+    };
+}
         document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
             const newSpecialization = document.getElementById('newSpecialization').value;
             try {
