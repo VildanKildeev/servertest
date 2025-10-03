@@ -825,7 +825,9 @@ function showChat(requestId, opponentId, opponentName) {
     chatLog.innerHTML = '<h4>Загрузка сообщений...</h4>';
     
     // 3. Установить соединение
-    const ws_url = `ws://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    const ws_protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws_host = window.location.host;
+    const ws_url = `${ws_protocol}//${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
     // ВАЖНО: Render не поддерживает WS, вам может понадобиться использовать WSS (защищенный протокол)
     // Если ваш Render-сервис доступен по HTTPS, используйте WSS:
     // const ws_url = `wss://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
@@ -1439,10 +1441,7 @@ function showChat(requestId, opponentId, opponentName) {
         e.preventDefault();
         const message = chatInput.value.trim();
         if (message && chatSocket.readyState === WebSocket.OPEN) {
-            const messagePayload = JSON.stringify({
-                message: message
-            });
-            chatSocket.send(messagePayload);
+            chatSocket.send(message);
             chatInput.value = ''; // Очищаем поле ввода
         }
     };
