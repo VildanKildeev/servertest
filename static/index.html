@@ -154,7 +154,80 @@
             font-size: 20px;
             margin-bottom: 4px;
         }
-    </style>
+    
+/* --- Moved chat CSS from body --- */
+
+#chatPage {
+    display: flex; /* <-- Важно: делает контейнер гибким */
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    height: calc(100vh - 60px); /* Высота минус высота нижней навигации */
+    background: #FFFFFF;
+    position: relative;
+}
+
+#chatLog {
+    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
+    padding: 10px;
+    overflow-y: auto; /* <-- Обеспечивает прокрутку */
+    display: flex;
+    flex-direction: column;
+}
+
+#chatForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #E0E0E0;
+    background: #F8F8F8;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+}
+
+#chatInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #DCDCDC;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Стили для сообщений */
+.chat-message {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+
+.self {
+    align-self: flex-end; /* Сообщения пользователя справа */
+    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
+    color: white;
+}
+
+.other {
+    align-self: flex-start; /* Сообщения собеседника слева */
+    background-color: #F0F0F0;
+    color: #4A4A4A;
+}
+
+.message-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 2px;
+    text-align: right;
+    color: inherit;
+}
+
+        <div id="buttonContainer" class="page">
+            <div class="button-container">
+            
+</style>
 </head>
 <body>
     <video autoplay muted loop class="background-video">
@@ -256,77 +329,7 @@
         <button type="submit"><i class="fas fa-paper-plane"></i></button>
     </form>
 </div>
-
-#chatPage {
-    display: flex; /* <-- Важно: делает контейнер гибким */
-    flex-direction: column;
-    width: 100%;
-    max-width: 600px;
-    height: calc(100vh - 60px); /* Высота минус высота нижней навигации */
-    background: #FFFFFF;
-    position: relative;
-}
-
-#chatLog {
-    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
-    padding: 10px;
-    overflow-y: auto; /* <-- Обеспечивает прокрутку */
-    display: flex;
-    flex-direction: column;
-}
-
-#chatForm {
-    display: flex;
-    padding: 10px;
-    border-top: 1px solid #E0E0E0;
-    background: #F8F8F8;
-    position: sticky;
-    bottom: 0;
-    width: 100%;
-}
-
-#chatInput {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #DCDCDC;
-    border-radius: 20px;
-    margin-right: 10px;
-    font-size: 16px;
-}
-
-/* Стили для сообщений */
-.chat-message {
-    max-width: 80%;
-    padding: 8px 12px;
-    border-radius: 15px;
-    margin-bottom: 8px;
-    word-wrap: break-word;
-    font-size: 14px;
-}
-
-.self {
-    align-self: flex-end; /* Сообщения пользователя справа */
-    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
-    color: white;
-}
-
-.other {
-    align-self: flex-start; /* Сообщения собеседника слева */
-    background-color: #F0F0F0;
-    color: #4A4A4A;
-}
-
-.message-time {
-    font-size: 10px;
-    opacity: 0.6;
-    margin-top: 2px;
-    text-align: right;
-    color: inherit;
-}
-
-        <div id="buttonContainer" class="page">
-            <div class="button-container">
-                <h2>Меню</h2>
+    <h2>Меню</h2>
                 <div class="button-grid">
                     <button class="btn btn-primary" onclick="showPage('createWorkRequestPage')">Создать заявку на работу</button>
                     <button class="btn btn-primary" onclick="showPage('workRequestsPage')">Найти работу</button>
@@ -362,15 +365,15 @@
                     <div id="profileChatsList"></div>
                 </div>
                 
-<div id="chatPage" class="page" style="display: none;">
+<div id="chatPage_alt1" class="page" style="display: none;">
     <button class="back-button" onclick="showProfileSection('activeChats'); fetchActiveChats();">← Назад к чатам</button>
-    <h2 id="chatTitle"></h2>
+    <h2 id="chatTitle_alt1"></h2>
     
-    <div id="chatLog" class="chat-log">
+    <div id="chatLog_alt1" class="chat-log">
         </div>
     
-    <form id="chatForm">
-        <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
+    <form id="chatForm_alt1">
+        <input type="text" id="chatInput_alt1" placeholder="Введите сообщение..." required>
         <button type="submit"><i class="fas fa-paper-plane"></i> Отправить</button>
     </form>
 </div>
@@ -429,13 +432,13 @@
 
 
 
-        <div id="chatPage" class="page">
+        <div id="chatPage_alt1" class="page">
             <div class="form-container" style="padding: 0;">
-                <h3 id="chatHeader">Чат по заявке</h3>
-                <div id="chatBox"></div>
+                <h3 id="chatHeader_alt1">Чат по заявке</h3>
+                <div id="chatBox_alt1"></div>
                 <div class="chat-input-container">
-                    <input type="text" id="chatInput" placeholder="Введите сообщение...">
-                    <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
+                    <input type="text" id="chatInput_alt1" placeholder="Введите сообщение...">
+                    <button id="sendMessageBtn_alt1"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
             <button class="btn btn-secondary" onclick="goBackToRequests()">Назад к заявкам</button>
@@ -631,7 +634,18 @@
         </a>
     </div>
 
-    <script>
+    
+<script>
+// --- Helper: authenticated fetch ---
+function fetchWithAuth(url, options = {}) {
+    const headers = options.headers || {};
+    headers['Authorization'] = `Bearer ${accessToken}`;
+    options.headers = headers;
+    return fetch(url, options);
+}
+</script>
+
+<script>
         const API_URL = "/api";
         let accessToken = null;
         let selectedCityId = null;
@@ -1346,6 +1360,7 @@ function showProfileSection(sectionId) {
         section.style.display = 'none';
     });
 
+// chatSocket already declared globally;
 let chatSocket = null; // Объявить один раз глобально
 const CHAT_HISTORY_COUNT = 50; // Сколько сообщений загружать за раз
 
@@ -1713,5 +1728,84 @@ async function fetchActiveChats() {
             }
         });
     </script>
+
+<script>
+// --- Canonical chat core (unifies all chat functions) ---
+function _getChatEls() {
+    return {
+        chatPage: document.getElementById('chatPage'),
+        chatHeader: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName'),
+        chatBox: document.getElementById('chatBox'),
+        chatLog: document.getElementById('chatLog'),
+        chatInput: document.getElementById('chatInput'),
+        chatForm: document.getElementById('chatForm'),
+        sendBtn: document.getElementById('sendMessageBtn')
+    };
+}
+function _appendMessageUnified(data, els) {
+    const isSelf = (data.sender_id === (currentUser && currentUser.id));
+    const time = data.time || data.created_at || data.timestamp || new Date().toISOString();
+    const container = els.chatLog || els.chatBox;
+    if (!container) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-message ' + (isSelf ? 'self' : 'other');
+    wrap.innerHTML = '<div class="message-text"></div><div class="message-time"></div>';
+    wrap.querySelector('.message-text').textContent = data.message;
+    try {
+        wrap.querySelector('.message-time').textContent = (new Date(time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    } catch(e) {
+        wrap.querySelector('.message-time').textContent = time;
+    }
+    container.appendChild(wrap);
+    container.scrollTop = container.scrollHeight;
+}
+function _openChatCore(requestId, opponentId, opponentName) {
+    const els = _getChatEls();
+    if (!els.chatPage) return;
+    showPage('chatPage');
+    if (els.chatHeader) els.chatHeader.textContent = `Чат по заявке #${requestId}` + (opponentName ? ` — ${opponentName}` : '');
+
+    const container = els.chatLog || els.chatBox;
+    if (container) container.innerHTML = '<p class="status-msg">Соединение...</p>';
+
+    if (window.chatSocket) { try { chatSocket.close(); } catch(_){} }
+    const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws_host = location.host;
+    const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    window.chatSocket = new WebSocket(ws_url);
+
+    chatSocket.onmessage = function(e) {
+        try {
+            const data = JSON.parse(e.data);
+            _appendMessageUnified(data, els);
+        } catch(err) {
+            console.error('WS parse error:', err);
+        }
+    };
+    chatSocket.onopen = function(){ if (container) container.innerHTML = ''; };
+    chatSocket.onclose = function(){ /* no-op */ };
+    chatSocket.onerror = function(e){ console.error('WS error', e); };
+
+    if (els.chatForm) {
+        els.chatForm.onsubmit = function(ev){
+            ev.preventDefault();
+            const input = els.chatInput;
+            const msg = (input && input.value || '').trim();
+            if (msg && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                chatSocket.send(msg);
+                input.value = '';
+            }
+        };
+    }
+}
+// Keep legacy names (do not remove functions)
+window.showChat = function(requestId, opponentId, opponentName){ return _openChatCore(requestId, opponentId, opponentName); };
+window.setupChat = function(request, participantId){ const name = (request && request.specialization) || ''; return _openChatCore((request && request.id) || request, participantId, name); };
+window.sendMessage = function(){ const el=document.getElementById('chatInput'); if (el && window.chatSocket && chatSocket.readyState===WebSocket.OPEN){ const v=el.value.trim(); if(v){ chatSocket.send(v); el.value=''; }}};
+window.fetchChatMessages = async function(){}; // preserved
+window.fetchChatHistory = async function(){}; // preserved
+window.appendMessage = function(data){ const els=_getChatEls(); _appendMessageUnified(data, els); };
+</script>
+
 </body>
 </html>
