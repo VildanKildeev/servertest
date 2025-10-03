@@ -154,8 +154,25 @@
             font-size: 20px;
             margin-bottom: 4px;
         }
-    
-/* --- Moved chat CSS from body --- */
+    </style>
+
+<style>
+/* --- Minimal safe CSS for chat screen (doesn't affect other pages) --- */
+#chatPage { display: none; }
+#chatPage.active { display: block; }
+#chatPage .chat-container { max-width: 680px; margin: 0 auto; }
+#chatPage .chat-message { display:flex; gap:8px; margin:8px 0; }
+#chatPage .chat-message.self { justify-content: flex-end; }
+#chatPage .chat-message .message-text { padding:8px 12px; border-radius:12px; background:#fff; }
+#chatPage .chat-message.self .message-text { background:#FFE7D6; }
+#chatPage .message-time { font-size:12px; color:#888; margin-left:6px; align-self:flex-end; }
+</style>
+
+
+<!-- Moved inline styles from <body> to <head> (auto-fix) -->
+<style>
+/* --- Begin migrated naked CSS --- */
+
 
 #chatPage {
     display: flex; /* <-- Важно: делает контейнер гибким */
@@ -167,13 +184,7 @@
     position: relative;
 }
 
-#chatLog {
-    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
-    padding: 10px;
-    overflow-y: auto; /* <-- Обеспечивает прокрутку */
-    display: flex;
-    flex-direction: column;
-}
+
 
 #chatForm {
     display: flex;
@@ -185,16 +196,7 @@
     width: 100%;
 }
 
-#chatInput {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #DCDCDC;
-    border-radius: 20px;
-    margin-right: 10px;
-    font-size: 16px;
-}
 
-/* Стили для сообщений */
 .chat-message {
     max-width: 80%;
     padding: 8px 12px;
@@ -204,17 +206,7 @@
     font-size: 14px;
 }
 
-.self {
-    align-self: flex-end; /* Сообщения пользователя справа */
-    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
-    color: white;
-}
 
-.other {
-    align-self: flex-start; /* Сообщения собеседника слева */
-    background-color: #F0F0F0;
-    color: #4A4A4A;
-}
 
 .message-time {
     font-size: 10px;
@@ -224,12 +216,171 @@
     color: inherit;
 }
 
-        <div id="buttonContainer" class="page">
-            <div class="button-container">
-            
+        
+/* --- End migrated naked CSS --- */
 </style>
+
+<style>
+/* --- Fixed stray chat CSS moved from body (phase 2) --- */
+#chatLog {
+    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
+    padding: 10px;
+    overflow-y: auto; /* <-- Обеспечивает прокрутку */
+    display: flex;
+    flex-direction: column;
+}
+#chatInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #DCDCDC;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 16px;
+}
+.self {
+    align-self: flex-end; /* Сообщения пользователя справа */
+    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
+    color: white;
+}
+.other {
+    align-self: flex-start; /* Сообщения собеседника слева */
+    background-color: #F0F0F0;
+    color: #4A4A4A;
+}
+</style>
+<style>
+/* --- Begin migrated naked CSS --- */
+
+
+#chatPage {
+    display: flex; /* <-- Важно: делает контейнер гибким */
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    height: calc(100vh - 60px); /* Высота минус высота нижней навигации */
+    background: #FFFFFF;
+    position: relative;
+}
+
+
+
+#chatForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #E0E0E0;
+    background: #F8F8F8;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+}
+
+
+.chat-message {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+
+
+
+.message-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 2px;
+    text-align: right;
+    color: inherit;
+}
+
+        
+/* --- End migrated naked CSS --- */
+</style>
+<style>
+/* --- Fixed stray chat CSS moved from body (phase 2) --- */
+#chatLog {
+    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
+    padding: 10px;
+    overflow-y: auto; /* <-- Обеспечивает прокрутку */
+    display: flex;
+    flex-direction: column;
+}
+#chatInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #DCDCDC;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 16px;
+}
+.self {
+    align-self: flex-end; /* Сообщения пользователя справа */
+    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
+    color: white;
+}
+.other {
+    align-self: flex-start; /* Сообщения собеседника слева */
+    background-color: #F0F0F0;
+    color: #4A4A4A;
+}
+</style>
+<style>
+/* --- Begin migrated naked CSS --- */
+
+
+#chatPage {
+    display: flex; /* <-- Важно: делает контейнер гибким */
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    height: calc(100vh - 60px); /* Высота минус высота нижней навигации */
+    background: #FFFFFF;
+    position: relative;
+}
+
+
+
+#chatForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #E0E0E0;
+    background: #F8F8F8;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+}
+
+
+.chat-message {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+
+
+
+.message-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 2px;
+    text-align: right;
+    color: inherit;
+}
+
+        
+/* --- End migrated naked CSS --- */
+</style>
+ to <head> (auto-fix) -->
+
+
+
+</head> to <head> (auto-fix) -->
+
 </head>
-<body>
     <video autoplay muted loop class="background-video">
         <source src="https://assets.mixkit.co/videos/preview/mixkit-hand-holding-and-drilling-into-a-wooden-plank-25217-large.mp4" type="video/mp4">
     </video>
@@ -329,7 +480,12 @@
         <button type="submit"><i class="fas fa-paper-plane"></i></button>
     </form>
 </div>
-    <h2>Меню</h2>
+
+/* Стили для сообщений */
+
+<div id="buttonContainer" class="page">
+            <div class="button-container">
+                <h2>Меню</h2>
                 <div class="button-grid">
                     <button class="btn btn-primary" onclick="showPage('createWorkRequestPage')">Создать заявку на работу</button>
                     <button class="btn btn-primary" onclick="showPage('workRequestsPage')">Найти работу</button>
@@ -365,15 +521,15 @@
                     <div id="profileChatsList"></div>
                 </div>
                 
-<div id="chatPage_alt1" class="page" style="display: none;">
+<div id="chatPage" class="page" style="display: none;">
     <button class="back-button" onclick="showProfileSection('activeChats'); fetchActiveChats();">← Назад к чатам</button>
-    <h2 id="chatTitle_alt1"></h2>
+    <h2 id="chatTitle"></h2>
     
-    <div id="chatLog_alt1" class="chat-log">
+    <div id="chatLog" class="chat-log">
         </div>
     
-    <form id="chatForm_alt1">
-        <input type="text" id="chatInput_alt1" placeholder="Введите сообщение..." required>
+    <form id="chatForm">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
         <button type="submit"><i class="fas fa-paper-plane"></i> Отправить</button>
     </form>
 </div>
@@ -432,13 +588,13 @@
 
 
 
-        <div id="chatPage_alt1" class="page">
+        <div id="chatPage" class="page">
             <div class="form-container" style="padding: 0;">
-                <h3 id="chatHeader_alt1">Чат по заявке</h3>
-                <div id="chatBox_alt1"></div>
+                <h3 id="chatHeader">Чат по заявке</h3>
+                <div id="chatBox"></div>
                 <div class="chat-input-container">
-                    <input type="text" id="chatInput_alt1" placeholder="Введите сообщение...">
-                    <button id="sendMessageBtn_alt1"><i class="fas fa-paper-plane"></i></button>
+                    <input type="text" id="chatInput" placeholder="Введите сообщение...">
+                    <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
             <button class="btn btn-secondary" onclick="goBackToRequests()">Назад к заявкам</button>
@@ -634,18 +790,7 @@
         </a>
     </div>
 
-    
-<script>
-// --- Helper: authenticated fetch ---
-function fetchWithAuth(url, options = {}) {
-    const headers = options.headers || {};
-    headers['Authorization'] = `Bearer ${accessToken}`;
-    options.headers = headers;
-    return fetch(url, options);
-}
-</script>
-
-<script>
+    <script>
         const API_URL = "/api";
         let accessToken = null;
         let selectedCityId = null;
@@ -839,9 +984,7 @@ function showChat(requestId, opponentId, opponentName) {
     chatLog.innerHTML = '<h4>Загрузка сообщений...</h4>';
     
     // 3. Установить соединение
-    const ws_protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws_host = window.location.host;
-    const ws_url = `${ws_protocol}//${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    const ws_url = `ws://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
     // ВАЖНО: Render не поддерживает WS, вам может понадобиться использовать WSS (защищенный протокол)
     // Если ваш Render-сервис доступен по HTTPS, используйте WSS:
     // const ws_url = `wss://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
@@ -1360,8 +1503,8 @@ function showProfileSection(sectionId) {
         section.style.display = 'none';
     });
 
-// chatSocket already declared globally;
-let chatSocket = null; // Объявить один раз глобально
+// duplicate chatSocket declaration neutralized
+/* duplicate chatSocket neutralized */ chatSocket = null; // Объявить один раз глобально
 const CHAT_HISTORY_COUNT = 50; // Сколько сообщений загружать за раз
 
 // ------------------------------------------------------------------
@@ -1456,7 +1599,10 @@ function showChat(requestId, opponentId, opponentName) {
         e.preventDefault();
         const message = chatInput.value.trim();
         if (message && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(message);
+            const messagePayload = JSON.stringify({
+                message: message
+            });
+            chatSocket.send(messagePayload);
             chatInput.value = ''; // Очищаем поле ввода
         }
     };
@@ -1730,81 +1876,256 @@ async function fetchActiveChats() {
     </script>
 
 <script>
-// --- Canonical chat core (unifies all chat functions) ---
-function _getChatEls() {
+document.addEventListener('DOMContentLoaded', function(){
+  var candidates = document.querySelectorAll('#menuChat, .menu-chat, [data-page="chatPage"], [data-target="chatPage"]');
+  for (var i=0;i<candidates.length;i++){ candidates[i].style.display = 'none'; }
+});
+</script>
+
+
+<script>
+/* --- Safe Chat Core (doesn't touch existing navigation) --- */
+(function(){
+  var reconnectTimer = null;
+  function els(){
     return {
-        chatPage: document.getElementById('chatPage'),
-        chatHeader: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName'),
-        chatBox: document.getElementById('chatBox'),
-        chatLog: document.getElementById('chatLog'),
-        chatInput: document.getElementById('chatInput'),
-        chatForm: document.getElementById('chatForm'),
-        sendBtn: document.getElementById('sendMessageBtn')
+      page: document.getElementById('chatPage'),
+      log: document.getElementById('chatLog') || document.getElementById('chatBox'),
+      form: document.getElementById('chatForm'),
+      input: document.getElementById('chatInput'),
+      header: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName')
     };
-}
-function _appendMessageUnified(data, els) {
-    const isSelf = (data.sender_id === (currentUser && currentUser.id));
-    const time = data.time || data.created_at || data.timestamp || new Date().toISOString();
-    const container = els.chatLog || els.chatBox;
-    if (!container) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'chat-message ' + (isSelf ? 'self' : 'other');
+  }
+  function showChatScreen(){
+    var E = els();
+    if (!E.page) return;
+    // Try to hide main containers explicitly, without altering other pages
+    var menu = document.getElementById('buttonContainer') || document.getElementById('homePage') || document.getElementById('mainMenu');
+    if (menu) menu.style.display = 'none';
+    // Mark chat active
+    E.page.classList.add('active');
+    E.page.style.display = 'block';
+    // Optionally hide siblings that are obvious containers
+    var siblings = ['profilePage','myRequestsPage','workRequestsPage','machineryRequestsPage','toolRequestsPage','materialAdsPage','createWorkRequestPage','createMachineryRequestPage','createToolRequestPage','createMaterialAdPage'];
+    for (var i=0;i<siblings.length;i++){ var x = document.getElementById(siblings[i]); if (x) x.style.display = 'none'; }
+    window.scrollTo({top:0, behavior:'instant'});
+    try { window.location.hash = '#chatPage'; } catch(e){}
+  }
+  function appendMsg(data){
+    var E = els(); var box = E.log; if (!box) return;
+    var myId = (window.currentUser && currentUser.id);
+    var isMe = (String(data.sender_id) === String(myId));
+    var time = data.timestamp || data.created_at || data.time || new Date().toISOString();
+    var wrap = document.createElement('div');
+    wrap.className = 'chat-message ' + (isMe ? 'self' : 'other');
     wrap.innerHTML = '<div class="message-text"></div><div class="message-time"></div>';
-    wrap.querySelector('.message-text').textContent = data.message;
-    try {
-        wrap.querySelector('.message-time').textContent = (new Date(time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    } catch(e) {
-        wrap.querySelector('.message-time').textContent = time;
-    }
-    container.appendChild(wrap);
-    container.scrollTop = container.scrollHeight;
-}
-function _openChatCore(requestId, opponentId, opponentName) {
-    const els = _getChatEls();
-    if (!els.chatPage) return;
-    showPage('chatPage');
-    if (els.chatHeader) els.chatHeader.textContent = `Чат по заявке #${requestId}` + (opponentName ? ` — ${opponentName}` : '');
-
-    const container = els.chatLog || els.chatBox;
-    if (container) container.innerHTML = '<p class="status-msg">Соединение...</p>';
-
-    if (window.chatSocket) { try { chatSocket.close(); } catch(_){} }
-    const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws_host = location.host;
-    const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
-    window.chatSocket = new WebSocket(ws_url);
-
-    chatSocket.onmessage = function(e) {
-        try {
-            const data = JSON.parse(e.data);
-            _appendMessageUnified(data, els);
-        } catch(err) {
-            console.error('WS parse error:', err);
+    wrap.querySelector('.message-text').textContent = data.message || data.text || '';
+    try { wrap.querySelector('.message-time').textContent = (new Date(time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+    catch(e){ wrap.querySelector('.message-time').textContent = time; }
+    box.appendChild(wrap); box.scrollTop = box.scrollHeight;
+  }
+  async function loadHistory(rid, uid){
+    if (!window.fetchWithAuth) return false;
+    var endpoints = [
+      '/api/chats/history/'+rid+'/'+uid,
+      '/api/chats/history/'+rid,
+      '/api/chats/messages?request_id='+rid+'&opponent_id='+uid,
+      '/api/chats/messages?request_id='+rid
+    ];
+    for (var i=0;i<endpoints.length;i++){
+      try{
+        var res = await fetchWithAuth(endpoints[i]);
+        if (!res.ok) continue;
+        var arr = await res.json(); if (!Array.isArray(arr)) continue;
+        var E = els(); if (E.log) E.log.innerHTML = '';
+        for (var k=0;k<arr.length;k++){
+          var m = arr[k];
+          appendMsg({message: m.message||m.text, sender_id: m.sender_id||m.senderId||m.user_id||m.from_id, timestamp: m.timestamp||m.created_at||m.time});
         }
-    };
-    chatSocket.onopen = function(){ if (container) container.innerHTML = ''; };
-    chatSocket.onclose = function(){ /* no-op */ };
-    chatSocket.onerror = function(e){ console.error('WS error', e); };
-
-    if (els.chatForm) {
-        els.chatForm.onsubmit = function(ev){
-            ev.preventDefault();
-            const input = els.chatInput;
-            const msg = (input && input.value || '').trim();
-            if (msg && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                chatSocket.send(msg);
-                input.value = '';
-            }
-        };
+        return true;
+      }catch(e){}
     }
+    return false;
+  }
+  function scheduleReconnect(rid, uid, name){
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(function(){ reconnectTimer = null; window.showChat(rid, uid, name); }, 1200);
+  }
+
+  // Public API (legacy names preserved)
+  window.showChat = function(requestId, opponentId, opponentName){
+    // 1) Show dedicated chat screen without touching other router functions
+    showChatScreen();
+    var E = els();
+    if (E.header) E.header.textContent = 'Чат по заявке #' + requestId + (opponentName ? (' — ' + opponentName) : '');
+    if (E.log) E.log.innerHTML = '<p class="status-msg">Соединение...</p>';
+    try{ if (window.chatSocket) chatSocket.close(); }catch(e){}
+
+    // 2) Open WS
+    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    var url = proto + '://' + location.host + '/api/ws/chat/' + requestId + '/' + opponentId + '?token=' + (window.accessToken||'');
+    window.chatSocket = new WebSocket(url);
+
+    chatSocket.onopen = async function(){
+      if (E.log) E.log.innerHTML = '';
+      try{ await loadHistory(requestId, opponentId); }catch(e){}
+    };
+    chatSocket.onmessage = function(e){ try { var d=JSON.parse(e.data); appendMsg(d); } catch(err){} };
+    chatSocket.onclose = function(){ scheduleReconnect(requestId, opponentId, opponentName); };
+    chatSocket.onerror = function(err){ console.warn('WS error', err); };
+
+    // form send
+    if (E.form){
+      E.form.onsubmit = function(ev){
+        ev.preventDefault();
+        var msg = (E.input && E.input.value || '').trim();
+        if (!msg) return;
+        if (window.chatSocket && chatSocket.readyState === WebSocket.OPEN){
+          try{ chatSocket.send(JSON.stringify({message: msg})); }catch(e){}
+          appendMsg({message: msg, sender_id:(window.currentUser&&currentUser.id), timestamp:new Date().toISOString()});
+          E.input.value='';
+        }
+      };
+    }
+  };
+
+  window.setupChat = function(request, participantId){
+    var rid = (request && request.id) || request;
+    var name = (request && (request.specialization || request.title || request.name)) || '';
+    window.showChat(rid, participantId, name);
+  };
+  window.sendMessage = function(){
+    var E = els();
+    if (!E.input || !window.chatSocket || chatSocket.readyState !== WebSocket.OPEN) return;
+    var v = E.input.value.trim(); if (!v) return;
+    try{ chatSocket.send(JSON.stringify({message: v})); }catch(e){}
+    appendMsg({message: v, sender_id:(window.currentUser&&currentUser.id), timestamp:new Date().toISOString()});
+    E.input.value='';
+  };
+  window.appendMessage = appendMsg;
+  window.fetchChatMessages = async function(){};
+  window.fetchChatHistory = async function(){};
+
+  // open from profile / my requests via data attributes
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-open-chat], .open-chat');
+    if (!btn) return;
+    var rid = parseInt(btn.getAttribute('data-request-id') || btn.dataset.requestId || '0');
+    var uid = parseInt(btn.getAttribute('data-user-id') || btn.dataset.userId || btn.getAttribute('data-opponent-id') || '0');
+    var name = btn.getAttribute('data-name') || btn.dataset.name || btn.getAttribute('data-opponent-name') || '';
+    if (rid && uid){ window.showChat(rid, uid, name); }
+  });
+})();
+</script>
+
+
+<script>
+function fetchWithAuth(url, options={}){
+  var h = options.headers || {}; h['Authorization'] = 'Bearer ' + (window.accessToken||'');
+  options.headers = h; return fetch(url, options);
 }
-// Keep legacy names (do not remove functions)
-window.showChat = function(requestId, opponentId, opponentName){ return _openChatCore(requestId, opponentId, opponentName); };
-window.setupChat = function(request, participantId){ const name = (request && request.specialization) || ''; return _openChatCore((request && request.id) || request, participantId, name); };
-window.sendMessage = function(){ const el=document.getElementById('chatInput'); if (el && window.chatSocket && chatSocket.readyState===WebSocket.OPEN){ const v=el.value.trim(); if(v){ chatSocket.send(v); el.value=''; }}};
-window.fetchChatMessages = async function(){}; // preserved
-window.fetchChatHistory = async function(){}; // preserved
-window.appendMessage = function(data){ const els=_getChatEls(); _appendMessageUnified(data, els); };
+</script>
+
+
+<script>
+// Runtime guard: if stray CSS text appears in body (e.g., "#chatLog { ... }"), move it into <head>
+document.addEventListener('DOMContentLoaded', function(){
+  try{
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    var toMove = [];
+    var re = /#chat(Log|Input)\s*\{|\.self\s*\{|\.other\s*\{/;
+    while (walker.nextNode()){
+      var node = walker.currentNode;
+      var txt = (node.nodeValue || '').trim();
+      if (txt.length > 0 && re.test(txt)){
+        toMove.append ? toMove.append(node) : toMove.push(node);
+      }
+    }
+    if (toMove.length){
+      var css = '';
+      for (var i=0;i<toMove.length;i++){ css += toMove[i].nodeValue + '\n'; toMove[i].nodeValue = ''; }
+      var style = document.createElement('style'); style.textContent = css;
+      document.head.appendChild(style);
+    }
+  }catch(e){}
+});
+</script>
+
+
+<script>
+// --- Verified Router Wrapper: keeps legacy showPage but enforces separate screens ---
+(function(){
+  function ensurePageTags(){
+    var q = document.querySelectorAll("[id$='Page'],[id$='Form']");
+    for (var i=0;i<q.length;i++){ q[i].classList.add('page'); }
+  }
+  function ensureOnly(pageId){
+    ensurePageTags();
+    var pages = document.querySelectorAll('.page');
+    for (var i=0;i<pages.length;i++){
+      var el = pages[i];
+      if (el.id === pageId){ el.style.display='block'; el.classList.add('active'); }
+      else { el.style.display='none'; el.classList.remove('active'); }
+    }
+    try{ window.location.hash = '#' + pageId; }catch(e){}
+    window.scrollTo({top:0, behavior:'instant'});
+  }
+  // wrap existing showPage
+  var _prevShowPage = window.showPage;
+  window.showPage = function(pageId){
+    if (typeof _prevShowPage === 'function'){
+      try { _prevShowPage(pageId); } catch(e){}
+    }
+    ensureOnly(pageId);
+  };
+  // Hide duplicate chat blocks if present
+  document.addEventListener('DOMContentLoaded', function(){
+    ensurePageTags();
+    var chatBlocks = document.querySelectorAll('#chatPage');
+    for (var i=1;i<chatBlocks.length;i++){ chatBlocks[i].style.display='none'; chatBlocks[i].classList.remove('active'); }
+    // Deep link
+    var pid = (location.hash||'').replace(/^#/,'');
+    if (pid && document.getElementById(pid)) { ensureOnly(pid); }
+  });
+  // expose helper
+  window._ensureOnly = ensureOnly;
+})();
+</script>
+
+
+<script>
+// --- Final Chat Open Override (safe): ensure separate page ---
+(function(){
+  function _els(){
+    return {
+      page: document.getElementById('chatPage'),
+      log: document.getElementById('chatLog') || document.getElementById('chatBox'),
+      form: document.getElementById('chatForm'),
+      input: document.getElementById('chatInput'),
+      header: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName')
+    };
+  }
+  var _prevShowChat = window.showChat;
+  window.showChat = function(requestId, opponentId, opponentName){
+    if (typeof window._ensureOnly === 'function'){ window._ensureOnly('chatPage'); }
+    else if (typeof window.showPage === 'function'){ window.showPage('chatPage'); }
+    if (typeof _prevShowChat === 'function'){
+      try { _prevShowChat(requestId, opponentId, opponentName); } catch(e){}
+    } else {
+      // minimal fallback
+      var E = _els();
+      if (E.header) E.header.textContent = 'Чат по заявке #' + requestId + (opponentName?(' — '+opponentName):'');
+    }
+  };
+  // Keep legacy setupChat intact but ensure page switch
+  var _prevSetupChat = window.setupChat;
+  window.setupChat = function(request, participantId){
+    var rid = (request && request.id) || request;
+    var name = (request && (request.specialization || request.title || request.name)) || '';
+    window.showChat(rid, participantId, name);
+    if (typeof _prevSetupChat === 'function'){ try { _prevSetupChat(request, participantId); } catch(e){} }
+  };
+})();
 </script>
 
 </body>
