@@ -10,163 +10,238 @@
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; color: #4A4A4A; overflow-x: hidden; background: #F5F2EA; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         .background-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; filter: brightness(0.8); }
-        .selected-city { margin-top: 12px; font-size: 16px; color: #4A4A4A; text-align: center; display: flex; align-items: center; justify-content: center; width: 100%; cursor: pointer;}
-        .selected-city i { margin-right: 8px; color: #E87D39; }
-        .main-container { width: 100%; max-width: 800px; padding: 0; position: relative; z-index: 1; min-height: 100vh; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .selected-city { margin-top: 12px; font-size: 16px; color: #4A4A4A; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap; cursor: pointer; }
+        
+        /* --- Стили для модальных окон --- */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; position: relative; }
+        .modal-content h2 { margin-bottom: 20px; font-size: 20px; color: #4A4A4A; }
+        .modal .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; color: #aaa; cursor: pointer; }
 
-        /* Шапка */
-        header { width: 100%; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; background: #fff; border-bottom: 1px solid #E0E0E0; position: sticky; top: 0; z-index: 10; }
-        .logo { font-size: 24px; font-weight: bold; color: #E87D39; text-decoration: none; }
+        .city-list-container { max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 10px; }
+        .city-button { width: 100%; padding: 10px; margin: 5px 0; background-color: #F0F0E0; color: #4A4A4A; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        .city-button:hover { background-color: #E0E0D0; }
 
-        /* Кнопки */
-        .btn { padding: 12px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: background-color 0.2s, transform 0.1s; width: 100%; text-align: center; border: none; font-weight: 500; }
-        .btn-primary { background: #E87D39; color: #fff; }
-        .btn-primary:hover { background: #D16B2D; }
-        .btn-secondary { background: #F0F0F0; color: #4A4A4A; border: 1px solid #E0E0E0; }
-        .btn-secondary:hover { background: #E0E0E0; }
-        .btn-link { background: none; color: #E87D39; padding: 10px; text-decoration: none; display: block; margin-top: 10px; }
-        .btn:active { transform: scale(0.98); }
+        .contact-options a { display: block; width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; text-decoration: none; color: white; font-size: 16px; }
+        .contact-options .telegram-btn { background-color: #24A1DE; }
+        .contact-options .whatsapp-btn { background-color: #25D366; }
 
-        /* Формы и Поля */
-        h2 { font-size: 24px; color: #333; margin-bottom: 20px; text-align: center; }
-        .form-container { padding: 20px; }
+        /* --- Основные контейнеры --- */
+        .main-container { width: 100%; max-width: 600px; padding: 20px; padding-bottom: 80px; /* Отступ для нижней панели */ display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
+        .logo { width: 80px; margin-bottom: 10px; }
+        h1 { font-size: 20px; text-align: center; color: #4A4A4A; margin-bottom: 20px; }
+        .page { display: none; width: 100%; }
+        .page.active { display: block; }
+        .form-container, .button-container, .list-container { background-color: rgba(255, 255, 255, 0.9); padding: 20px; border-radius: 10px; width: 100%; max-width: 400px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .form-container h2, .button-container h2, .list-container h2 { text-align: center; margin-bottom: 15px; font-size: 18px; color: #4A4A4A; }
         .input-group { margin-bottom: 15px; }
-        .input-group label { display: block; margin-bottom: 5px; font-weight: 500; color: #666; font-size: 14px; }
-        .input-group input, .input-group select, .input-group textarea {
-            width: 100%; padding: 12px; border: 1px solid #E0E0E0; border-radius: 8px;
-            font-size: 16px; transition: border-color 0.2s;
-            background: #F8F8F8; color: #4A4A4A;
-        }
-        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
-            border-color: #E87D39; outline: none; background: #fff;
-        }
-        .form-container button[type="submit"] { margin-top: 10px; }
-        .message { padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: 500; }
-        .message.error { background: #FEE; color: #D00; border: 1px solid #FDD; }
-        .message.success { background: #EFE; color: #0A0; border: 1px solid #DFD; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #6B6B6B; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #DCDCDC; background-color: #fff; color: #4A4A4A; font-size: 14px; }
+        .input-group input[type="checkbox"] { width: auto; margin-right: 10px; }
+        .input-group label.checkbox-label { display: flex; align-items: center; }
+        .btn { width: 100%; padding: 10px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
+        .btn-primary { background-color: #E87D39; color: white; }
+        .btn-primary:hover { background-color: #D66D29; }
+        .btn-secondary { background-color: #6B6B6B; color: white; }
+        .btn-secondary:hover { background-color: #5A5A5A; }
+        .btn-link { background: none; color: #E87D39; text-decoration: none; border: none; padding: 0; margin-top: 10px; font-size: 14px; cursor: pointer; }
+        .btn-link:hover { text-decoration: underline; }
 
-        /* Меню */
-        .button-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .button-grid .btn {
-            font-size: 14px;
-            padding: 18px 10px;
-            display: flex;
+        .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .button-grid .btn { margin: 0; }
+
+        .request-item { background-color: #fff; padding: 15px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #E0E0D0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .request-item h4 { margin-bottom: 5px; color: #E87D39; }
+        .request-item p { margin-bottom: 5px; font-size: 14px; line-height: 1.4; color: #6B6B6B; }
+        .request-item .contact { font-weight: bold; }
+        .request-item .premium { color: #B8860B; font-weight: bold; }
+        .request-item .taken { color: #28a745; font-weight: bold; }
+        .request-item .offer-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+        .request-item .offer-btn:hover { background-color: #218838; }
+        .request-item .chat-btn { background-color: #E87D39; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+        .request-item .chat-btn:hover { background-color: #D66D29; }
+
+        /* --- СТИЛИ ДЛЯ ОТКЛИКОВ --- */
+        .offers-container h5 { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+        .offer-item { border-top: 1px solid #f0f0f0; padding-top: 10px; margin-top: 10px; text-align: left; }
+        .offer-item p { font-size: 13px; }
+        .offer-item .stars { color: #FFC107; font-size: 12px;}
+        .offer-actions { display: flex; gap: 10px; margin-top: 8px; }
+        .offer-actions button { flex-grow: 1; padding: 6px; font-size: 13px; margin: 0;}
+        .accept-offer-btn { background-color: #28a745; }
+        .chat-offer-btn { background-color: #007bff; }
+
+
+        .my-requests-section { border-bottom: 1px solid #DCDCDC; padding-bottom: 15px; margin-bottom: 15px; }
+        .my-requests-section:last-of-type { border-bottom: none; }
+        .my-requests-section h3 { margin-bottom: 10px; color: #E87D39; }
+
+        .message { padding: 10px; margin-top: 10px; border-radius: 5px; text-align: center; }
+        .message.success { background-color: #d4edda; color: #155724; }
+        .message.error { background-color: #f8d7da; color: #721c24; }
+
+        /* --- Стили для профиля и рейтинга --- */
+        #profileInfo p, #profileInfo button { margin-top: 10px; }
+        #profileRating { margin-top: 15px; font-size: 16px; color: #6B6B6B; }
+        .stars { color: #FFC107; }
+        #subscribeBtn { background-color: #FFC107; color: black; border: none; }
+        #subscribeBtn:hover { background-color: #E0A800; }
+        #updateSpecializationBtn { background-color: #28a745; color: white; }
+        #updateSpecializationBtn:hover { background-color: #218838; }
+        #editSpecializationForm { display: none; }
+
+        /* --- НОВЫЕ СТИЛИ ДЛЯ РЕЙТИНГА В ЗАЯВКАХ --- */
+        .rating-container { margin-top: 15px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        .rating-container p { font-weight: bold; margin-bottom: 8px; }
+        .rating-stars { font-size: 24px; color: #ccc; cursor: pointer; }
+        .rating-stars .fa-star:hover { color: #FFC107; }
+        .rating-stars .fa-star.selected { color: #FFC107; }
+        .rating-submit-btn { background-color: #007bff; color: white; font-size: 14px; padding: 6px 10px; width: auto; }
+
+        /* --- ОБНОВЛЕННЫЕ СТИЛИ ДЛЯ ЧАТА --- */
+        #chatPage { background-color: #fff; border-radius: 10px; }
+        #chatHeader { padding: 15px 15px 10px 15px; font-size: 18px; color: #4A4A4A; border-bottom: 1px solid #DCDCDC; margin-bottom: 10px; text-align: center; }
+        #chatBox { border: none; padding: 10px; max-height: 450px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background-color: #f9f9f9; }
+        .chat-message { display: flex; flex-direction: column; max-width: 85%; }
+        .chat-message .msg-content { padding: 10px 15px; border-radius: 18px; }
+        .chat-message .msg-text { margin: 0; font-size: 15px; line-height: 1.4; }
+        .chat-message .msg-info { font-size: 11px; margin-top: 5px; opacity: 0.8; }
+
+        .chat-message.me { align-self: flex-end; }
+        .chat-message.me .msg-content { background-color: #E87D39; color: white; border-bottom-right-radius: 4px; }
+        .chat-message.me .msg-info { text-align: right; color: #f0f0f0; }
+
+        .chat-message.other { align-self: flex-start; }
+        .chat-message.other .msg-content { background-color: #e9e9eb; color: #4A4A4A; border-bottom-left-radius: 4px; }
+        .chat-message.other .msg-info { text-align: left; color: #6B6B6B; }
+
+        .chat-input-container { display: flex; gap: 10px; padding: 15px; border-top: 1px solid #DCDCDC; align-items: center; }
+        #chatInput { flex-grow: 1; padding: 12px; border-radius: 20px; border: 1px solid #DCDCDC; font-size: 15px; }
+        #sendMessageBtn { background: none; border: none; color: #E87D39; font-size: 24px; cursor: pointer; padding: 5px; }
+        
+        /* --- НОВАЯ НИЖНЯЯ ПАНЕЛЬ --- */
+        .bottom-nav {
+            display: none; /* Скрыта по умолчанию */
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            padding: 10px;
+            z-index: 50;
+            border-top: 1px solid #DCDCDC;
+            justify-content: space-around;
             align-items: center;
-            justify-content: center;
-            height: 100%;
         }
-
-        /* Карточки */
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px; margin-bottom: 15px; border: 1px solid #E0E0E0; }
-        .card h3 { font-size: 18px; color: #E87D39; margin-bottom: 8px; }
-        .card p { font-size: 14px; color: #666; margin-bottom: 5px; }
-        .card .details { margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0F0F0; display: flex; justify-content: space-between; align-items: center; }
-        .card .details span { font-size: 12px; color: #888; }
-        .card .details .price { font-weight: bold; color: #4A4A4A; font-size: 14px; }
-
-        /* Список */
-        .list-container { padding: 10px; }
-        .request-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #F0F0F0; background: #fff; cursor: pointer; transition: background 0.1s; }
-        .request-item:hover { background: #F5F2EA; }
-        .request-item:last-child { border-bottom: none; }
-        .request-item .info { flex-grow: 1; }
-        .request-item .info h4 { font-size: 16px; color: #333; margin-bottom: 4px; }
-        .request-item .info p { font-size: 12px; color: #888; }
-        .request-item .status { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: 600; }
-        .status.open { background: #e0fff0; color: #0A0; }
-        .status.in_progress { background: #fff8e0; color: #E87D39; }
-        .status.closed { background: #f0f0f0; color: #666; }
-
-        /* Модальные окна */
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
-        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 400px; border-radius: 12px; position: relative; }
-        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; position: absolute; top: 10px; right: 15px; }
-        .close-button:hover, .close-button:focus { color: #000; text-decoration: none; cursor: pointer; }
-
-        /* Детали заявки */
-        .details-container { padding: 15px; }
-        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #E0E0E0; }
-        .detail-row:last-child { border-bottom: none; }
-        .detail-label { font-weight: 500; color: #666; }
-        .detail-value { font-weight: 600; color: #4A4A4A; text-align: right; }
-        .detail-value.price { color: #E87D39; font-size: 16px; }
-
-        /* Чат - Стиль сообщений */
-        #chatLog { padding: 15px 15px 0; display: flex; flex-direction: column; overflow-y: auto; flex-grow: 1; }
-        .message-box { max-width: 80%; padding: 10px; border-radius: 15px; margin-bottom: 10px; line-height: 1.4; font-size: 15px; position: relative; }
-        .message-box.outgoing { align-self: flex-end; background-color: #E87D39; color: #fff; border-bottom-right-radius: 4px; }
-        .message-box.incoming { align-self: flex-start; background-color: #F0F0F0; color: #4A4A4A; border-bottom-left-radius: 4px; }
-        .message-time {
-            font-size: 10px;
-            opacity: 0.6;
-            margin-top: 2px;
-            text-align: right;
-            color: inherit;
+        .bottom-nav.visible {
+            display: flex; /* Показывается на нужных страницах */
         }
-    </style>
+        .nav-btn {
+            background: none;
+            border: none;
+            color: #4A4A4A;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .nav-btn i {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+    
+/* --- Migrated chat CSS from body (auto) --- */
 
-    <style>
-      #chatFab{
-        position: fixed; right: 18px; bottom: 88px; width: 56px; height: 56px;
-        border-radius: 28px; display: none; align-items: center; justify-content: center;
-        background: #E87D39; color: #fff; border: none; box-shadow: 0 8px 20px rgba(0,0,0,.2);
-        z-index: 60; cursor: pointer;
-      }
-      #chatFab i{ font-size: 22px; }
-      #chatFab:active { transform: translateY(1px) scale(0.98); }
-
-      .page{ display:none; width:100%; }
-      .page.active{ display:block; }
-      .header-bar{ position: sticky; top: 0; background: #fff; z-index: 5; padding: 12px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #E0E0E0; }
-      .header-bar .header-title{ font-weight:600; color:#4A4A4A; }
-      .header-bar button{ background:none; border:none; color:#E87D39; font-size:18px; }
-      
-      /* Full-screen-ish pages and safe area */
-      .page{ display:none; padding: 12px 12px 80px; box-sizing: border-box; }
-      .page.active{ display:block; }
-      /* Ensure main menu does not share space with sub-forms */
-      #buttonContainer.page:not(.active){ display:none !important; }
-      /* Center forms on wide screens */
-      .page .card, .page .panel, .page form, .page .box {
-        max-width: 680px; margin-left:auto; margin-right:auto;
-      }
-    </style>
+#chatPage {
+    display: flex; /* <-- Важно: делает контейнер гибким */
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    height: calc(100vh - 60px); /* Высота минус высота нижней навигации */
+    background: #FFFFFF;
+    position: relative;
+}
 
 
+
+.chat-message {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+
+
+
+.self {
+    align-self: flex-end; /* Сообщения пользователя справа */
+    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
+    color: white;
+}
+
+
+
+.other {
+    align-self: flex-start; /* Сообщения собеседника слева */
+    background-color: #F0F0F0;
+    color: #4A4A4A;
+}
+
+
+
+.message-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 2px;
+    text-align: right;
+    color: inherit;
+}
+
+
+</style>
 </head>
 <body>
-    <div id="city-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" onclick="closeCityModal()">&times;</span>
-            <h2>Выберите город</h2>
-            <input type="text" id="city-search" placeholder="Начните вводить название города...">
-            <div id="city-list">
-                </div>
-            <button class="btn btn-secondary" onclick="closeCityModal()">Отмена</button>
-        </div>
+    <video autoplay muted loop class="background-video">
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-hand-holding-and-drilling-into-a-wooden-plank-25217-large.mp4" type="video/mp4">
+    </video>
+
+    <div class="selected-city" onclick="cityModal.classList.add('active')">
+        <i class="fas fa-map-marker-alt"></i>
+        <span id="cityName">Выберите город</span>
     </div>
 
-    <button id="chatFab" onclick="showPage('myChatsPage')"><i class="fas fa-comment-dots"></i></button>
-
     <div class="main-container">
+        <img src="https://smz.rf-dev.ru/img/logo_smz.png" alt="СМЗ.РФ Логотип" class="logo">
+        <h1>СМЗ.РФ - Заявки для Самозанятых и Мастеров</h1>
+        <div id="loadingMessage">Загрузка...</div>
 
-        <div id="loading" class="page active" style="display:flex; justify-content:center; align-items:center; height:100vh;">
-            <i class="fas fa-spinner fa-spin fa-3x" style="color:#E87D39;"></i>
+        <div id="cityModal" class="modal">
+            <div class="modal-content">
+                <h2>Выберите ваш город</h2>
+                <div id="cityList" class="city-list-container"></div>
+            </div>
+        </div>
+        
+        <div id="contactModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn" onclick="document.getElementById('contactModal').classList.remove('active')">&times;</span>
+                <h2>Связаться с нами</h2>
+                <div class="contact-options">
+                    <a href="#" class="telegram-btn"><i class="fab fa-telegram-plane"></i> Написать в Telegram</a>
+                    <a href="#" class="whatsapp-btn"><i class="fab fa-whatsapp"></i> Написать в WhatsApp</a>
+                </div>
+            </div>
         </div>
 
         <div id="loginPage" class="page active">
             <div class="form-container">
-                <header style="border-bottom:none; margin-bottom: 20px;">
-                    <a href="#" class="logo">СМЗ.РФ</a>
-                    <button class="btn btn-secondary" onclick="openCityModal()">
-                        <i class="fas fa-map-marker-alt"></i> <span id="currentCityName">Город</span>
-                    </button>
-                </header>
                 <h2>Вход</h2>
                 <div id="loginStatus" class="message" style="display:none;"></div>
                 <form id="loginForm">
@@ -179,7 +254,7 @@
                         <input type="password" id="loginPassword" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Войти</button>
-                    <button type="button" class="btn-link" onclick="showPage('registerPage'); return false;">Нет аккаунта? Зарегистрироваться</button>
+                    <button type="button" class="btn-link" onclick="showPage('registerPage')">Создать аккаунт</button>
                 </form>
             </div>
         </div>
@@ -218,15 +293,49 @@
                 </form>
             </div>
         </div>
+<div id="chatPage" class="page">
+    <div class="header-bar">
+        <button onclick="showPage('myChatsPage')"><i class="fas fa-arrow-left"></i></button>
+        <span id="chatOpponentName" class="header-title">Чат</span>
+        <div></div> </div>
+    
+    <div id="chatLog">
+        </div>
 
-        <div id="buttonContainer" class="page">
+    <form id="chatForm">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
+        <button type="submit"><i class="fas fa-paper-plane"></i></button>
+    </form>
+</div>
+#chatLog {
+    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
+    padding: 10px;
+    overflow-y: auto; /* <-- Обеспечивает прокрутку */
+    display: flex;
+    flex-direction: column;
+}
+
+#chatForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #E0E0E0;
+    background: #F8F8F8;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+}
+
+#chatInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #DCDCDC;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Стили для сообщений */     <div id="buttonContainer" class="page">
             <div class="button-container">
-                <header>
-                    <a href="#" class="logo">СМЗ.РФ</a>
-                    <button class="btn btn-secondary" onclick="openCityModal()">
-                        <i class="fas fa-map-marker-alt"></i> <span id="currentCityNameMenu">Город</span>
-                    </button>
-                </header>
                 <h2>Меню</h2>
                 <div class="button-grid">
                     <button class="btn btn-primary" onclick="showPage('createWorkRequestPage')">Создать заявку на работу</button>
@@ -244,382 +353,295 @@
             </div>
         </div>
 
-        <div id="chatPage" class="page">
-            <div class="header-bar">
-                <button onclick="showPage('myChatsPage')"><i class="fas fa-arrow-left"></i></button>
-                <span id="chatOpponentName" class="header-title">Чат</span>
-                <div></div> 
-            </div>
-            
-            <div id="chatLog">
-            </div>
-
-            <form id="chatForm">
-                <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
-                <button type="submit"><i class="fas fa-paper-plane"></i></button>
-            </form>
-        </div>
-
-
         <div id="profilePage" class="page">
             <div class="form-container">
-                <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад</button>
-                <h2>Профиль пользователя</h2>
-                <div id="profileStatus" class="message" style="display:none;"></div>
-                <form id="profileForm">
+                <h2>Профиль</h2>
+                <div id="profileInfo"></div>
+                <div id="profileRating"></div>
+
+                <div id="editSpecializationForm">
                     <div class="input-group">
-                        <label for="profileEmail">Email:</label>
-                        <input type="email" id="profileEmail" readonly>
+                        <label for="newSpecialization">Новая специализация:</label>
+                        <select id="newSpecialization"></select>
                     </div>
-                    <div class="input-group">
-                        <label for="profilePhoneNumber">Номер телефона:</label>
-                        <input type="tel" id="profilePhoneNumber" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="profileUserType">Тип аккаунта:</label>
-                        <input type="text" id="profileUserType" readonly>
-                    </div>
-                    <div class="input-group" id="profileSpecializationGroup" style="display: none;">
-                        <label for="profileSpecialization">Специализация:</label>
-                        <select id="profileSpecialization"></select>
-                    </div>
-                    <div class="input-group">
-                        <label for="profileCity">Город:</label>
-                        <input type="text" id="profileCity" readonly>
-                        <button type="button" class="btn btn-secondary" onclick="openCityModal()">Сменить город</button>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
-                </form>
+                    <button id="saveSpecializationBtn" class="btn btn-primary">Сохранить</button>
+                </div>
                 
-                <div class="profile-actions" style="margin-top: 20px;">
-                    <button class="btn btn-link" onclick="showPage('changePasswordPage')">Сменить пароль</button>
-                    <button class="btn btn-link" onclick="showPage('uploadPhotoPage')">Загрузить фото</button>
-                    <button class="btn btn-link" onclick="showPage('myAdsPage')">Мои объявления</button>
+                <div id="profileChatsSection" class="my-requests-section" style="margin-top: 20px;">
+                    <h3>Активные Чаты</h3>
+                    <div id="profileChatsList"></div>
                 </div>
+                
+<div id="chatPage_alt1" class="page" style="display: none;">
+    <button class="back-button" onclick="showProfileSection('activeChats'); fetchActiveChats();">← Назад к чатам</button>
+    <h2 id="chatTitle_alt1"></h2>
+    
+    <div id="chatLog_alt1" class="chat-log">
+        </div>
+    
+    <form id="chatForm_alt1">
+        <input type="text" id="chatInput_alt1" placeholder="Введите сообщение..." required>
+        <button type="submit"><i class="fas fa-paper-plane"></i> Отправить</button>
+    </form>
+</div>
+
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
-        </div>
-
-        <div id="changePasswordPage" class="page">
-            <div class="form-container">
-                <button class="btn-link" onclick="showPage('profilePage')"><i class="fas fa-arrow-left"></i> Назад к профилю</button>
-                <h2>Смена пароля</h2>
-                <div id="passwordStatus" class="message" style="display:none;"></div>
-                <form id="changePasswordForm">
-                    <div class="input-group">
-                        <label for="oldPassword">Текущий пароль:</label>
-                        <input type="password" id="oldPassword" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newPassword">Новый пароль:</label>
-                        <input type="password" id="newPassword" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="confirmNewPassword">Подтвердите новый пароль:</label>
-                        <input type="password" id="confirmNewPassword" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Сменить пароль</button>
-                </form>
-            </div>
-        </div>
-
-        <div id="uploadPhotoPage" class="page">
-            <div class="form-container">
-                <button class="btn-link" onclick="showPage('profilePage')"><i class="fas fa-arrow-left"></i> Назад к профилю</button>
-                <h2>Загрузка фото профиля</h2>
-                <div id="photoStatus" class="message" style="display:none;"></div>
-                <img id="currentProfilePhoto" src="https://via.placeholder.com/150" alt="Фото профиля" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 20px;">
-                <form id="uploadPhotoForm">
-                    <div class="input-group">
-                        <label for="profilePhotoFile">Выберите файл:</label>
-                        <input type="file" id="profilePhotoFile" accept="image/*" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Загрузить фото</button>
-                </form>
-            </div>
-        </div>
-
-        <div id="myAdsPage" class="page">
-            <button class="btn-link" onclick="showPage('profilePage')"><i class="fas fa-arrow-left"></i> Назад к профилю</button>
-            <h2>Мои объявления и заявки</h2>
-            <div id="myWorkRequests" class="list-container card" style="margin-top: 15px;">
-                <h3>Мои заявки на работу</h3>
-                </div>
-            <div id="myMachineryRequests" class="list-container card" style="margin-top: 15px;">
-                <h3>Мои заявки на технику</h3>
-                </div>
-            <div id="myToolRequests" class="list-container card" style="margin-top: 15px;">
-                <h3>Мои заявки на инструмент</h3>
-                </div>
-            <div id="myMaterialAds" class="list-container card" style="margin-top: 15px;">
-                <h3>Мои объявления о материалах</h3>
-                </div>
-        </div>
-
-        <div id="myRequestsPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
-            <h2>Мои заявки и предложения</h2>
-            
-            <div id="myRequestsList" class="list-container">
-                </div>
-
-            <div id="offersList" class="list-container">
-                <h3>Полученные предложения на мои заявки</h3>
-                </div>
-            
-        </div>
-        
-        <div id="workRequestsPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
-            <h2>Заявки на работу в <span id="workRequestsCityName">Городе</span></h2>
-            <div id="workRequestsList" class="list-container">
-                </div>
-        </div>
-
-        <div id="machineryRequestsPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
-            <h2>Заявки на технику в <span id="machineryRequestsCityName">Городе</span></h2>
-            <div id="machineryRequestsList" class="list-container">
-                </div>
-        </div>
-
-        <div id="toolRequestsPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
-            <h2>Заявки на инструмент в <span id="toolRequestsCityName">Городе</span></h2>
-            <div id="toolRequestsList" class="list-container">
-                </div>
-        </div>
-
-        <div id="materialAdsPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
-            <h2>Объявления о материалах в <span id="materialAdsCityName">Городе</span></h2>
-            <div id="materialAdsList" class="list-container">
-                </div>
         </div>
 
         <div id="createWorkRequestPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
             <div class="form-container">
-                <h2>Создать заявку на работу</h2>
-                <div id="createWorkRequestStatus" class="message" style="display:none;"></div>
-                <form id="createWorkRequestForm">
+                <h2>Новая заявка на работу</h2>
+                <div id="workRequestStatus" class="message" style="display:none;"></div>
+                <form id="workRequestForm">
                     <div class="input-group">
-                        <label for="workRequestType">Тип работы:</label>
-                        <select id="workRequestType" required></select>
+                        <label for="workName">Ваше имя:</label>
+                        <input type="text" id="workName" required>
                     </div>
                     <div class="input-group">
-                        <label for="workRequestDescription">Описание работы:</label>
-                        <textarea id="workRequestDescription" rows="4" required></textarea>
+                        <label for="workPhoneNumber">Ваш номер телефона:</label>
+                        <input type="tel" id="workPhoneNumber" required>
                     </div>
                     <div class="input-group">
-                        <label for="workRequestPrice">Предлагаемая цена (руб.):</label>
-                        <input type="number" id="workRequestPrice" min="0" required>
+                        <label for="workSpecialization">Специализация:</label>
+                        <select id="workSpecialization" required></select>
                     </div>
                     <div class="input-group">
-                        <label for="workRequestCity">Город:</label>
-                        <input type="text" id="workRequestCity" readonly>
+                        <label for="workDescription">Описание задачи:</label>
+                        <textarea id="workDescription" required></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary">Опубликовать заявку</button>
+                    <div class="input-group">
+                        <label for="workBudget">Бюджет (руб.):</label>
+                        <input type="number" id="workBudget" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="workAddress">Адрес объекта (необязательно):</label>
+                        <input type="text" id="workAddress">
+                    </div>
+                    <div class="input-group">
+                        <label for="workVisitDate">Желаемая дата визита (необязательно):</label>
+                        <input type="date" id="workVisitDate">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
+        <div id="workRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на работу</h2>
+                <div id="workRequestsList"></div>
+                <div id="offerStatus" class="message" style="display:none;"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+
+
+        <div id="chatPage_alt1" class="page">
+            <div class="form-container" style="padding: 0;">
+                <h3 id="chatHeader_alt1">Чат по заявке</h3>
+                <div id="chatBox_alt1"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput_alt1" placeholder="Введите сообщение...">
+                    <button id="sendMessageBtn_alt1"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="goBackToRequests()">Назад к заявкам</button>
+        </div>
+        
         <div id="createMachineryRequestPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
             <div class="form-container">
-                <h2>Создать заявку на технику</h2>
-                <div id="createMachineryRequestStatus" class="message" style="display:none;"></div>
-                <form id="createMachineryRequestForm">
+                <h2>Заявка на спецтехнику</h2>
+                <div id="machineryRequestStatus" class="message" style="display:none;"></div>
+                <form id="machineryRequestForm">
                     <div class="input-group">
-                        <label for="machineryRequestType">Тип техники:</label>
-                        <select id="machineryRequestType" required></select>
+                        <label for="machineryType">Тип техники:</label>
+                        <select id="machineryType"></select>
                     </div>
                     <div class="input-group">
-                        <label for="machineryRequestDescription">Описание требований:</label>
-                        <textarea id="machineryRequestDescription" rows="4" required></textarea>
+                        <label for="machineryDescription">Описание задачи:</label>
+                        <textarea id="machineryDescription" required></textarea>
                     </div>
                     <div class="input-group">
-                        <label for="machineryRequestRentalDuration">Срок аренды (дней):</label>
-                        <input type="number" id="machineryRequestRentalDuration" min="1" required>
+                        <label for="machineryRentalDate">Дата (необязательно):</label>
+                        <input type="date" id="machineryRentalDate">
                     </div>
                     <div class="input-group">
-                        <label for="machineryRequestPrice">Предлагаемая цена аренды (руб./день):</label>
-                        <input type="number" id="machineryRequestPrice" min="0" required>
+                        <label for="machineryMinHours">Минимальное кол-во часов:</label>
+                        <input type="number" id="machineryMinHours" value="4" min="1" required>
                     </div>
                     <div class="input-group">
-                        <label for="machineryRequestCity">Город:</label>
-                        <input type="text" id="machineryRequestCity" readonly>
+                        <label for="machineryRentalPrice">Цена аренды (за час):</label>
+                        <input type="number" id="machineryRentalPrice" required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Опубликовать заявку</button>
+                    <div class="input-group">
+                        <label for="machineryContact">Контакт:</label>
+                        <input type="text" id="machineryContact" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="machineryRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на спецтехнику</h2>
+                <div id="machineryRequestsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
         <div id="createToolRequestPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
             <div class="form-container">
-                <h2>Создать заявку на инструмент</h2>
-                <div id="createToolRequestStatus" class="message" style="display:none;"></div>
-                <form id="createToolRequestForm">
+                <h2>Заявка на инструмент</h2>
+                <div id="toolRequestStatus" class="message" style="display:none;"></div>
+                <form id="toolRequestForm">
                     <div class="input-group">
-                        <label for="toolRequestType">Тип инструмента:</label>
-                        <select id="toolRequestType" required></select>
+                        <label for="toolName">Название инструмента:</label>
+                        <select id="toolName"></select>
                     </div>
                     <div class="input-group">
-                        <label for="toolRequestDescription">Описание требований:</label>
-                        <textarea id="toolRequestDescription" rows="4" required></textarea>
+                        <label for="toolDescription">Описание:</label>
+                        <textarea id="toolDescription" required></textarea>
                     </div>
                     <div class="input-group">
-                        <label for="toolRequestRentalDuration">Срок аренды (дней):</label>
-                        <input type="number" id="toolRequestRentalDuration" min="1" required>
+                        <label for="toolRentalPrice">Цена аренды:</label>
+                        <input type="number" id="toolRentalPrice" required>
                     </div>
                     <div class="input-group">
-                        <label for="toolRequestPrice">Предлагаемая цена аренды (руб./день):</label>
-                        <input type="number" id="toolRequestPrice" min="0" required>
+                        <label for="toolCount">Количество:</label>
+                        <input type="number" id="toolCount" value="1" min="1" required>
                     </div>
                     <div class="input-group">
-                        <label for="toolRequestCity">Город:</label>
-                        <input type="text" id="toolRequestCity" readonly>
+                        <label for="toolRentalStartDate">Срок аренды (Начало):</label>
+                        <input type="date" id="toolRentalStartDate" required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Опубликовать заявку</button>
+                    <div class="input-group">
+                        <label for="toolRentalEndDate">Срок аренды (Окончание):</label>
+                        <input type="date" id="toolRentalEndDate" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolContact">Контакт:</label>
+                        <input type="text" id="toolContact" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="hasDelivery" class="checkbox-label">
+                            <input type="checkbox" id="hasDelivery">
+                            Нужна доставка?
+                        </label>
+                    </div>
+                    <div class="input-group" id="deliveryAddressGroup" style="display: none;">
+                        <label for="deliveryAddress">Адрес доставки:</label>
+                        <input type="text" id="deliveryAddress">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="toolRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на инструмент</h2>
+                <div id="toolRequestsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
         <div id="createMaterialAdPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
             <div class="form-container">
-                <h2>Разместить объявление о материалах</h2>
-                <div id="createMaterialAdStatus" class="message" style="display:none;"></div>
-                <form id="createMaterialAdForm">
+                <h2>Объявление на материалы</h2>
+                <div id="materialAdStatus" class="message" style="display:none;"></div>
+                <form id="materialAdForm">
                     <div class="input-group">
-                        <label for="materialAdType">Тип материала:</label>
-                        <select id="materialAdType" required></select>
+                        <label for="materialType">Тип материала:</label>
+                        <select id="materialType"></select>
                     </div>
                     <div class="input-group">
-                        <label for="materialAdDescription">Описание объявления:</label>
-                        <textarea id="materialAdDescription" rows="4" required></textarea>
+                        <label for="materialDescription">Описание:</label>
+                        <textarea id="materialDescription" required></textarea>
                     </div>
                     <div class="input-group">
-                        <label for="materialAdPrice">Цена (руб.):</label>
-                        <input type="number" id="materialAdPrice" min="0" required>
+                        <label for="materialPrice">Цена:</label>
+                        <input type="number" id="materialPrice" required>
                     </div>
                     <div class="input-group">
-                        <label for="materialAdContactInfo">Контактная информация:</label>
-                        <input type="text" id="materialAdContactInfo" required>
+                        <label for="materialContact">Контакт:</label>
+                        <input type="text" id="materialContact" required>
                     </div>
-                    <div class="input-group">
-                        <label for="materialAdCity">Город:</label>
-                        <input type="text" id="materialAdCity" readonly>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Опубликовать объявление</button>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
-        <div id="workRequestDetailsPage" class="page">
-            <button class="btn-link" onclick="goBackToRequests()"><i class="fas fa-arrow-left"></i> Назад к заявкам</button>
-            <h2>Детали заявки на работу</h2>
-            <div class="details-container card">
-                <div id="workRequestDetails">
-                    </div>
-            </div>
-            <div id="workRequestActions" style="margin-top: 20px;">
-                </div>
-            <div id="workRequestOffers" class="list-container" style="margin-top: 20px;">
-                <h3>Предложения исполнителей</h3>
-                </div>
-        </div>
-        
-        <div id="machineryRequestDetailsPage" class="page">
-            <button class="btn-link" onclick="goBackToRequests()"><i class="fas fa-arrow-left"></i> Назад к заявкам</button>
-            <h2>Детали заявки на технику</h2>
-            <div class="details-container card">
-                <div id="machineryRequestDetails">
-                    </div>
-            </div>
-            <div id="machineryRequestActions" style="margin-top: 20px;">
-                </div>
-        </div>
-
-        <div id="toolRequestDetailsPage" class="page">
-            <button class="btn-link" onclick="goBackToRequests()"><i class="fas fa-arrow-left"></i> Назад к заявкам</button>
-            <h2>Детали заявки на инструмент</h2>
-            <div class="details-container card">
-                <div id="toolRequestDetails">
-                    </div>
-            </div>
-            <div id="toolRequestActions" style="margin-top: 20px;">
-                </div>
-        </div>
-
-        <div id="materialAdDetailsPage" class="page">
-            <button class="btn-link" onclick="goBackToRequests()"><i class="fas fa-arrow-left"></i> Назад к объявлениям</button>
-            <h2>Детали объявления о материалах</h2>
-            <div class="details-container card">
-                <div id="materialAdDetails">
-                    </div>
-            </div>
-            <div id="materialAdActions" style="margin-top: 20px;">
-                </div>
-        </div>
-        
-        <div id="myChatsPage" class="page">
-            <button class="btn-link" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад к меню</button>
-            <h2>Мои чаты</h2>
-            <div id="myChatsList" class="list-container">
-                </div>
-        </div>
-
-        <div id="sendOfferPage" class="page">
-            <button class="btn-link" onclick="goBackToRequestDetails()"><i class="fas fa-arrow-left"></i> Назад к заявке</button>
-            <div class="form-container">
-                <h2>Отправить предложение</h2>
-                <div id="sendOfferStatus" class="message" style="display:none;"></div>
-                <form id="sendOfferForm">
-                    <div class="input-group">
-                        <label for="offerDescription">Ваше предложение и условия:</label>
-                        <textarea id="offerDescription" rows="4" required></textarea>
-                    </div>
-                    <div class="input-group">
-                        <label for="offerPrice">Ваша цена (руб.):</label>
-                        <input type="number" id="offerPrice" min="0" required>
-                    </div>
-                    <input type="hidden" id="offerRequestId">
-                    <button type="submit" class="btn btn-primary">Отправить предложение</button>
-                </form>
+        <div id="materialAdsPage" class="page">
+            <div class="list-container">
+                <h2>Объявления на материалы</h2>
+                <div id="materialAdsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
+        <div id="myRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Мои заявки</h2>
+                <div id="myRequestsStatus" class="message" style="display: none;"></div>
+                <div id="myChatsSection" class="my-requests-section">
+                    <h3>Активные Чаты</h3>
+                    <div id="myChatsList"></div>
+                </div>
+<div id="profileTabs" class="tab-buttons">
+    <button onclick="showProfileSection('activeChats'); fetchActiveChats();">
+        <i class="fas fa-comment-dots"></i> Активные чаты
+    </button>
+    </div>
 
-    </div> <div id="footer-menu" style="display: none; position: fixed; bottom: 0; left: 0; width: 100%; max-width: 800px; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 50; padding: 5px 0;">
-        <div style="display: flex; justify-content: space-around; align-items: center;">
-            <button class="footer-btn" onclick="showPage('buttonContainer')"><i class="fas fa-home"></i> <span>Меню</span></button>
-            <button class="footer-btn" onclick="showPage('myRequestsPage')"><i class="fas fa-list-alt"></i> <span>Заявки</span></button>
-            <button class="footer-btn" onclick="showPage('myChatsPage')"><i class="fas fa-comment-dots"></i> <span>Чаты</span></button>
-            <button class="footer-btn" onclick="showPage('profilePage')"><i class="fas fa-user"></i> <span>Профиль</span></button>
+<div id="activeChatsSection" class="profile-content-section" style="display:none;">
+    <h2>Мои диалоги</h2>
+    <div id="activeChatsList">
+        <p class="status-msg">Загрузка...</p>
+    </div>
+</div>
+                <div id="myTakenWorkRequestsSection" class="my-requests-section" style="display: none;">
+                    <h3>Взятые мной заявки</h3>
+                    <div id="myTakenWorkRequestsList"></div>
+                </div>
+                <div id="myWorkRequests" class="my-requests-section">
+                    <h3>Заявки на работу (Заказчик)</h3>
+                    <div id="myWorkRequestsList"></div>
+                </div>
+                <div id="myMachineryRequests" class="my-requests-section">
+                    <h3>Заявки на спецтехнику</h3>
+                    <div id="myMachineryRequestsList"></div>
+                </div>
+                <div id="myToolRequests" class="my-requests-section">
+                    <h3>Заявки на инструмент</h3>
+                    <div id="myToolRequestsList"></div>
+                </div>
+                <div id="myMaterialAds" class="my-requests-section">
+                    <h3>Объявления о материалах</h3>
+                    <div id="myMaterialAdsList"></div>
+                </div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
         </div>
     </div>
-    <style>
-        .footer-btn { background: none; border: none; color: #888; padding: 5px 10px; display: flex; flex-direction: column; align-items: center; font-size: 10px; transition: color 0.2s; }
-        .footer-btn i { font-size: 20px; margin-bottom: 2px; }
-        .footer-btn:focus { outline: none; }
-        .footer-btn:hover { color: #E87D39; }
-    </style>
-    
+
+    <div id="bottomNav" class="bottom-nav">
+        <button class="nav-btn" onclick="document.getElementById('contactModal').classList.add('active')">
+            <i class="fas fa-headset"></i>
+            <span>Связаться с нами</span>
+        </button>
+        <a href="#" class="nav-btn"> <i class="fas fa-users-slash"></i>
+            <span>Форум</span>
+        </a>
+    </div>
+
     <script>
-
-    
-<script>
-// --- Helper: authenticated fetch ---
-function fetchWithAuth(url, options = {}) {
-    const headers = options.headers || {};
-    headers['Authorization'] = `Bearer ${accessToken}`;
-    options.headers = headers;
-    return fetch(url, options);
-}
-</script>
-
-<script>
         const API_URL = "/api";
         let accessToken = null;
         let selectedCityId = null;
@@ -813,9 +835,7 @@ function showChat(requestId, opponentId, opponentName) {
     chatLog.innerHTML = '<h4>Загрузка сообщений...</h4>';
     
     // 3. Установить соединение
-    const ws_protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws_host = window.location.host;
-    const ws_url = `${ws_protocol}//${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    const ws_url = `ws://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
     // ВАЖНО: Render не поддерживает WS, вам может понадобиться использовать WSS (защищенный протокол)
     // Если ваш Render-сервис доступен по HTTPS, используйте WSS:
     // const ws_url = `wss://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
@@ -853,7 +873,7 @@ function showChat(requestId, opponentId, opponentName) {
         event.preventDefault();
         const input = document.getElementById('chatInput');
         if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(JSON.stringify({message: input.value}));
+            chatSocket.send(input.value);
             input.value = '';
         }
     };
@@ -1229,7 +1249,7 @@ function showChat(requestId, opponentId, opponentName) {
         event.preventDefault();
         const input = document.getElementById('chatInput');
         if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(JSON.stringify({message: input.value}));
+            chatSocket.send(input.value);
             input.value = '';
         }
     };
@@ -1334,8 +1354,6 @@ function showProfileSection(sectionId) {
         section.style.display = 'none';
     });
 
-// chatSocket already declared globally;
-// duplicate chatSocket declaration removed
 let chatSocket = null; // Объявить один раз глобально
 const CHAT_HISTORY_COUNT = 50; // Сколько сообщений загружать за раз
 
@@ -1431,7 +1449,10 @@ function showChat(requestId, opponentId, opponentName) {
         e.preventDefault();
         const message = chatInput.value.trim();
         if (message && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(JSON.stringify({message: message}));
+            const messagePayload = JSON.stringify({
+                message: message
+            });
+            chatSocket.send(messagePayload);
             chatInput.value = ''; // Очищаем поле ввода
         }
     };
@@ -1704,428 +1725,197 @@ async function fetchActiveChats() {
         });
     </script>
 
-
 <script>
-// --- Canonical chat core (enhanced: history + reconnect) ---
-(function(){
-    var RECONNECT_BASE = 800;  // ms
-    var RECONNECT_MAX  = 10000;
-    var _reconnectTimer = null;
-    var _lastWsUrl = null;
-
-    function _getChatEls() {
-        return {
-            chatPage: document.getElementById('chatPage'),
-            chatHeader: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName'),
-            chatBox: document.getElementById('chatBox'),
-            chatLog: document.getElementById('chatLog'),
-            chatInput: document.getElementById('chatInput'),
-            chatForm: document.getElementById('chatForm'),
-            sendBtn: document.getElementById('sendMessageBtn')
-        };
-    }
-    function _appendMessageUnified(data, els) {
-        const isSelf = (data.sender_id === (window.currentUser && currentUser.id));
-        const time = data.time || data.created_at || data.timestamp || new Date().toISOString();
-        const container = els.chatLog || els.chatBox;
-        if (!container) return;
-        const wrap = document.createElement('div');
-        wrap.className = 'chat-message ' + (isSelf ? 'self' : 'other');
-        wrap.innerHTML = '<div class="message-text"></div><div class="message-time"></div>';
-        wrap.querySelector('.message-text').textContent = data.message;
-        try {
-            wrap.querySelector('.message-time').textContent = (new Date(time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        } catch(e) {
-            wrap.querySelector('.message-time').textContent = time;
-        }
-        container.appendChild(wrap);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    async function _loadChatHistory(requestId, opponentId){
-        // Try several endpoints for compatibility. Stop on first success.
-        const endpoints = [
-            `/api/chats/history/${requestId}/${opponentId}`,
-            `/api/chats/history/${requestId}`,
-            `/api/chats/messages?request_id=${requestId}&opponent_id=${opponentId}`,
-            `/api/chats/messages?request_id=${requestId}`
-        ];
-        for (let i=0;i<endpoints.length;i++){
-            try {
-                const res = await fetchWithAuth(endpoints[i]);
-                if (!res.ok) continue;
-                const data = await res.json();
-                if (!Array.isArray(data)) continue;
-                const els = _getChatEls();
-                const container = els.chatLog || els.chatBox;
-                if (container) container.innerHTML = '';
-                for (let msg of data){
-                    // normalize fields
-                    const payload = {
-                        message: msg.message || msg.text || '',
-                        sender_id: msg.sender_id || msg.senderId || msg.from_id || msg.user_id,
-                        timestamp: msg.timestamp || msg.created_at || msg.time
-                    };
-                    if (payload.message) _appendMessageUnified(payload, els);
-                }
-                return true; // loaded
-            } catch (e) {
-                // try next
-            }
-        }
-        return false;
-    }
-
-    function _scheduleReconnect(url, requestId, opponentId){
-        if (_reconnectTimer) return;
-        var delay = Math.min(RECONNECT_MAX, RECONNECT_BASE + Math.floor(Math.random()*RECONNECT_BASE));
-        _reconnectTimer = setTimeout(function(){
-            _reconnectTimer = null;
-            // reopen
-            _openChatCore(requestId, opponentId);
-        }, delay);
-    }
-
-    window._openChatCore = function(requestId, opponentId, opponentName) {
-        const els = _getChatEls();
-        if (!els.chatPage) return;
-        if (typeof window.showPage === 'function') showPage('chatPage');
-        if (els.chatHeader) els.chatHeader.textContent = `Чат по заявке #${requestId}` + (opponentName ? ` — ${opponentName}` : '');
-
-        const container = els.chatLog || els.chatBox;
-        if (container) container.innerHTML = '<p class="status-msg">Соединение...</p>';
-
-        if (window.chatSocket) { try { chatSocket.close(); } catch(_){} }
-        const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        const ws_host = location.host;
-        const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
-        _lastWsUrl = ws_url;
-        window.chatSocket = new WebSocket(ws_url);
-
-        chatSocket.onmessage = function(e) {
-            try {
-                const data = JSON.parse(e.data);
-                _appendMessageUnified(data, els);
-            } catch(err) {
-                console.error('WS parse error:', err);
-            }
-        };
-        chatSocket.onopen = async function(){
-            if (container) container.innerHTML = '';
-            try { await _loadChatHistory(requestId, opponentId); } catch(e){}
-        };
-        chatSocket.onclose = function(){
-            _scheduleReconnect(ws_url, requestId, opponentId);
-        };
-        chatSocket.onerror = function(e){
-            console.error('WS error', e);
-        };
-
-        if (els.chatForm) {
-            els.chatForm.onsubmit = function(ev){
-                ev.preventDefault();
-                const input = els.chatInput;
-                const msg = (input && input.value || '').trim();
-                if (msg && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                    try {
-                        chatSocket.send(JSON.stringify({message: msg}));
-                        // optimistic render to feel snappier (server will also broadcast)
-                        _appendMessageUnified({message: msg, sender_id: (window.currentUser && currentUser.id), timestamp: new Date().toISOString()}, els);
-                    } catch(e) { console.warn('send failed', e); }
-                    input.value = '';
-                }
-            };
-        }
-    };
-
-    // Keep legacy names (do not remove functions)
-    window.showChat = function(requestId, opponentId, opponentName){ return _openChatCore(requestId, opponentId, opponentName); };
-    window.setupChat = function(request, participantId){ const name = (request && request.specialization) || ''; return _openChatCore((request && request.id) || request, participantId, name); };
-    window.sendMessage = function(){ const el=document.getElementById('chatInput'); if (el && window.chatSocket && chatSocket.readyState===WebSocket.OPEN){ const v=el.value.trim(); if(v){ try{ chatSocket.send(JSON.stringify({message:v})); }catch(e){} _appendMessageUnified({message: v, sender_id:(window.currentUser && currentUser.id), timestamp:new Date().toISOString()}, _getChatEls()); el.value=''; }}};
-    window.fetchChatMessages = async function(){}; // preserved
-    window.fetchChatHistory = async function(){}; // preserved
-    window.appendMessage = function(data){ const els=_getChatEls(); _appendMessageUnified(data, els); };
-})();
-</script>
-
-
-
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-    try {
-        var items = document.querySelectorAll('a,button');
-        for (var i=0;i<items.length;i++){
-            var el = items[i];
-            var onclickAttr = el.getAttribute('onclick') || '';
-            var target = (el.dataset && (el.dataset.page || el.dataset.target)) || '';
-            var id = el.id || '';
-            if (onclickAttr.indexOf("showPage('chatPage'") !== -1 ||
-                target === 'chatPage' ||
-                id === 'menuChat' || el.classList.contains('menu-chat')) {
-                el.style.display = 'none';
-                el.setAttribute('data-removed-chat-menu','1');
-            }
-        }
-    } catch(e){ console.warn('hide chat menu failed', e); }
-});
-</script>
-
-
-<script>
-// Open chat from profile / my requests via data attributes
-document.addEventListener('click', function(e){
-    var btn = e.target.closest('[data-open-chat], .open-chat');
-    if (!btn) return;
-    var requestId = parseInt(btn.getAttribute('data-request-id') || btn.dataset.requestId || btn.getAttribute('data-id') || '0');
-    var opponentId = parseInt(btn.getAttribute('data-user-id') || btn.dataset.userId || btn.getAttribute('data-opponent-id') || '0');
-    var name = btn.getAttribute('data-name') || btn.dataset.name || btn.getAttribute('data-opponent-name') || '';
-    if (requestId && opponentId) {
-        if (typeof window.showChat === 'function') {
-            window.showChat(requestId, opponentId, name);
-            // ensure page switch
-            if (typeof window.showPage === 'function') window.showPage('chatPage');
-        }
-    }
-});
-</script>
-
-
-<script>
-(function(){
-  window._lastPage = window._lastPage || 'buttonContainer';
-  function _updateBottomBarAndFab(pageId){
-    try{
-      var bottom = document.getElementById('bottomNav');
-      if (bottom) bottom.classList.toggle('visible', ['buttonContainer','workRequestsPage','machineryRequestsPage','toolRequestsPage','materialAdsPage','myRequestsPage'].indexOf(pageId) !== -1);
-      var fab = document.getElementById('chatFab');
-      if (fab) {
-        // FAB виден только на профиле и в "Моих заявках"
-        fab.style.display = (pageId === 'profilePage' || pageId === 'myRequestsPage') ? 'flex' : 'none';
-      }
-    }catch(e){}
-  }
-  window.showPage = function(pageId, setLast){
-    try{
-      var pages = document.querySelectorAll('.page');
-      for (var i=0;i<pages.length;i++){
-        var p = pages[i];
-        if (p.id === pageId){
-          p.style.display = 'block';
-          p.classList.add('active');
-        }else{
-          p.style.display = 'none';
-          p.classList.remove('active');
-        }
-      }
-      if (setLast !== false){
-        var current = document.querySelector('.page.active');
-        if (current && current.id && current.id !== 'loginPage' && current.id !== 'registerPage' && current.id !== 'chatPage'){
-          window._lastPage = current.id;
-        }
-      }
-      window.scrollTo({top:0, behavior:'instant'});
-      _updateBottomBarAndFab(pageId);
-      // highlight nav items
-      var items = document.querySelectorAll('[data-page],[data-target]');
-      for (var j=0;j<items.length;j++){
-        var t = items[j].dataset.page || items[j].dataset.target;
-        if (!t) continue;
-        if (t === pageId) items[j].classList.add('active'); else items[j].classList.remove('active');
-      }
-      window.location.hash = '#' + pageId;
-    }catch(e){ console.error('showPage error', e); }
-  };
-  // deep link on load
-  document.addEventListener('DOMContentLoaded', function(){
-    var pid = (location.hash||'').replace(/^#/,'') || 'loginPage';
-    if (!document.getElementById(pid)) pid = 'loginPage';
-    showPage(pid);
-  });
-})();
-</script>
-
-
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-  try{
-    var all = document.querySelectorAll('a,button,li');
-    for (var i=0;i<all.length;i++){
-      var el = all[i];
-      var txt = (el.textContent||'').trim().toLowerCase();
-      var oc = el.getAttribute('onclick')||'';
-      var target = (el.dataset && (el.dataset.page||el.dataset.target)) || '';
-      if (txt === 'чат' || oc.indexOf("showPage('chatPage'")!==-1 || target === 'chatPage' || el.id === 'menuChat' || el.classList.contains('menu-chat')){
-        el.style.display = 'none';
-        el.setAttribute('data-removed-chat-menu','1');
-      }
-    }
-  }catch(e){}
-});
-</script>
-
-<button id="chatFab" aria-label="Открыть чаты"><i class="fas fa-comments"></i></button>
-
-
-<script>
-function openChatsHub(){
-  // Перейти в "Мои заявки" и показать список активных чатов
-  showPage('myRequestsPage');
-  try{
-    var section = document.getElementById('activeChatsSection') || document.getElementById('myChatsSection');
-    if (section){
-      section.style.display = 'block';
-      if (section.scrollIntoView) section.scrollIntoView({behavior:'smooth', block:'start'});
-    }
-    if (typeof fetchActiveChats === 'function') fetchActiveChats();
-  }catch(e){}
-}
-document.addEventListener('DOMContentLoaded', function(){
-  var fab = document.getElementById('chatFab');
-  if (fab) fab.addEventListener('click', openChatsHub);
-});
-</script>
-
-
-<script>
-(function(){
-  function _openChatCompat(requestId, opponentId, opponentName){
-    if (typeof _openChatCore === 'function'){ _openChatCore(requestId, opponentId, opponentName); return; }
-    // Fallback: minimal open
-    showPage('chatPage');
-    var hdr = document.getElementById('chatHeader')||document.getElementById('chatTitle')||document.getElementById('chatOpponentName');
-    if (hdr) hdr.textContent = 'Чат по заявке #' + requestId + (opponentName? (' — ' + opponentName) : '');
-  }
-  window.showChat = function(requestId, opponentId, opponentName){
-    _openChatCompat(requestId, opponentId, opponentName);
-  };
-  window.setupChat = function(request, participantId){
-    var rid = (request && request.id) || request;
-    var name = (request && (request.specialization || request.title || request.name)) || '';
-    _openChatCompat(rid, participantId, name);
-  };
-})();
-</script>
-
-
-<script>
-/* --- Router Guard: enforce real page switching --- */
 (function(){
   function tagPages(){
-    var known = ['buttonContainer','homePage','loginPage','registerPage','profilePage','myRequestsPage',
-      'workRequestsPage','machineryRequestsPage','toolRequestsPage','materialAdsPage','chatPage',
-      'createWorkRequestPage','createMachineryRequestPage','createToolRequestPage','createMaterialAdPage',
-      'workRequestForm','machineryRequestForm','toolRequestForm','materialAdForm'];
-    for (var i=0;i<known.length;i++){
-      var el = document.getElementById(known[i]);
-      if (el) el.classList.add('page');
-    }
-    // also mark any element with id ending in 'Page' or 'Form' as page (if it's a section-like node)
-    var candidates = document.querySelectorAll("[id$='Page'],[id$='Form']");
-    for (var j=0;j<candidates.length;j++){
-      var c = candidates[j];
-      if (!c.classList.contains('page')) c.classList.add('page');
-    }
+    var nodes = document.querySelectorAll("[id$='Page'],[id$='Form']");
+    for (var i=0;i<nodes.length;i++){ nodes[i].classList.add('page'); }
   }
   function ensureOnly(pageId){
     var pages = document.querySelectorAll('.page');
     for (var i=0;i<pages.length;i++){
       var el = pages[i];
-      if (el.id === pageId){
-        el.style.display = 'block';
-        el.classList.add('active');
-      }else{
-        el.style.display = 'none';
-        el.classList.remove('active');
-      }
+      if (el.id === pageId){ el.style.display = 'block'; el.classList.add('active'); }
+      else { el.style.display = 'none'; el.classList.remove('active'); }
     }
+    window.scrollTo({top:0, behavior:'instant'});
+    try { window.location.hash = '#' + pageId; } catch(e){}
   }
-  function tryActivateVisible(){
-    // If any page (not main menu) becomes visible -> make it the only active page
-    var pages = document.querySelectorAll('.page');
-    for (var i=0;i<pages.length;i++){
-      var el = pages[i];
-      var comp = window.getComputedStyle(el);
-      if (comp.display !== 'none'){
-        if (!el.classList.contains('active')){
-          ensureOnly(el.id);
-          window.location.hash = '#' + el.id;
+  var prevShowPage = window.showPage;
+  window.showPage = function(pageId){
+    ensureOnly(pageId);
+    if (typeof prevShowPage === 'function') { try { prevShowPage(pageId); } catch(e){} }
+  };
+  var wrapNames = [
+    'showCreateWorkRequestForm','showCreateMachineryRequestForm','showCreateToolRequestForm','showCreateMaterialAdForm',
+    'showWorkRequests','showMachineryRequests','showToolRequests','showMaterialAds',
+    'openProfile','goToProfile','openMyRequests','goToMyRequests'
+  ];
+  function wrap(name){
+    var orig = window[name];
+    if (typeof orig !== 'function') return;
+    window[name] = function(){
+      var r = orig.apply(this, arguments);
+      setTimeout(function(){
+        var visible = document.querySelectorAll('.page');
+        for (var i=0;i<visible.length;i++){
+          var el = visible[i];
+          if (getComputedStyle(el).display !== 'none'){ ensureOnly(el.id); break; }
         }
-        return true;
-      }
+      }, 0);
+      return r;
     }
-    return false;
-  }
-  function hookShowFunctions(){
-    var names = [
-      'showCreateWorkRequestForm','showCreateMachineryRequestForm','showCreateToolRequestForm','showCreateMaterialAdForm',
-      'showWorkRequests','showMachineryRequests','showToolRequests','showMaterialAds',
-      'goToProfile','openProfile','openMyRequests','goToMyRequests','openWorkRequestCreate','openToolRequestCreate','openMachineryRequestCreate','openMaterialAdCreate'
-    ];
-    names.forEach(function(n){
-      var fn = window[n];
-      if (typeof fn === 'function'){
-        window[n] = function(){
-          var r = fn.apply(this, arguments);
-          setTimeout(function(){ tryActivateVisible(); }, 0);
-          return r;
-        };
-      }else{
-        Object.defineProperty(window, n, {
-          configurable: true,
-          set: function(v){
-            // wrap when it gets defined later
-            if (typeof v === 'function'){
-              var orig = v;
-              v = function(){
-                var r = orig.apply(this, arguments);
-                setTimeout(function(){ tryActivateVisible(); }, 0);
-                return r;
-              };
-            }
-            Object.defineProperty(window, n, {value: v, writable: true, configurable: true});
-          }
-        });
-      }
-    });
-  }
-  function observeStyleChanges(){
-    var obs = new MutationObserver(function(muts){
-      for (var i=0;i<muts.length;i++){
-        var t = muts[i].target;
-        if (t.classList && t.classList.contains('page')){
-          var disp = window.getComputedStyle(t).display;
-          if (disp !== 'none' && !t.classList.contains('active')){
-            ensureOnly(t.id);
-            window.location.hash = '#' + t.id;
-          }
-        }
-      }
-    });
-    document.querySelectorAll('.page').forEach(function(el){
-      obs.observe(el, {attributes:true, attributeFilter:['style','class']});
-    });
   }
   function init(){
     tagPages();
-    // initial activation by hash or main menu
-    var pid = (location.hash||'').replace(/^#/,'') || 'buttonContainer';
-    if (!document.getElementById(pid)){ pid = 'buttonContainer'; }
-    ensureOnly(pid);
-    hookShowFunctions();
-    observeStyleChanges();
-    // Ensure global showPage uses our ensureOnly
-    var oldShowPage = window.showPage;
-    window.showPage = function(pageId){
-      ensureOnly(pageId);
-      if (typeof oldShowPage === 'function'){ try{ oldShowPage(pageId, false); } catch(e){} }
-    };
+    for (var i=0;i<wrapNames.length;i++) wrap(wrapNames[i]);
+    var pid = (location.hash||'').replace(/^#/,'') || (document.querySelector('.page') && document.querySelector('.page').id) || 'buttonContainer';
+    if (document.getElementById(pid)) ensureOnly(pid);
     window.addEventListener('hashchange', function(){
-      var pid = (location.hash||'').replace(/^#/,'') || 'buttonContainer';
-      if (document.getElementById(pid)) ensureOnly(pid);
+      var id = (location.hash||'').replace(/^#/,''); if (document.getElementById(id)) ensureOnly(id);
     });
   }
-  if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var q = document.querySelectorAll('a,button,li');
+  for (var i=0;i<q.length;i++){
+    var el = q[i];
+    var t = (el.textContent||'').trim().toLowerCase();
+    var oc = el.getAttribute('onclick')||'';
+    var trg = (el.dataset && (el.dataset.page||el.dataset.target)) || '';
+    if (t === 'чат' || oc.indexOf("showPage('chatPage'")!==-1 || trg==='chatPage' || el.id==='menuChat' || el.classList.contains('menu-chat')){
+      el.style.display = 'none';
+      el.setAttribute('data-removed-chat-menu','1');
+    }
+  }
+});
+</script>
+
+
+<script>
+(function(){
+  var RECONNECT_BASE = 800, RECONNECT_MAX = 10000;
+  var reconnectTimer = null;
+  function els(){ return {
+    page: document.getElementById('chatPage'),
+    log: document.getElementById('chatLog') || document.getElementById('chatBox'),
+    form: document.getElementById('chatForm'),
+    input: document.getElementById('chatInput'),
+    header: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName')
+  };}
+  function appendMsg(data){
+    var E = els(); var box = E.log; if (!box) return;
+    var myId = (window.currentUser && currentUser.id);
+    var isMe = (String(data.sender_id) === String(myId));
+    var time = data.timestamp || data.created_at || data.time || new Date().toISOString();
+    var wrap = document.createElement('div');
+    wrap.className = 'chat-message ' + (isMe ? 'self' : 'other');
+    wrap.innerHTML = '<div class="message-text"></div><div class="message-time"></div>';
+    wrap.querySelector('.message-text').textContent = data.message || data.text || '';
+    try { wrap.querySelector('.message-time').textContent = (new Date(time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+    catch(e){ wrap.querySelector('.message-time').textContent = time; }
+    box.appendChild(wrap); box.scrollTop = box.scrollHeight;
+  }
+  async function loadHistory(rid, uid){
+    if (!window.fetchWithAuth) return false;
+    var endpoints = [
+      '/api/chats/history/'+rid+'/'+uid,
+      '/api/chats/history/'+rid,
+      '/api/chats/messages?request_id='+rid+'&opponent_id='+uid,
+      '/api/chats/messages?request_id='+rid
+    ];
+    for (var i=0;i<endpoints.length;i++){
+      try{
+        var res = await fetchWithAuth(endpoints[i]);
+        if (!res.ok) continue;
+        var arr = await res.json(); if (!Array.isArray(arr)) continue;
+        var E = els(); if (E.log) E.log.innerHTML = '';
+        arr.forEach(function(m){
+          appendMsg({message: m.message||m.text, sender_id: m.sender_id||m.senderId||m.user_id||m.from_id, timestamp: m.timestamp||m.created_at||m.time});
+        });
+        return true;
+      }catch(e){}
+    }
+    return false;
+  }
+  function scheduleReconnect(rid, uid){
+    if (reconnectTimer) return;
+    var delay = Math.min(RECONNECT_MAX, RECONNECT_BASE + Math.floor(Math.random()*RECONNECT_BASE));
+    reconnectTimer = setTimeout(function(){ reconnectTimer = null; window.showChat(rid, uid); }, delay);
+  }
+
+  window.showChat = function(requestId, opponentId, opponentName){
+    if (typeof window.showPage === 'function') showPage('chatPage');
+    var E = els();
+    if (E.header) E.header.textContent = 'Чат по заявке #' + requestId + (opponentName ? (' — ' + opponentName) : '');
+    if (E.log) E.log.innerHTML = '<p class="status-msg">Соединение...</p>';
+    try{ if (window.chatSocket) chatSocket.close(); }catch(e){}
+
+    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    var url = proto + '://' + location.host + '/api/ws/chat/' + requestId + '/' + opponentId + '?token=' + (window.accessToken||'');
+    window.chatSocket = new WebSocket(url);
+
+    chatSocket.onopen = async function(){ if (E.log) E.log.innerHTML = ''; try{ await loadHistory(requestId, opponentId); }catch(e){} };
+    chatSocket.onmessage = function(e){ try{ var d = JSON.parse(e.data); appendMsg(d); }catch(err){ console.warn('WS parse', err);} };
+    chatSocket.onclose = function(){ scheduleReconnect(requestId, opponentId); };
+    chatSocket.onerror = function(err){ console.warn('WS error', err); };
+
+    if (E.form){
+      E.form.onsubmit = function(ev){
+        ev.preventDefault();
+        var msg = (E.input && E.input.value || '').trim();
+        if (!msg) return;
+        if (window.chatSocket && chatSocket.readyState === WebSocket.OPEN){
+          try{ chatSocket.send(JSON.stringify({message: msg})); }catch(e){}
+          appendMsg({message: msg, sender_id: (window.currentUser && currentUser.id), timestamp: new Date().toISOString()});
+          E.input.value='';
+        }
+      };
+    }
+  };
+
+  window.setupChat = function(request, participantId){
+    var rid = (request && request.id) || request;
+    var name = (request && (request.specialization || request.title || request.name)) || '';
+    window.showChat(rid, participantId, name);
+  };
+  window.sendMessage = function(){
+    var E = els();
+    if (!E.input || !window.chatSocket || chatSocket.readyState !== WebSocket.OPEN) return;
+    var v = E.input.value.trim(); if (!v) return;
+    try{ chatSocket.send(JSON.stringify({message: v})); }catch(e){}
+    appendMsg({message: v, sender_id: (window.currentUser && currentUser.id), timestamp: new Date().toISOString()});
+    E.input.value='';
+  };
+  window.appendMessage = appendMsg;
+  window.fetchChatMessages = async function(){};
+  window.fetchChatHistory = async function(){};
+})();
+</script>
+
+
+<script>
+function fetchWithAuth(url, options={}){
+  var h = options.headers || {}; h['Authorization'] = 'Bearer ' + (window.accessToken||'');
+  options.headers = h; return fetch(url, options);
+}
+</script>
+
+
+<script>
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('[data-open-chat], .open-chat');
+  if (!btn) return;
+  var rid = parseInt(btn.getAttribute('data-request-id') || btn.dataset.requestId || '0');
+  var uid = parseInt(btn.getAttribute('data-user-id') || btn.dataset.userId || btn.getAttribute('data-opponent-id') || '0');
+  var name = btn.getAttribute('data-name') || btn.dataset.name || btn.getAttribute('data-opponent-name') || '';
+  if (rid && uid){ window.showChat(rid, uid, name); }
+});
 </script>
 
 </body>
