@@ -147,7 +147,35 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+class ConnectionManager:
+    """Класс для управления активными соединениями WebSocket по ID запроса."""
+    def __init__(self):
+        # Словарь для хранения активных соединений: {request_id: [websocket1, websocket2, ...]}
+        self.active_connections: Dict[int, List[WebSocket]] = {}
 
+    
+async def connect(self, websocket: WebSocket, request_id: int):
+    await websocket.accept()
+    if request_id not in self.active_connections:
+        self.active_connections[request_id] = []
+    self.active_connections[request_id].append(websocket)
+
+def disconnect(self, websocket: WebSocket, request_id: int):
+        if request_id in self.active_connections:
+            self.active_connections[request_id].remove(websocket)
+            # Очистка, если в чате не осталось соединений
+            if not self.active_connections[request_id]:
+                del self.active_connections[request_id]
+
+    async def send_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    async def broadcast(self, request_id: int, message: str):
+        if request_id in self.active_connections:
+            for connection in self.active_connections[request_id]:
+                await connection.send_text(message)
+
+manager = ConnectionManager()
 
 # --- WORK REQUESTS SCHEMAS ---
 class WorkRequestIn(BaseModel):
@@ -274,15 +302,14 @@ class ConnectionManager:
         # Словарь: {request_id: [WebSocket, WebSocket, ...]}
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, request_id: int):
-        await websocket.accept()
-        if request_id not in self.active_connections:
-            self.active_connections[request_id] = []
-        self.active_connections[request_id].append(websocket)
-        # Опциональный вывод в лог
-        # print(f"WS: Пользователь подключен к чату {request_id}")
+    
+async def connect(self, websocket: WebSocket, request_id: int):
+    await websocket.accept()
+    if request_id not in self.active_connections:
+        self.active_connections[request_id] = []
+    self.active_connections[request_id].append(websocket)
 
-    def disconnect(self, websocket: WebSocket, request_id: int):
+def disconnect(self, websocket: WebSocket, request_id: int):
         if request_id in self.active_connections and websocket in self.active_connections[request_id]:
             self.active_connections[request_id].remove(websocket)
             if not self.active_connections[request_id]:
@@ -420,6 +447,59 @@ async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = 
     
     return {"message": f"Исполнитель {executor['email']} успешно оценен. Новый средний рейтинг: {new_average_rating:.2f}"}
 
+@api_router.websocket("/ws/chat/{request_id}/{opponent_id}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    request_id: int,
+    opponent_id: int,
+    current_user: dict = Depends(get_current_user) # Используем Depends для аутентификации
+):
+    # ID текущего пользователя
+    sender_id = current_user["id"]
+    
+    # Подключаем пользователя к комнате чата (по ID запроса)
+    await manager.connect(websocket, request_id)
+    
+    try:
+        while True:
+            # Получаем сообщение от клиента
+            data = await websocket.receive_text()
+            
+            # Парсим JSON
+            try:
+                message_data = json.loads(data)
+                message_text = message_data.get("message")
+            except json.JSONDecodeError:
+                continue # Пропускаем невалидные сообщения
+            
+            if not message_text:
+                continue
+
+            # 1. Сохраняем сообщение в базу данных
+            query = chat_messages.insert().values(
+                request_id=request_id,
+                sender_id=sender_id,
+                recipient_id=opponent_id,
+                message=message_text,
+                timestamp=datetime.utcnow()
+            )
+            await database.execute(query)
+
+            # 2. Формируем JSON для рассылки всем участникам чата
+            response_message = json.dumps({
+                "message": message_text,
+                "sender_id": sender_id,
+                # Форматируем время для удобного отображения на клиенте
+                "time": datetime.now().strftime("%H:%M") 
+            })
+            
+            # 3. Рассылаем сообщение (broadcast)
+            await manager.broadcast(request_id, response_message)
+
+    except WebSocketDisconnect:
+        # Отключаем пользователя при разрыве соединения
+        manager.disconnect(request_id, websocket)
+
 @api_router.get("/chats/my_active_chats", response_model=List[ChatSummary])
 async def get_my_active_chats(current_user: dict = Depends(get_current_user)):
     """Получает список всех уникальных диалогов, в которых участвует пользователь."""
@@ -525,7 +605,7 @@ async def websocket_endpoint(
                 sender_id=user_id,
                 recipient_id=opponent_id, # Получатель известен из URL
                 message=data,
-                created_at=datetime.utcnow()
+                timestamp=datetime.utcnow()
             )
             await database.execute(query)
             
