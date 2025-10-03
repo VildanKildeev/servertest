@@ -1101,8 +1101,6 @@ function showChat(requestId, opponentId, opponentName) {
             await fetchChatMessages();
         }
         
-let chatSocket = null; // Глобальная переменная для активного WebSocket
-
 function showChat(requestId, opponentId, opponentName) {
     // 1. Закрыть предыдущее соединение, если оно есть
     if (chatSocket) {
