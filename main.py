@@ -430,7 +430,7 @@ async def get_my_active_chats(current_user: dict = Depends(get_current_user)):
     # Это позволяет найти все уникальные пары (request_id, opponent_id).
     
     # Запрос на все сообщения, где пользователь - отправитель
-    q1 = select([chat_messages.c.request_id, chat_messages.c.recipient_id.label("opponent_id")]) \
+    q1 = select(chat_messages.c.request_id, chat_messages.c.recipient_id.label("opponent_id")) \
          .where(chat_messages.c.sender_id == user_id)
     
     # Запрос на все сообщения, где пользователь - получатель
