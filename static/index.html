@@ -228,6 +228,27 @@
             <div class="button-container">
             
 </style>
+
+<style>
+  #chatFab{
+    position: fixed; right: 18px; bottom: 88px; width: 56px; height: 56px;
+    border-radius: 28px; display: none; align-items: center; justify-content: center;
+    background: #E87D39; color: #fff; border: none; box-shadow: 0 8px 20px rgba(0,0,0,.2);
+    z-index: 60; cursor: pointer;
+  }
+  #chatFab i{ font-size: 22px; }
+  #chatFab:active { transform: translateY(1px) scale(0.98); }
+</style>
+
+
+<style>
+  .page{ display:none; width:100%; }
+  .page.active{ display:block; }
+  .header-bar{ position: sticky; top: 0; background: #fff; z-index: 5; padding: 12px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #E0E0E0; }
+  .header-bar .header-title{ font-weight:600; color:#4A4A4A; }
+  .header-bar button{ background:none; border:none; color:#E87D39; font-size:18px; }
+</style>
+
 </head>
 <body>
     <video autoplay muted loop class="background-video">
@@ -879,7 +900,7 @@ function showChat(requestId, opponentId, opponentName) {
         event.preventDefault();
         const input = document.getElementById('chatInput');
         if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(input.value);
+            chatSocket.send(JSON.stringify({message: input.value}));
             input.value = '';
         }
     };
@@ -1255,7 +1276,7 @@ function showChat(requestId, opponentId, opponentName) {
         event.preventDefault();
         const input = document.getElementById('chatInput');
         if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(input.value);
+            chatSocket.send(JSON.stringify({message: input.value}));
             input.value = '';
         }
     };
@@ -1913,6 +1934,123 @@ document.addEventListener('click', function(e){
         }
     }
 });
+</script>
+
+
+<script>
+(function(){
+  window._lastPage = window._lastPage || 'buttonContainer';
+  function _updateBottomBarAndFab(pageId){
+    try{
+      var bottom = document.getElementById('bottomNav');
+      if (bottom) bottom.classList.toggle('visible', ['buttonContainer','workRequestsPage','machineryRequestsPage','toolRequestsPage','materialAdsPage','myRequestsPage'].indexOf(pageId) !== -1);
+      var fab = document.getElementById('chatFab');
+      if (fab) {
+        // FAB виден только на профиле и в "Моих заявках"
+        fab.style.display = (pageId === 'profilePage' || pageId === 'myRequestsPage') ? 'flex' : 'none';
+      }
+    }catch(e){}
+  }
+  window.showPage = function(pageId, setLast){
+    try{
+      var pages = document.querySelectorAll('.page');
+      for (var i=0;i<pages.length;i++){
+        var p = pages[i];
+        if (p.id === pageId){
+          p.style.display = 'block';
+          p.classList.add('active');
+        }else{
+          p.style.display = 'none';
+          p.classList.remove('active');
+        }
+      }
+      if (setLast !== false){
+        var current = document.querySelector('.page.active');
+        if (current && current.id && current.id !== 'loginPage' && current.id !== 'registerPage' && current.id !== 'chatPage'){
+          window._lastPage = current.id;
+        }
+      }
+      window.scrollTo({top:0, behavior:'instant'});
+      _updateBottomBarAndFab(pageId);
+      // highlight nav items
+      var items = document.querySelectorAll('[data-page],[data-target]');
+      for (var j=0;j<items.length;j++){
+        var t = items[j].dataset.page || items[j].dataset.target;
+        if (!t) continue;
+        if (t === pageId) items[j].classList.add('active'); else items[j].classList.remove('active');
+      }
+      window.location.hash = '#' + pageId;
+    }catch(e){ console.error('showPage error', e); }
+  };
+  // deep link on load
+  document.addEventListener('DOMContentLoaded', function(){
+    var pid = (location.hash||'').replace(/^#/,'') || 'loginPage';
+    if (!document.getElementById(pid)) pid = 'loginPage';
+    showPage(pid);
+  });
+})();
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  try{
+    var all = document.querySelectorAll('a,button,li');
+    for (var i=0;i<all.length;i++){
+      var el = all[i];
+      var txt = (el.textContent||'').trim().toLowerCase();
+      var oc = el.getAttribute('onclick')||'';
+      var target = (el.dataset && (el.dataset.page||el.dataset.target)) || '';
+      if (txt === 'чат' || oc.indexOf("showPage('chatPage'")!==-1 || target === 'chatPage' || el.id === 'menuChat' || el.classList.contains('menu-chat')){
+        el.style.display = 'none';
+        el.setAttribute('data-removed-chat-menu','1');
+      }
+    }
+  }catch(e){}
+});
+</script>
+
+<button id="chatFab" aria-label="Открыть чаты"><i class="fas fa-comments"></i></button>
+
+
+<script>
+function openChatsHub(){
+  // Перейти в "Мои заявки" и показать список активных чатов
+  showPage('myRequestsPage');
+  try{
+    var section = document.getElementById('activeChatsSection') || document.getElementById('myChatsSection');
+    if (section){
+      section.style.display = 'block';
+      if (section.scrollIntoView) section.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+    if (typeof fetchActiveChats === 'function') fetchActiveChats();
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var fab = document.getElementById('chatFab');
+  if (fab) fab.addEventListener('click', openChatsHub);
+});
+</script>
+
+
+<script>
+(function(){
+  function _openChatCompat(requestId, opponentId, opponentName){
+    if (typeof _openChatCore === 'function'){ _openChatCore(requestId, opponentId, opponentName); return; }
+    // Fallback: minimal open
+    showPage('chatPage');
+    var hdr = document.getElementById('chatHeader')||document.getElementById('chatTitle')||document.getElementById('chatOpponentName');
+    if (hdr) hdr.textContent = 'Чат по заявке #' + requestId + (opponentName? (' — ' + opponentName) : '');
+  }
+  window.showChat = function(requestId, opponentId, opponentName){
+    _openChatCompat(requestId, opponentId, opponentName);
+  };
+  window.setupChat = function(request, participantId){
+    var rid = (request && request.id) || request;
+    var name = (request && (request.specialization || request.title || request.name)) || '';
+    _openChatCompat(rid, participantId, name);
+  };
+})();
 </script>
 
 </body>
