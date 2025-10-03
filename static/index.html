@@ -249,6 +249,19 @@
   .header-bar button{ background:none; border:none; color:#E87D39; font-size:18px; }
 </style>
 
+
+<style>
+  /* Full-screen-ish pages and safe area */
+  .page{ display:none; padding: 12px 12px 80px; box-sizing: border-box; }
+  .page.active{ display:block; }
+  /* Ensure main menu does not share space with sub-forms */
+  #buttonContainer.page:not(.active){ display:none !important; }
+  /* Center forms on wide screens */
+  .page .card, .page .panel, .page form, .page .box {
+    max-width: 680px; margin-left:auto; margin-right:auto;
+  }
+</style>
+
 </head>
 <body>
     <video autoplay muted loop class="background-video">
@@ -2050,6 +2063,128 @@ document.addEventListener('DOMContentLoaded', function(){
     var name = (request && (request.specialization || request.title || request.name)) || '';
     _openChatCompat(rid, participantId, name);
   };
+})();
+</script>
+
+
+<script>
+/* --- Router Guard: enforce real page switching --- */
+(function(){
+  function tagPages(){
+    var known = ['buttonContainer','homePage','loginPage','registerPage','profilePage','myRequestsPage',
+      'workRequestsPage','machineryRequestsPage','toolRequestsPage','materialAdsPage','chatPage',
+      'createWorkRequestPage','createMachineryRequestPage','createToolRequestPage','createMaterialAdPage',
+      'workRequestForm','machineryRequestForm','toolRequestForm','materialAdForm'];
+    for (var i=0;i<known.length;i++){
+      var el = document.getElementById(known[i]);
+      if (el) el.classList.add('page');
+    }
+    // also mark any element with id ending in 'Page' or 'Form' as page (if it's a section-like node)
+    var candidates = document.querySelectorAll("[id$='Page'],[id$='Form']");
+    for (var j=0;j<candidates.length;j++){
+      var c = candidates[j];
+      if (!c.classList.contains('page')) c.classList.add('page');
+    }
+  }
+  function ensureOnly(pageId){
+    var pages = document.querySelectorAll('.page');
+    for (var i=0;i<pages.length;i++){
+      var el = pages[i];
+      if (el.id === pageId){
+        el.style.display = 'block';
+        el.classList.add('active');
+      }else{
+        el.style.display = 'none';
+        el.classList.remove('active');
+      }
+    }
+  }
+  function tryActivateVisible(){
+    // If any page (not main menu) becomes visible -> make it the only active page
+    var pages = document.querySelectorAll('.page');
+    for (var i=0;i<pages.length;i++){
+      var el = pages[i];
+      var comp = window.getComputedStyle(el);
+      if (comp.display !== 'none'){
+        if (!el.classList.contains('active')){
+          ensureOnly(el.id);
+          window.location.hash = '#' + el.id;
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+  function hookShowFunctions(){
+    var names = [
+      'showCreateWorkRequestForm','showCreateMachineryRequestForm','showCreateToolRequestForm','showCreateMaterialAdForm',
+      'showWorkRequests','showMachineryRequests','showToolRequests','showMaterialAds',
+      'goToProfile','openProfile','openMyRequests','goToMyRequests','openWorkRequestCreate','openToolRequestCreate','openMachineryRequestCreate','openMaterialAdCreate'
+    ];
+    names.forEach(function(n){
+      var fn = window[n];
+      if (typeof fn === 'function'){
+        window[n] = function(){
+          var r = fn.apply(this, arguments);
+          setTimeout(function(){ tryActivateVisible(); }, 0);
+          return r;
+        };
+      }else{
+        Object.defineProperty(window, n, {
+          configurable: true,
+          set: function(v){
+            // wrap when it gets defined later
+            if (typeof v === 'function'){
+              var orig = v;
+              v = function(){
+                var r = orig.apply(this, arguments);
+                setTimeout(function(){ tryActivateVisible(); }, 0);
+                return r;
+              };
+            }
+            Object.defineProperty(window, n, {value: v, writable: true, configurable: true});
+          }
+        });
+      }
+    });
+  }
+  function observeStyleChanges(){
+    var obs = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var t = muts[i].target;
+        if (t.classList && t.classList.contains('page')){
+          var disp = window.getComputedStyle(t).display;
+          if (disp !== 'none' && !t.classList.contains('active')){
+            ensureOnly(t.id);
+            window.location.hash = '#' + t.id;
+          }
+        }
+      }
+    });
+    document.querySelectorAll('.page').forEach(function(el){
+      obs.observe(el, {attributes:true, attributeFilter:['style','class']});
+    });
+  }
+  function init(){
+    tagPages();
+    // initial activation by hash or main menu
+    var pid = (location.hash||'').replace(/^#/,'') || 'buttonContainer';
+    if (!document.getElementById(pid)){ pid = 'buttonContainer'; }
+    ensureOnly(pid);
+    hookShowFunctions();
+    observeStyleChanges();
+    // Ensure global showPage uses our ensureOnly
+    var oldShowPage = window.showPage;
+    window.showPage = function(pageId){
+      ensureOnly(pageId);
+      if (typeof oldShowPage === 'function'){ try{ oldShowPage(pageId, false); } catch(e){} }
+    };
+    window.addEventListener('hashchange', function(){
+      var pid = (location.hash||'').replace(/^#/,'') || 'buttonContainer';
+      if (document.getElementById(pid)) ensureOnly(pid);
+    });
+  }
+  if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
 </script>
 
