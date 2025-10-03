@@ -147,20 +147,20 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 class ConnectionManager:
     """Класс для управления активными соединениями WebSocket по ID запроса."""
     def __init__(self):
         # Словарь для хранения активных соединений: {request_id: [websocket1, websocket2, ...]}
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
-    
-async def connect(self, websocket: WebSocket, request_id: int):
-    await websocket.accept()
-    if request_id not in self.active_connections:
-        self.active_connections[request_id] = []
-    self.active_connections[request_id].append(websocket)
+    async def connect(self, request_id: int, websocket: WebSocket):
+        await websocket.accept()
+        if request_id not in self.active_connections:
+            self.active_connections[request_id] = []
+        self.active_connections[request_id].append(websocket)
 
-def disconnect(self, websocket: WebSocket, request_id: int):
+    def disconnect(self, request_id: int, websocket: WebSocket):
         if request_id in self.active_connections:
             self.active_connections[request_id].remove(websocket)
             # Очистка, если в чате не осталось соединений
@@ -302,14 +302,15 @@ class ConnectionManager:
         # Словарь: {request_id: [WebSocket, WebSocket, ...]}
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
-    
-async def connect(self, websocket: WebSocket, request_id: int):
-    await websocket.accept()
-    if request_id not in self.active_connections:
-        self.active_connections[request_id] = []
-    self.active_connections[request_id].append(websocket)
+    async def connect(self, websocket: WebSocket, request_id: int):
+        await websocket.accept()
+        if request_id not in self.active_connections:
+            self.active_connections[request_id] = []
+        self.active_connections[request_id].append(websocket)
+        # Опциональный вывод в лог
+        # print(f"WS: Пользователь подключен к чату {request_id}")
 
-def disconnect(self, websocket: WebSocket, request_id: int):
+    def disconnect(self, websocket: WebSocket, request_id: int):
         if request_id in self.active_connections and websocket in self.active_connections[request_id]:
             self.active_connections[request_id].remove(websocket)
             if not self.active_connections[request_id]:
@@ -458,7 +459,7 @@ async def websocket_endpoint(
     sender_id = current_user["id"]
     
     # Подключаем пользователя к комнате чата (по ID запроса)
-    await manager.connect(websocket, request_id)
+    await manager.connect(request_id, websocket)
     
     try:
         while True:
@@ -481,7 +482,7 @@ async def websocket_endpoint(
                 sender_id=sender_id,
                 recipient_id=opponent_id,
                 message=message_text,
-                timestamp=datetime.utcnow()
+                created_at=datetime.utcnow()
             )
             await database.execute(query)
 
@@ -605,7 +606,7 @@ async def websocket_endpoint(
                 sender_id=user_id,
                 recipient_id=opponent_id, # Получатель известен из URL
                 message=data,
-                timestamp=datetime.utcnow()
+                created_at=datetime.utcnow()
             )
             await database.execute(query)
             
