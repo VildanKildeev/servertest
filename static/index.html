@@ -242,6 +242,126 @@
                 </form>
             </div>
         </div>
+<div id="chatPage" class="page">
+    <div class="header-bar">
+        <button onclick="showPage('myChatsPage')"><i class="fas fa-arrow-left"></i></button>
+        <span id="chatOpponentName" class="header-title">Чат</span>
+        <div></div> </div>
+    
+    <div id="chatLog">
+        </div>
+
+    <form id="chatForm">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
+        <button type="submit"><i class="fas fa-paper-plane"></i></button>
+    </form>
+</div>
+
+#chatPage {
+    display: flex; /* <-- Важно: делает контейнер гибким */
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    height: calc(100vh - 60px); /* Высота минус высота нижней навигации */
+    background: #FFFFFF;
+    position: relative;
+}
+
+#chatLog {
+    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
+    padding: 10px;
+    overflow-y: auto; /* <-- Обеспечивает прокрутку */
+    display: flex;
+    flex-direction: column;
+}
+
+#chatForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #E0E0E0;
+    background: #F8F8F8;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+}
+
+#chatInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #DCDCDC;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Стили для сообщений */
+.chat-message {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+
+.self {
+    align-self: flex-end; /* Сообщения пользователя справа */
+    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
+    color: white;
+}
+
+.other {
+    align-self: flex-start; /* Сообщения собеседника слева */
+    background-color: #F0F0F0;
+    color: #4A4A4A;
+}
+
+.message-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 2px;
+    text-align: right;
+    color: inherit;
+}
+
+        <div id="buttonContainer" class="page">
+            <div class="button-container">
+                <h2>Меню</h2>
+                <div class="button-grid">
+                    <button class="btn btn-primary" onclick="showPage('createWorkRequestPage')">Создать заявку на работу</button>
+                    <button class="btn btn-primary" onclick="showPage('workRequestsPage')">Найти работу</button>
+                    <button class="btn btn-primary" onclick="showPage('createMachineryRequestPage')">Создать заявку на технику</button>
+                    <button class="btn btn-primary" onclick="showPage('machineryRequestsPage')">Найти технику</button>
+                    <button class="btn btn-primary" onclick="showPage('createToolRequestPage')">Создать заявку на инструмент</button>
+                    <button class="btn btn-primary" onclick="showPage('toolRequestsPage')">Найти инструмент</button>
+                    <button class="btn btn-primary" onclick="showPage('createMaterialAdPage')">Разместить объявление</button>
+                    <button class="btn btn-primary" onclick="showPage('materialAdsPage')">Найти материалы</button>
+                </div>
+                <button class="btn btn-secondary" onclick="showPage('myRequestsPage')">Мои заявки</button>
+                <button class="btn btn-secondary" onclick="showPage('profilePage')">Профиль</button>
+                <button class="btn btn-link" onclick="logout()">Выйти</button>
+            </div>
+        </div>
+
+        <div id="profilePage" class="page">
+            <div class="form-container">
+                <h2>Профиль</h2>
+                <div id="profileInfo"></div>
+                <div id="profileRating"></div>
+
+                <div id="editSpecializationForm">
+                    <div class="input-group">
+                        <label for="newSpecialization">Новая специализация:</label>
+                        <select id="newSpecialization"></select>
+                    </div>
+                    <button id="saveSpecializationBtn" class="btn btn-primary">Сохранить</button>
+                </div>
+                
+                <div id="profileChatsSection" class="my-requests-section" style="margin-top: 20px;">
+                    <h3>Активные Чаты</h3>
+                    <div id="profileChatsList"></div>
+                </div>
+                
 <div id="chatPage" class="page" style="display: none;">
     <button class="back-button" onclick="showProfileSection('activeChats'); fetchActiveChats();">← Назад к чатам</button>
     <h2 id="chatTitle"></h2>
@@ -460,7 +580,10 @@
             <div class="list-container">
                 <h2>Мои заявки</h2>
                 <div id="myRequestsStatus" class="message" style="display: none;"></div>
-                
+                <div id="myChatsSection" class="my-requests-section">
+                    <h3>Активные Чаты</h3>
+                    <div id="myChatsList"></div>
+                </div>
 <div id="profileTabs" class="tab-buttons">
     <button onclick="showProfileSection('activeChats'); fetchActiveChats();">
         <i class="fas fa-comment-dots"></i> Активные чаты
@@ -653,8 +776,6 @@
             }
         }
 
-
-// Duplicate fetchActiveChats removed
 async function fetchActiveChats() {
     try {
         const response = await fetch(`${API_URL}/chats/my_active_chats`, {
@@ -691,9 +812,62 @@ async function fetchActiveChats() {
 
 let chatSocket = null; // Для хранения активного WebSocket
 
+function showChat(requestId, opponentId, opponentName) {
+    // 1. Закрыть предыдущее соединение, если оно есть
+    if (chatSocket) {
+        chatSocket.close();
+    }
+    
+    // 2. Сменить отображаемую страницу на страницу чата (вам нужно добавить этот div в HTML)
+    showPage('chatPage'); 
+    document.getElementById('chatTitle').textContent = `Чат по Заявке #${requestId} с ${opponentName}`;
+    const chatLog = document.getElementById('chatLog');
+    chatLog.innerHTML = '<h4>Загрузка сообщений...</h4>';
+    
+    // 3. Установить соединение
+    const ws_url = `ws://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    // ВАЖНО: Render не поддерживает WS, вам может понадобиться использовать WSS (защищенный протокол)
+    // Если ваш Render-сервис доступен по HTTPS, используйте WSS:
+    // const ws_url = `wss://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    
+    chatSocket = new WebSocket(ws_url);
 
-// Duplicate showChat removed
+    // 4. Обработка событий
+    chatSocket.onopen = function(e) {
+        // Здесь можно загрузить историю чата с помощью обычного HTTP GET-запроса
+        chatLog.innerHTML = '<h4>Соединение установлено.</h4>'; 
+    };
 
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const isSelf = data.sender_id === currentUser.id;
+        
+        const messageEl = document.createElement('p');
+        messageEl.className = isSelf ? 'chat-message self' : 'chat-message other';
+        messageEl.textContent = `${data.sender_name}: ${data.message} (${data.time})`;
+        chatLog.appendChild(messageEl);
+        chatLog.scrollTop = chatLog.scrollHeight; // Прокрутка вниз
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('WebSocket закрыт:', e);
+        chatLog.innerHTML += '<h4>Соединение потеряно.</h4>';
+    };
+
+    chatSocket.onerror = function(e) {
+        console.error('WebSocket ошибка:', e);
+    };
+    
+    // 5. Логика отправки сообщения
+    document.getElementById('chatForm').onsubmit = function(event) {
+        event.preventDefault();
+        const input = document.getElementById('chatInput');
+        if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(input.value);
+            input.value = '';
+        }
+    };
+}
         document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
             const newSpecialization = document.getElementById('newSpecialization').value;
             try {
@@ -1162,25 +1336,13 @@ function showChat(requestId, opponentId, opponentName) {
         }
 
 function showProfileSection(sectionId) {
-    // Показать страницу профиля
-    showPage('profilePage');
-    // Скрыть все секции профиля
+    // Сначала показываем страницу профиля
+    showPage('profilePage'); 
+    
+    // Скрываем все секции профиля
     document.querySelectorAll('.profile-content-section').forEach(section => {
         section.style.display = 'none';
     });
-    // Показать нужную секцию
-    const map = {
-        activeChats: 'activeChatsSection',
-        // добавляйте другие ключи секций при необходимости
-    };
-    const targetId = map[sectionId] || (sectionId.endsWith('Section') ? sectionId : (sectionId + 'Section'));
-    const target = document.getElementById(targetId);
-    if (target) target.style.display = 'block';
-    // Автозагрузка чатов
-    if (sectionId === 'activeChats') {
-        if (typeof fetchActiveChats === 'function') fetchActiveChats();
-    }
-});
 
 let chatSocket = null; // Объявить один раз глобально
 const CHAT_HISTORY_COUNT = 50; // Сколько сообщений загружать за раз
