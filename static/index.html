@@ -1361,6 +1361,7 @@ function showProfileSection(sectionId) {
     });
 
 // chatSocket already declared globally;
+// duplicate chatSocket declaration removed
 let chatSocket = null; // Объявить один раз глобально
 const CHAT_HISTORY_COUNT = 50; // Сколько сообщений загружать за раз
 
@@ -1456,7 +1457,7 @@ function showChat(requestId, opponentId, opponentName) {
         e.preventDefault();
         const message = chatInput.value.trim();
         if (message && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(message);
+            chatSocket.send(JSON.stringify({message: message}));
             chatInput.value = ''; // Очищаем поле ввода
         }
     };
@@ -1729,82 +1730,189 @@ async function fetchActiveChats() {
         });
     </script>
 
+
 <script>
-// --- Canonical chat core (unifies all chat functions) ---
-function _getChatEls() {
-    return {
-        chatPage: document.getElementById('chatPage'),
-        chatHeader: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName'),
-        chatBox: document.getElementById('chatBox'),
-        chatLog: document.getElementById('chatLog'),
-        chatInput: document.getElementById('chatInput'),
-        chatForm: document.getElementById('chatForm'),
-        sendBtn: document.getElementById('sendMessageBtn')
-    };
-}
-function _appendMessageUnified(data, els) {
-    const isSelf = (data.sender_id === (currentUser && currentUser.id));
-    const time = data.time || data.created_at || data.timestamp || new Date().toISOString();
-    const container = els.chatLog || els.chatBox;
-    if (!container) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'chat-message ' + (isSelf ? 'self' : 'other');
-    wrap.innerHTML = '<div class="message-text"></div><div class="message-time"></div>';
-    wrap.querySelector('.message-text').textContent = data.message;
-    try {
-        wrap.querySelector('.message-time').textContent = (new Date(time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    } catch(e) {
-        wrap.querySelector('.message-time').textContent = time;
-    }
-    container.appendChild(wrap);
-    container.scrollTop = container.scrollHeight;
-}
-function _openChatCore(requestId, opponentId, opponentName) {
-    const els = _getChatEls();
-    if (!els.chatPage) return;
-    showPage('chatPage');
-    if (els.chatHeader) els.chatHeader.textContent = `Чат по заявке #${requestId}` + (opponentName ? ` — ${opponentName}` : '');
+// --- Canonical chat core (enhanced: history + reconnect) ---
+(function(){
+    var RECONNECT_BASE = 800;  // ms
+    var RECONNECT_MAX  = 10000;
+    var _reconnectTimer = null;
+    var _lastWsUrl = null;
 
-    const container = els.chatLog || els.chatBox;
-    if (container) container.innerHTML = '<p class="status-msg">Соединение...</p>';
-
-    if (window.chatSocket) { try { chatSocket.close(); } catch(_){} }
-    const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws_host = location.host;
-    const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
-    window.chatSocket = new WebSocket(ws_url);
-
-    chatSocket.onmessage = function(e) {
-        try {
-            const data = JSON.parse(e.data);
-            _appendMessageUnified(data, els);
-        } catch(err) {
-            console.error('WS parse error:', err);
-        }
-    };
-    chatSocket.onopen = function(){ if (container) container.innerHTML = ''; };
-    chatSocket.onclose = function(){ /* no-op */ };
-    chatSocket.onerror = function(e){ console.error('WS error', e); };
-
-    if (els.chatForm) {
-        els.chatForm.onsubmit = function(ev){
-            ev.preventDefault();
-            const input = els.chatInput;
-            const msg = (input && input.value || '').trim();
-            if (msg && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                chatSocket.send(msg);
-                input.value = '';
-            }
+    function _getChatEls() {
+        return {
+            chatPage: document.getElementById('chatPage'),
+            chatHeader: document.getElementById('chatHeader') || document.getElementById('chatTitle') || document.getElementById('chatOpponentName'),
+            chatBox: document.getElementById('chatBox'),
+            chatLog: document.getElementById('chatLog'),
+            chatInput: document.getElementById('chatInput'),
+            chatForm: document.getElementById('chatForm'),
+            sendBtn: document.getElementById('sendMessageBtn')
         };
     }
-}
-// Keep legacy names (do not remove functions)
-window.showChat = function(requestId, opponentId, opponentName){ return _openChatCore(requestId, opponentId, opponentName); };
-window.setupChat = function(request, participantId){ const name = (request && request.specialization) || ''; return _openChatCore((request && request.id) || request, participantId, name); };
-window.sendMessage = function(){ const el=document.getElementById('chatInput'); if (el && window.chatSocket && chatSocket.readyState===WebSocket.OPEN){ const v=el.value.trim(); if(v){ chatSocket.send(v); el.value=''; }}};
-window.fetchChatMessages = async function(){}; // preserved
-window.fetchChatHistory = async function(){}; // preserved
-window.appendMessage = function(data){ const els=_getChatEls(); _appendMessageUnified(data, els); };
+    function _appendMessageUnified(data, els) {
+        const isSelf = (data.sender_id === (window.currentUser && currentUser.id));
+        const time = data.time || data.created_at || data.timestamp || new Date().toISOString();
+        const container = els.chatLog || els.chatBox;
+        if (!container) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-message ' + (isSelf ? 'self' : 'other');
+        wrap.innerHTML = '<div class="message-text"></div><div class="message-time"></div>';
+        wrap.querySelector('.message-text').textContent = data.message;
+        try {
+            wrap.querySelector('.message-time').textContent = (new Date(time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        } catch(e) {
+            wrap.querySelector('.message-time').textContent = time;
+        }
+        container.appendChild(wrap);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    async function _loadChatHistory(requestId, opponentId){
+        // Try several endpoints for compatibility. Stop on first success.
+        const endpoints = [
+            `/api/chats/history/${requestId}/${opponentId}`,
+            `/api/chats/history/${requestId}`,
+            `/api/chats/messages?request_id=${requestId}&opponent_id=${opponentId}`,
+            `/api/chats/messages?request_id=${requestId}`
+        ];
+        for (let i=0;i<endpoints.length;i++){
+            try {
+                const res = await fetchWithAuth(endpoints[i]);
+                if (!res.ok) continue;
+                const data = await res.json();
+                if (!Array.isArray(data)) continue;
+                const els = _getChatEls();
+                const container = els.chatLog || els.chatBox;
+                if (container) container.innerHTML = '';
+                for (let msg of data){
+                    // normalize fields
+                    const payload = {
+                        message: msg.message || msg.text || '',
+                        sender_id: msg.sender_id || msg.senderId || msg.from_id || msg.user_id,
+                        timestamp: msg.timestamp || msg.created_at || msg.time
+                    };
+                    if (payload.message) _appendMessageUnified(payload, els);
+                }
+                return true; // loaded
+            } catch (e) {
+                // try next
+            }
+        }
+        return false;
+    }
+
+    function _scheduleReconnect(url, requestId, opponentId){
+        if (_reconnectTimer) return;
+        var delay = Math.min(RECONNECT_MAX, RECONNECT_BASE + Math.floor(Math.random()*RECONNECT_BASE));
+        _reconnectTimer = setTimeout(function(){
+            _reconnectTimer = null;
+            // reopen
+            _openChatCore(requestId, opponentId);
+        }, delay);
+    }
+
+    window._openChatCore = function(requestId, opponentId, opponentName) {
+        const els = _getChatEls();
+        if (!els.chatPage) return;
+        if (typeof window.showPage === 'function') showPage('chatPage');
+        if (els.chatHeader) els.chatHeader.textContent = `Чат по заявке #${requestId}` + (opponentName ? ` — ${opponentName}` : '');
+
+        const container = els.chatLog || els.chatBox;
+        if (container) container.innerHTML = '<p class="status-msg">Соединение...</p>';
+
+        if (window.chatSocket) { try { chatSocket.close(); } catch(_){} }
+        const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const ws_host = location.host;
+        const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+        _lastWsUrl = ws_url;
+        window.chatSocket = new WebSocket(ws_url);
+
+        chatSocket.onmessage = function(e) {
+            try {
+                const data = JSON.parse(e.data);
+                _appendMessageUnified(data, els);
+            } catch(err) {
+                console.error('WS parse error:', err);
+            }
+        };
+        chatSocket.onopen = async function(){
+            if (container) container.innerHTML = '';
+            try { await _loadChatHistory(requestId, opponentId); } catch(e){}
+        };
+        chatSocket.onclose = function(){
+            _scheduleReconnect(ws_url, requestId, opponentId);
+        };
+        chatSocket.onerror = function(e){
+            console.error('WS error', e);
+        };
+
+        if (els.chatForm) {
+            els.chatForm.onsubmit = function(ev){
+                ev.preventDefault();
+                const input = els.chatInput;
+                const msg = (input && input.value || '').trim();
+                if (msg && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                    try {
+                        chatSocket.send(JSON.stringify({message: msg}));
+                        // optimistic render to feel snappier (server will also broadcast)
+                        _appendMessageUnified({message: msg, sender_id: (window.currentUser && currentUser.id), timestamp: new Date().toISOString()}, els);
+                    } catch(e) { console.warn('send failed', e); }
+                    input.value = '';
+                }
+            };
+        }
+    };
+
+    // Keep legacy names (do not remove functions)
+    window.showChat = function(requestId, opponentId, opponentName){ return _openChatCore(requestId, opponentId, opponentName); };
+    window.setupChat = function(request, participantId){ const name = (request && request.specialization) || ''; return _openChatCore((request && request.id) || request, participantId, name); };
+    window.sendMessage = function(){ const el=document.getElementById('chatInput'); if (el && window.chatSocket && chatSocket.readyState===WebSocket.OPEN){ const v=el.value.trim(); if(v){ try{ chatSocket.send(JSON.stringify({message:v})); }catch(e){} _appendMessageUnified({message: v, sender_id:(window.currentUser && currentUser.id), timestamp:new Date().toISOString()}, _getChatEls()); el.value=''; }}};
+    window.fetchChatMessages = async function(){}; // preserved
+    window.fetchChatHistory = async function(){}; // preserved
+    window.appendMessage = function(data){ const els=_getChatEls(); _appendMessageUnified(data, els); };
+})();
+</script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    try {
+        var items = document.querySelectorAll('a,button');
+        for (var i=0;i<items.length;i++){
+            var el = items[i];
+            var onclickAttr = el.getAttribute('onclick') || '';
+            var target = (el.dataset && (el.dataset.page || el.dataset.target)) || '';
+            var id = el.id || '';
+            if (onclickAttr.indexOf("showPage('chatPage'") !== -1 ||
+                target === 'chatPage' ||
+                id === 'menuChat' || el.classList.contains('menu-chat')) {
+                el.style.display = 'none';
+                el.setAttribute('data-removed-chat-menu','1');
+            }
+        }
+    } catch(e){ console.warn('hide chat menu failed', e); }
+});
+</script>
+
+
+<script>
+// Open chat from profile / my requests via data attributes
+document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-open-chat], .open-chat');
+    if (!btn) return;
+    var requestId = parseInt(btn.getAttribute('data-request-id') || btn.dataset.requestId || btn.getAttribute('data-id') || '0');
+    var opponentId = parseInt(btn.getAttribute('data-user-id') || btn.dataset.userId || btn.getAttribute('data-opponent-id') || '0');
+    var name = btn.getAttribute('data-name') || btn.dataset.name || btn.getAttribute('data-opponent-name') || '';
+    if (requestId && opponentId) {
+        if (typeof window.showChat === 'function') {
+            window.showChat(requestId, opponentId, name);
+            // ensure page switch
+            if (typeof window.showPage === 'function') window.showPage('chatPage');
+        }
+    }
+});
 </script>
 
 </body>
