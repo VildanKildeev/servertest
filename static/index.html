@@ -242,6 +242,87 @@
                 </form>
             </div>
         </div>
+<div id="chatPage" class="page">
+    <div class="header-bar">
+        <button onclick="showPage('myChatsPage')"><i class="fas fa-arrow-left"></i></button>
+        <span id="chatOpponentName" class="header-title">Чат</span>
+        <div></div> </div>
+    
+    <div id="chatLog">
+        </div>
+
+    <form id="chatForm">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
+        <button type="submit"><i class="fas fa-paper-plane"></i></button>
+    </form>
+</div>
+
+#chatPage {
+    display: flex; /* <-- Важно: делает контейнер гибким */
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    height: calc(100vh - 60px); /* Высота минус высота нижней навигации */
+    background: #FFFFFF;
+    position: relative;
+}
+
+#chatLog {
+    flex-grow: 1; /* <-- Занимает все доступное вертикальное пространство */
+    padding: 10px;
+    overflow-y: auto; /* <-- Обеспечивает прокрутку */
+    display: flex;
+    flex-direction: column;
+}
+
+#chatForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #E0E0E0;
+    background: #F8F8F8;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+}
+
+#chatInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #DCDCDC;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Стили для сообщений */
+.chat-message {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+
+.self {
+    align-self: flex-end; /* Сообщения пользователя справа */
+    background-color: #6a8d73; /* Зеленоватый цвет для своих сообщений */
+    color: white;
+}
+
+.other {
+    align-self: flex-start; /* Сообщения собеседника слева */
+    background-color: #F0F0F0;
+    color: #4A4A4A;
+}
+
+.message-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 2px;
+    text-align: right;
+    color: inherit;
+}
 
         <div id="buttonContainer" class="page">
             <div class="button-container">
@@ -1262,6 +1343,110 @@ function showProfileSection(sectionId) {
     document.querySelectorAll('.profile-content-section').forEach(section => {
         section.style.display = 'none';
     });
+
+let chatSocket = null; // Объявить один раз глобально
+const CHAT_HISTORY_COUNT = 50; // Сколько сообщений загружать за раз
+
+// ------------------------------------------------------------------
+// НОВАЯ ФУНКЦИЯ: Загрузка истории чата
+// ------------------------------------------------------------------
+async function fetchChatHistory(request_id, opponent_id) {
+    const chatLog = document.getElementById('chatLog');
+    chatLog.innerHTML = ''; // Очищаем лог перед загрузкой
+    
+    try {
+        const url = `${API_URL}/chats/${request_id}/${opponent_id}?limit=${CHAT_HISTORY_COUNT}`;
+        const response = await fetchWithAuth(url);
+        if (response.ok) {
+            const messages = await response.json();
+            messages.reverse().forEach(data => { // Обрабатываем отсортированные в обратном порядке сообщения
+                appendMessage(data, chatLog);
+            });
+            // Прокрутка вниз после загрузки всех сообщений
+            chatLog.scrollTop = chatLog.scrollHeight;
+        } else {
+            console.error('Failed to fetch chat history:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Error fetching chat history:', error);
+    }
+}
+
+function appendMessage(data, chatLog) {
+    const isSelf = data.sender_id === currentUser.id;
+    const time = data.created_at ? new Date(data.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : data.time;
+    
+    const messageEl = document.createElement('div');
+    messageEl.className = `chat-message ${isSelf ? 'self' : 'other'}`;
+    messageEl.innerHTML = `
+        <div class="message-text">${data.message}</div>
+        <div class="message-time">${time}</div>
+    `;
+    
+    chatLog.appendChild(messageEl);
+}
+
+
+// ------------------------------------------------------------------
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ: Открытие чата
+// ------------------------------------------------------------------
+function showChat(requestId, opponentId, opponentName) {
+    showPage('chatPage');
+    document.getElementById('chatOpponentName').textContent = opponentName;
+    
+    const chatLog = document.getElementById('chatLog');
+    const chatInput = document.getElementById('chatInput');
+    const chatForm = document.getElementById('chatForm');
+
+    // 1. Загрузка истории
+    fetchChatHistory(requestId, opponentId);
+    
+    // 2. Закрытие предыдущего соединения, если оно есть
+    if (chatSocket) {
+        chatSocket.close();
+    }
+    
+    // 3. Установка URL для WebSocket
+    const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws_host = location.host; // Используем текущий хост (servertest2-0.onrender.com)
+    const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    
+    // 4. Установка нового соединения
+    chatSocket = new WebSocket(ws_url);
+    
+    chatSocket.onopen = function(e) {
+        console.log("WebSocket connected.");
+    };
+    
+    // 5. Обработка входящих сообщений
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        // data уже содержит message, sender_id и time от сервера
+        appendMessage(data, chatLog);
+        chatLog.scrollTop = chatLog.scrollHeight; // Прокрутка вниз
+    };
+    
+    chatSocket.onclose = function(e) {
+        console.log("WebSocket closed.");
+    };
+
+    chatSocket.onerror = function(e) {
+        console.error("WebSocket error:", e);
+    };
+
+    // 6. Обработка отправки сообщения
+    chatForm.onsubmit = function(e) {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (message && chatSocket.readyState === WebSocket.OPEN) {
+            const messagePayload = JSON.stringify({
+                message: message
+            });
+            chatSocket.send(messagePayload);
+            chatInput.value = ''; // Очищаем поле ввода
+        }
+    };
+}
     
     // Показываем нужную секцию
     const targetSection = document.getElementById(sectionId + 'Section'); // Предполагаем, что id секций: myRequestsSection, activeChatsSection и т.д.
