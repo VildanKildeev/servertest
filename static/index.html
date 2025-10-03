@@ -281,6 +281,19 @@
                     <div id="profileChatsList"></div>
                 </div>
                 
+<div id="chatPage" class="page" style="display: none;">
+    <button class="back-button" onclick="showProfileSection('activeChats'); fetchActiveChats();">← Назад к чатам</button>
+    <h2 id="chatTitle"></h2>
+    
+    <div id="chatLog" class="chat-log">
+        </div>
+    
+    <form id="chatForm">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
+        <button type="submit"><i class="fas fa-paper-plane"></i> Отправить</button>
+    </form>
+</div>
+
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
@@ -490,6 +503,18 @@
                     <h3>Активные Чаты</h3>
                     <div id="myChatsList"></div>
                 </div>
+<div id="profileTabs" class="tab-buttons">
+    <button onclick="showProfileSection('activeChats'); fetchActiveChats();">
+        <i class="fas fa-comment-dots"></i> Активные чаты
+    </button>
+    </div>
+
+<div id="activeChatsSection" class="profile-content-section" style="display:none;">
+    <h2>Мои диалоги</h2>
+    <div id="activeChatsList">
+        <p class="status-msg">Загрузка...</p>
+    </div>
+</div>
                 <div id="myTakenWorkRequestsSection" class="my-requests-section" style="display: none;">
                     <h3>Взятые мной заявки</h3>
                     <div id="myTakenWorkRequestsList"></div>
@@ -1076,6 +1101,71 @@ function showChat(requestId, opponentId, opponentName) {
             await fetchChatMessages();
         }
         
+let chatSocket = null; // Глобальная переменная для активного WebSocket
+
+function showChat(requestId, opponentId, opponentName) {
+    // 1. Закрыть предыдущее соединение, если оно есть
+    if (chatSocket) {
+        chatSocket.close();
+        chatSocket = null;
+    }
+    
+    // 2. Сменить отображаемую страницу на страницу чата
+    showPage('chatPage'); 
+    document.getElementById('chatTitle').textContent = `Чат по Заявке #${requestId} с ${opponentName}`;
+    const chatLog = document.getElementById('chatLog');
+    chatLog.innerHTML = '<h4>Установка соединения...</h4>';
+    
+    // 3. Установить соединение
+    // ВАЖНО: Если ваш сервис на Render использует HTTPS, замените ws:// на wss://
+    const ws_protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws_host = window.location.host;
+    const ws_url = `${ws_protocol}//${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    
+    chatSocket = new WebSocket(ws_url);
+
+    // 4. Обработка событий
+    chatSocket.onopen = function(e) {
+        chatLog.innerHTML = '<h4>Соединение установлено.</h4>'; 
+        // Здесь можно добавить HTTP-запрос для загрузки старой истории сообщений
+    };
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const isSelf = data.sender_id === currentUser.id;
+        const senderName = isSelf ? 'Вы' : data.sender_name;
+        
+        const messageEl = document.createElement('p');
+        messageEl.className = isSelf ? 'chat-message self' : 'chat-message other';
+        messageEl.innerHTML = `
+            <span class="sender-name">${senderName}</span>: 
+            <span class="message-text">${data.message}</span>
+            <span class="message-time">(${data.time})</span>
+        `;
+        chatLog.appendChild(messageEl);
+        chatLog.scrollTop = chatLog.scrollHeight; // Прокрутка вниз
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('WebSocket закрыт:', e);
+        chatLog.innerHTML += '<p class="error-msg">Соединение потеряно.</p>';
+    };
+
+    chatSocket.onerror = function(e) {
+        console.error('WebSocket ошибка:', e);
+    };
+    
+    // 5. Логика отправки сообщения
+    document.getElementById('chatForm').onsubmit = function(event) {
+        event.preventDefault();
+        const input = document.getElementById('chatInput');
+        if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(input.value);
+            input.value = '';
+        }
+    };
+}
+
         async function fetchChatMessages() {
             if (!currentChatContext) return;
             const { request, participantId } = currentChatContext;
@@ -1165,6 +1255,72 @@ function showChat(requestId, opponentId, opponentName) {
             statusEl.style.display = 'block';
             setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
         }
+
+function showProfileSection(sectionId) {
+    // Сначала показываем страницу профиля
+    showPage('profilePage'); 
+    
+    // Скрываем все секции профиля
+    document.querySelectorAll('.profile-content-section').forEach(section => {
+        section.style.display = 'none';
+    });
+    
+    // Показываем нужную секцию
+    const targetSection = document.getElementById(sectionId + 'Section'); // Предполагаем, что id секций: myRequestsSection, activeChatsSection и т.д.
+    if (targetSection) {
+        targetSection.style.display = 'block';
+    } else {
+        // Если секция 'activeChats' - то просто показываем контейнер
+        const chatsPage = document.getElementById('activeChatsPage'); 
+        if (chatsPage) chatsPage.style.display = 'block';
+    }
+}
+
+async function fetchActiveChats() {
+    const chatsListEl = document.getElementById('activeChatsList');
+    if (!accessToken) {
+        chatsListEl.innerHTML = '<p class="status-msg">Для просмотра чатов необходимо войти.</p>';
+        return;
+    }
+    
+    chatsListEl.innerHTML = '<p class="status-msg">Загрузка активных чатов...</p>'; 
+
+    try {
+        const response = await fetch(`${API_URL}/chats/my_active_chats`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        
+        if (response.ok) {
+            const chats = await response.json();
+            chatsListEl.innerHTML = '';
+            
+            if (chats.length === 0) {
+                chatsListEl.innerHTML = '<p class="status-msg">Активных диалогов пока нет.</p>';
+            }
+            
+            chats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item';
+                // При клике вызываем функцию showChat, которая установит WS-соединение
+                chatItem.onclick = () => showChat(chat.request_id, chat.opponent_id, chat.opponent_name); 
+                chatItem.innerHTML = `
+                    <h4>Заявка #${chat.request_id}</h4>
+                    <p>Собеседник: <b>${chat.opponent_name}</b></p>
+                    <p class="last-message">${chat.last_message || 'Начать диалог'}</p>
+                `;
+                chatsListEl.appendChild(chatItem);
+            });
+        } else {
+            // Если нет 200 OK
+            chatsListEl.innerHTML = `<p class="error-msg">Ошибка ${response.status} при загрузке чатов.</p>`;
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке активных чатов:', error);
+        chatsListEl.innerHTML = '<p class="error-msg">Произошла сетевая ошибка при загрузке чатов.</p>';
+    }
+}
 
         async function acceptOffer(offerId) {
             if (!confirm('Вы уверены, что хотите выбрать этого исполнителя? Это действие нельзя будет отменить.')) return;
