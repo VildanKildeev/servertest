@@ -829,3 +829,18 @@ if static_path.exists():
     @app.get("/")
     async def read_index():
         return FileResponse(static_path / "index.html")
+
+@app.get('/healthz')
+def healthz():
+    return PlainTextResponse('ok', status_code=200)
+
+
+@app.get('/')
+def root_index():
+    try:
+        if INDEX_FILE.exists():
+            return HTMLResponse(INDEX_FILE.read_text(encoding='utf-8'))
+        else:
+            return PlainTextResponse('index.html not found next to main.py', status_code=404)
+    except Exception as e:
+        return PlainTextResponse(f'error: {e}', status_code=500)
