@@ -8,21 +8,20 @@ from sqlalchemy.types import JSON
 # Получаем DATABASE_URL из переменных окружения.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# Проверяем, что переменная установлена, иначе приложение не запустится
+# Проверяем, что переменная установлена
 if not DATABASE_URL:
-    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса.")
+    raise ValueError("Переменная окружения DATABASE_URL не установлена.")
 
-# Добавляем параметр SSL для Render.com, если его нет.
-if "?" in DATABASE_URL:
-    if "sslmode" not in DATABASE_URL:
-        DATABASE_URL += "&sslmode=require"
-else:
-    DATABASE_URL += "?sslmode=require"
-
-# ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
-# но SQLAlchemy требует для asyncpg/databases формат postgresql://
+# Корректная обработка URL для SQLAlchemy
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Добавляем параметры SSL, если их нет
+if "sslmode" not in DATABASE_URL:
+    if "?" in DATABASE_URL:
+        DATABASE_URL += "&sslmode=require"
+    else:
+        DATABASE_URL += "?sslmode=require"
 
 engine = create_engine(DATABASE_URL)
 database = databases.Database(DATABASE_URL)
@@ -37,7 +36,7 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("hashed_password", sqlalchemy.String),
     sqlalchemy.Column("phone_number", sqlalchemy.String),
     sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
-    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # ЗАКАЗЧИК или ИСПОЛНИТЕЛЬ
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
@@ -46,7 +45,7 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("rating_count", sqlalchemy.Integer, nullable=False, default=0)
 )
 
-# Таблица заявок на работу (УБРАН СТОЛБЕЦ chat_enabled)
+# Таблица заявок на работу
 work_requests = sqlalchemy.Table(
     "work_requests",
     metadata,
@@ -66,8 +65,7 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
 
-# --- НОВАЯ ТАБЛИЦА: ПРЕДЛОЖЕНИЯ ОТ ИСПОЛНИТЕЛЕЙ ---
-# Эта таблица связывает исполнителей с заявками, на которые они откликнулись.
+# Таблица предложений от исполнителей
 work_request_offers = sqlalchemy.Table(
     "work_request_offers",
     metadata,
@@ -144,8 +142,7 @@ chat_messages = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id")),
     sqlalchemy.Column("sender_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    # Добавлен получатель для поддержки диалогов 1-на-1
-    sqlalchemy.Column("recipient_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("recipient_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")), # Получатель для диалогов 1-на-1
     sqlalchemy.Column("message", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("timestamp", sqlalchemy.DateTime, default=sqlalchemy.func.now())
 )
