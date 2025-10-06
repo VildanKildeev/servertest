@@ -173,8 +173,9 @@ class ConnectionManager:
         if request_id in self.active_connections:
             for connection in self.active_connections[request_id]:
                 await connection.send_text(message)
-# manager duplicate disabled
-manager_dup_disabled = ConnectionManager()
+
+manager = ConnectionManager()
+
 # --- WORK REQUESTS SCHEMAS ---
 class WorkRequestIn(BaseModel):
     name: str
@@ -294,7 +295,33 @@ class CityOut(BaseModel):
     name: str
 
 # Определите ConnectionManager сразу после импортов и настроек
-# --- DUPLICATE ConnectionManager disabled below ---
+class ConnectionManager:
+    """Управляет активными WebSocket-соединениями по request_id."""
+    def __init__(self):
+        # Словарь: {request_id: [WebSocket, WebSocket, ...]}
+        self.active_connections: Dict[int, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, request_id: int):
+        await websocket.accept()
+        if request_id not in self.active_connections:
+            self.active_connections[request_id] = []
+        self.active_connections[request_id].append(websocket)
+        # Опциональный вывод в лог
+        # print(f"WS: Пользователь подключен к чату {request_id}")
+
+    def disconnect(self, websocket: WebSocket, request_id: int):
+        if request_id in self.active_connections and websocket in self.active_connections[request_id]:
+            self.active_connections[request_id].remove(websocket)
+            if not self.active_connections[request_id]:
+                del self.active_connections[request_id]
+        # print(f"WS: Пользователь отключен от чата {request_id}")
+
+    async def broadcast(self, request_id: int, message: str):
+        """Отправляет сообщение всем участникам чата по данному request_id."""
+        if request_id in self.active_connections:
+            for connection in self.active_connections[request_id]:
+                await connection.send_text(message)
+
 manager = ConnectionManager()
 
 class ChatMessageIn(BaseModel):
@@ -420,8 +447,8 @@ async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = 
     
     return {"message": f"Исполнитель {executor['email']} успешно оценен. Новый средний рейтинг: {new_average_rating:.2f}"}
 
-# @api_router.websocket("/ws/chat/{request_id}/{opponent_id}")
-async def websocket_endpoint_v1_disabled(
+@api_router.websocket("/ws/chat/{request_id}/{opponent_id}")
+async def websocket_endpoint(
     websocket: WebSocket,
     request_id: int,
     opponent_id: int,
@@ -453,7 +480,9 @@ async def websocket_endpoint_v1_disabled(
                 request_id=request_id,
                 sender_id=sender_id,
                 recipient_id=opponent_id,
-                message=message_text)
+                message=message_text,
+                created_at=datetime.utcnow()
+            )
             await database.execute(query)
 
             # 2. Формируем JSON для рассылки всем участникам чата
@@ -562,7 +591,7 @@ async def websocket_endpoint(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
     
-    await manager.connect(request_id, websocket)
+    await manager.connect(websocket, request_id)
     
     try:
         while True:
@@ -575,7 +604,9 @@ async def websocket_endpoint(
                 request_id=request_id,
                 sender_id=user_id,
                 recipient_id=opponent_id, # Получатель известен из URL
-                message=data)
+                message=data,
+                created_at=datetime.utcnow()
+            )
             await database.execute(query)
             
             # --- Отправка сообщения всем подключенным (broadcast) ---
@@ -590,10 +621,10 @@ async def websocket_endpoint(
             await manager.broadcast(request_id, message_payload)
 
     except WebSocketDisconnect:
-        manager.disconnect(request_id, websocket)
+        manager.disconnect(websocket, request_id)
     except Exception as e:
         # print(f"WS Error in chat {request_id}: {e}")
-        manager.disconnect(request_id, websocket)
+        manager.disconnect(websocket, request_id)
         # Опционально: отправить сообщение об ошибке клиенту
 
 @api_router.post("/subscribe")
