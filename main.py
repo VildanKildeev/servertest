@@ -295,33 +295,6 @@ class CityOut(BaseModel):
 
 # Определите ConnectionManager сразу после импортов и настроек
 # --- DUPLICATE ConnectionManager disabled below ---
-class ConnectionManager_DUP_DISABLED::
-    """Управляет активными WebSocket-соединениями по request_id."""
-    def __init__(self):
-        # Словарь: {request_id: [WebSocket, WebSocket, ...]}
-        self.active_connections: Dict[int, List[WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, request_id: int):
-        await websocket.accept()
-        if request_id not in self.active_connections:
-            self.active_connections[request_id] = []
-        self.active_connections[request_id].append(websocket)
-        # Опциональный вывод в лог
-        # print(f"WS: Пользователь подключен к чату {request_id}")
-
-    def disconnect(self, websocket: WebSocket, request_id: int):
-        if request_id in self.active_connections and websocket in self.active_connections[request_id]:
-            self.active_connections[request_id].remove(websocket)
-            if not self.active_connections[request_id]:
-                del self.active_connections[request_id]
-        # print(f"WS: Пользователь отключен от чата {request_id}")
-
-    async def broadcast(self, request_id: int, message: str):
-        """Отправляет сообщение всем участникам чата по данному request_id."""
-        if request_id in self.active_connections:
-            for connection in self.active_connections[request_id]:
-                await connection.send_text(message)
-
 manager = ConnectionManager()
 
 class ChatMessageIn(BaseModel):
