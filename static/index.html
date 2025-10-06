@@ -256,9 +256,7 @@
         <button type="submit"><i class="fas fa-paper-plane"></i></button>
     </form>
 </div>
-
-#chatPage {
-    display: flex; /* <-- Важно: делает контейнер гибким */
+<-- Важно: делает контейнер гибким */
     flex-direction: column;
     width: 100%;
     max-width: 600px;
@@ -362,15 +360,10 @@
                     <div id="profileChatsList"></div>
                 </div>
                 
-<div id="chatPage_removed_2" class="page" style="display: none;" style="display:none !important">
-    <button class="back-button" onclick="showProfileSection('activeChats'); fetchActiveChats();">← Назад к чатам</button>
-    <h2 id="chatTitle"></h2>
+
     
-    <div id="chatLog_removed_2" class="chat-log">
-        </div>
-    
-    <form id="chatForm_removed_2">
-        <input type="text" id="chatInput_removed_2" placeholder="Введите сообщение..." required>
+    <form id="chatForm">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
         <button type="submit"><i class="fas fa-paper-plane"></i> Отправить</button>
     </form>
 </div>
@@ -429,13 +422,10 @@
 
 
 
-        <div id="chatPage_removed_3" class="page" style="display:none !important">
-            <div class="form-container" style="padding: 0;">
-                <h3 id="chatHeader">Чат по заявке</h3>
-                <div id="chatBox_removed_3"></div>
+        
                 <div class="chat-input-container">
-                    <input type="text" id="chatInput_removed_3" placeholder="Введите сообщение...">
-                    <button id="sendMessageBtn_removed_3"><i class="fas fa-paper-plane"></i></button>
+                    <input type="text" id="chatInput" placeholder="Введите сообщение...">
+                    <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
             <button class="btn btn-secondary" onclick="goBackToRequests()">Назад к заявкам</button>
