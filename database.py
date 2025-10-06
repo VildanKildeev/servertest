@@ -2,18 +2,24 @@ import os
 from typing import Optional
 
 import sqlalchemy
-from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey, Text, Float, MetaData, create_engine, Boolean
+from sqlalchemy import (
+    Table, Column, Integer, String, DateTime, ForeignKey, Text, Float,
+    MetaData, create_engine
+)
 from sqlalchemy.sql import func
 import databases
 
 # -----------------------------------------------------------------------------
-// DATABASE URL
+# DATABASE URL
 # -----------------------------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("Переменная окружения DATABASE_URL не установлена. Укажите строку подключения к БД.")
+    raise RuntimeError(
+        "Переменная окружения DATABASE_URL не установлена. "
+        "Укажите строку подключения к БД."
+    )
 
-# Add sslmode=require for Postgres if missing (Render/other hosts)
+# Добавим sslmode=require для Postgres при отсутствии (актуально для Render и др.)
 if DATABASE_URL.startswith("postgres") and "sslmode=" not in DATABASE_URL:
     sep = "&" if "?" in DATABASE_URL else "?"
     DATABASE_URL = f"{DATABASE_URL}{sep}sslmode=require"
@@ -23,7 +29,7 @@ metadata = MetaData()
 engine = create_engine(DATABASE_URL)
 
 # -----------------------------------------------------------------------------
-// Tables
+# Таблицы
 # -----------------------------------------------------------------------------
 users = Table(
     "users", metadata,
