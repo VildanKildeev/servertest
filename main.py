@@ -621,10 +621,16 @@ async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
 app.include_router(api_router)
 
 # Serve static files (index.html)
-static_path = Path(__file__).parent
-if (static_path / "index.html").exists():
-    app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
+# 1. Корректно определяем путь к папке 'static'
+STATIC_DIR = Path(__file__).parent / "static"
 
-    @app.get("/{full_path:path}")
-    async def read_index(request: Request, full_path: str):
-        return FileResponse(static_path / "index.html")
+# 2. Проверяем, существует ли папка 'static'
+if STATIC_DIR.is_dir():
+    # 3. Монтируем папку 'static' на корневой путь '/'.
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+    # 4. Добавляем catch-all роут:
+    # Любой запрос, не соответствующий API, будет возвращать index.html для работы SPA-роутера.
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def read_index(full_path: str):
+        return FileResponse(STATIC_DIR / "index.html")
