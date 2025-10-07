@@ -934,9 +934,13 @@ body {
                 description: document.getElementById('machineryDescription').value,
                 rental_price: parseFloat(document.getElementById('machineryPrice').value),
                 contact_info: document.getElementById('machineryContact').value,
-                city_id: selectedCityId
+                city_id: selectedCityId,
+                // Новые поля
+                rental_date: document.getElementById('machineryRentalDate').value,
+                min_hours_4: document.getElementById('machineryMinHours').checked,
+                hours_count: parseInt(document.getElementById('machineryHoursCount').value)
             };
-            await handleFormSubmit('machineryAdForm', `${API_URL}/machinery_requests`, payload, 'machineryAdStatus', () => {
+            await handleFormSubmit('machineryAdForm', `${API_URL}/machinery_requests/`, payload, 'machineryAdStatus', () => {
                 showPage('machineryPage');
             });
         });
@@ -946,17 +950,28 @@ body {
             const payload = {
                 tool_name: document.getElementById('toolName').value,
                 description: document.getElementById('toolDescription').value,
-                tool_count: parseInt(document.getElementById('toolCount').value),
                 rental_price: parseFloat(document.getElementById('toolPrice').value),
                 contact_info: document.getElementById('toolContact').value,
-                city_id: selectedCityId
-                // Убраны поля даты/доставки для упрощения, нужно добавить, если требуются
+                city_id: selectedCityId,
+                // Новые поля
+                rental_start_date: document.getElementById('toolRentalStartDate').value,
+                rental_end_date: document.getElementById('toolRentalEndDate').value,
+                has_delivery: document.getElementById('toolHasDelivery').checked,
+                delivery_address: document.getElementById('toolDeliveryAddress').value || null
             };
-            await handleFormSubmit('toolAdForm', `${API_URL}/tool_requests`, payload, 'toolAdStatus', () => {
+            await handleFormSubmit('toolAdForm', `${API_URL}/tool_requests/`, payload, 'toolAdStatus', () => {
                 showPage('toolsPage');
             });
         });
         
+document.getElementById('toolHasDelivery').addEventListener('change', function() {
+            const addressGroup = document.getElementById('toolDeliveryAddressGroup');
+            if (this.checked) {
+                addressGroup.style.display = 'block';
+            } else {
+                addressGroup.style.display = 'none';
+            }
+        });
         document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const payload = {
