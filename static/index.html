@@ -31,16 +31,12 @@
         .btn-secondary:hover { background-color: #F5F2EA; transform: translateY(-1px); }
 
         form { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); display: flex; flex-direction: column; gap: 15px; }
-        input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], input[type="date"], select, textarea { 
+        input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], select, textarea { 
             padding: 12px; border: 1px solid #E0DBCF; border-radius: 6px; font-size: 16px; width: 100%; 
         }
         input:focus, select:focus, textarea:focus { border-color: #E76F51; outline: none; box-shadow: 0 0 0 2px rgba(231, 111, 81, 0.2); }
         label { font-weight: 500; color: #4A4A4A; }
         .form-group { width: 100%; }
-        
-        /* Чекбокс стили */
-        .form-group input[type="checkbox"] { width: auto; margin-right: 10px; }
-        .form-group.checkbox-group { display: flex; align-items: center; }
 
         /* Сообщения о статусе */
         .status-message { padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: 600; text-align: center; display: none; }
@@ -280,16 +276,8 @@
                     <textarea id="machineryDescription" rows="3"></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="machineryPrice">Цена аренды (за час/смену) [rental_price]:</label>
+                    <label for="machineryPrice">Цена аренды (в сутки):</label>
                     <input type="number" id="machineryPrice" required>
-                </div>
-                <div class="form-group">
-                    <label for="machineryMinHours">Минимальный заказ (часов) [min_hours]:</label>
-                    <input type="number" id="machineryMinHours" value="4" min="1">
-                </div>
-                <div class="form-group">
-                    <label for="machineryRentalDate">Дата начала аренды (Необязательно) [rental_date]:</label>
-                    <input type="date" id="machineryRentalDate">
                 </div>
                 <div class="form-group">
                     <label for="machineryContact">Контакт:</label>
@@ -328,22 +316,6 @@
                 <div class="form-group">
                     <label for="toolPrice">Цена аренды (в сутки):</label>
                     <input type="number" id="toolPrice" required>
-                </div>
-                <div class="form-group">
-                    <label for="toolStartDate">Срок аренды: Начальная дата [rental_start_date]:</label>
-                    <input type="date" id="toolStartDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="toolEndDate">Срок аренды: Конечная дата [rental_end_date]:</label>
-                    <input type="date" id="toolEndDate" required>
-                </div>
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="toolHasDelivery">
-                    <label for="toolHasDelivery" style="margin-bottom: 0;">Возможна доставка [has_delivery]</label>
-                </div>
-                <div class="form-group" id="deliveryAddressGroup" style="display: none;">
-                    <label for="toolDeliveryAddress">Адрес доставки [delivery_address]:</label>
-                    <input type="text" id="toolDeliveryAddress">
                 </div>
                 <div class="form-group">
                     <label for="toolContact">Контакт:</label>
@@ -420,13 +392,27 @@
     </div>
     
     <footer>
-        <div style="width: 100%; max-width: 600px; padding: 15px 20px; text-align: center; color: #4A4A4A;">
-            <p style="font-size: 14px; font-weight: 600;">Свяжитесь с нами:</p>
-            <p style="font-size: 14px; margin-top: 5px;">
-                <i class="fas fa-envelope"></i> email@smz.rf | 
-                <i class="fas fa-phone"></i> +7 (900) 123-45-67
-            </p>
-            <p style="font-size: 12px; color: #999; margin-top: 10px;">&copy; 2024 СМЗ.РФ. Все права защищены.</p>
+        <footer class="bottom-nav">
+        <button onclick="showPage('buttonContainer')">
+            <i class="fas fa-home"></i>
+            Главная
+        </button>
+        <a href="https://t.me/your_telegram_contact" target="_blank" title="Связаться с нами через Telegram">
+            <i class="fab fa-telegram-plane"></i>
+            Telegram
+        </a>
+        <a href="https://wa.me/your_whatsapp_number" target="_blank" title="Связаться с нами через WhatsApp">
+            <i class="fab fa-whatsapp"></i>
+            WhatsApp
+        </a>
+        <a href="http://your-forum-url.com" target="_blank" title="Перейти на Форум">
+            <i class="fas fa-comments"></i>
+            Форум
+        </a>
+        <button onclick="showPage('profilePage')">
+            <i class="fas fa-user-circle"></i>
+            Профиль
+        </button>
         </div>
     </footer>
 
@@ -487,13 +473,14 @@
                 }
 
                 // Добавляем города в формы регистрации/объявлений
-                const regCitySelect = document.getElementById('regCity');
-                if (regCitySelect) {
-                    regCitySelect.innerHTML = citySelect.innerHTML;
+                const citySelects = document.querySelectorAll('select[id$="City"]');
+                citySelects.forEach(selectEl => {
+                    selectEl.innerHTML = citySelect.innerHTML;
                     if (selectedCity) {
-                        regCitySelect.value = selectedCity.id;
+                        selectEl.value = selectedCity.id;
                     }
-                }
+                });
+
 
             } catch (error) {
                 console.error("Ошибка загрузки городов:", error);
@@ -774,10 +761,9 @@
                     const statusText = req.is_taken ? 
                         (req.executor_id === currentUser.id ? 'В работе (Вы Исполнитель)' : 'Взята в работу') : 
                         'Открыта';
+                    const isCompleted = req.status === 'completed'; // Предполагаем, что бэкенд может вернуть статус 'completed'
                     const isOwner = req.user_id === currentUser.id;
-                    // Временно убираем canRate, пока не убедимся в правильности структуры данных
-                    // const canRate = isOwner && req.is_taken && !req.is_rated; 
-                    const canRate = isOwner && req.is_taken; // Упрощенная логика
+                    const canRate = isOwner && req.is_taken && !req.is_rated; // Логика кнопки рейтинга
 
                     const card = document.createElement('div');
                     card.className = 'card';
@@ -916,54 +902,24 @@
                 description: document.getElementById('machineryDescription').value,
                 rental_price: parseFloat(document.getElementById('machineryPrice').value),
                 contact_info: document.getElementById('machineryContact').value,
-                city_id: selectedCityId,
-                // НОВЫЕ ПОЛЯ ДЛЯ СПЕЦТЕХНИКИ
-                min_hours: parseInt(document.getElementById('machineryMinHours').value) || 4, 
-                rental_date: document.getElementById('machineryRentalDate').value || null 
+                city_id: selectedCityId
             };
-            
-            if (!payload.rental_price || payload.rental_price <= 0) {
-                 displayStatus('machineryAdStatus', 'Пожалуйста, укажите цену.');
-                 return;
-            }
-            
             await handleFormSubmit('machineryAdForm', `${API_URL}/machinery_requests`, payload, 'machineryAdStatus', () => {
                 showPage('machineryPage');
             });
         });
         
-        // Условное отображение адреса доставки
-        document.getElementById('toolHasDelivery').addEventListener('change', (e) => {
-            document.getElementById('deliveryAddressGroup').style.display = e.target.checked ? 'block' : 'none';
-            if (!e.target.checked) {
-                document.getElementById('toolDeliveryAddress').value = '';
-            }
-        });
-        
         document.getElementById('toolAdForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const hasDelivery = document.getElementById('toolHasDelivery').checked;
-            
             const payload = {
                 tool_name: document.getElementById('toolName').value,
                 description: document.getElementById('toolDescription').value,
                 tool_count: parseInt(document.getElementById('toolCount').value),
                 rental_price: parseFloat(document.getElementById('toolPrice').value),
                 contact_info: document.getElementById('toolContact').value,
-                city_id: selectedCityId,
-                // НОВЫЕ ПОЛЯ ДЛЯ ИНСТРУМЕНТА
-                rental_start_date: document.getElementById('toolStartDate').value,
-                rental_end_date: document.getElementById('toolEndDate').value,
-                has_delivery: hasDelivery,
-                delivery_address: hasDelivery ? document.getElementById('toolDeliveryAddress').value : null,
+                city_id: selectedCityId
+                // Убраны поля даты/доставки для упрощения, нужно добавить, если требуются
             };
-            
-            if (!payload.rental_start_date || !payload.rental_end_date) {
-                 displayStatus('toolAdStatus', 'Пожалуйста, укажите срок аренды.');
-                 return;
-            }
-
             await handleFormSubmit('toolAdForm', `${API_URL}/tool_requests`, payload, 'toolAdStatus', () => {
                 showPage('toolsPage');
             });
@@ -992,7 +948,7 @@
             fetchAndPopulateSelect('specializations', 'regSpecialization');
             fetchAndPopulateSelect('specializations', 'requestSpecialization');
             fetchAndPopulateSelect('machinery_types', 'machineryType');
-            fetchAndPopulateSelect('tool_types', 'toolName'); 
+            fetchAndPopulateSelect('tool_types', 'toolName'); // tool_types вместо tools_list
             fetchAndPopulateSelect('material_types', 'materialType');
             
             const selectedCity = getSelectedCity();
