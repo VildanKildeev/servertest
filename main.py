@@ -27,6 +27,11 @@ from database import metadata, engine, users, work_requests, machinery_requests,
 
 load_dotenv()
 
+# Path to index.html placed next to main.py
+from pathlib import Path as _Path
+INDEX_FILE = _Path(__file__).parent / 'index.html'
+
+
 
 # Настройки для токенов
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
