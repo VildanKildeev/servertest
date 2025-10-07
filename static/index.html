@@ -392,7 +392,7 @@
         
         async function fetchCities() {
             try {
-                const response = await fetch(`${API_URL}/cities`);
+                const response = await fetch(`${API_URL}/cities/`);
                 const cities = await response.json();
                 citySelect.innerHTML = '<option value="">Выберите город</option>';
                 cities.forEach(city => {
@@ -454,7 +454,7 @@
 
         async function fetchAndPopulateSelect(endpoint, selectId) {
             try {
-                const response = await fetch(`${API_URL}/${endpoint}`);
+                const response = await fetch(`${API_URL}/${endpoint}/`);
                 const data = await response.json();
                 const selectEl = document.getElementById(selectId);
                 selectEl.innerHTML = '<option value="">Выберите...</option>';
