@@ -100,7 +100,8 @@
         .rating-submit-btn { background-color: #007bff; color: white; font-size: 14px; padding: 6px 10px; width: auto; }
 
         /* --- ОБНОВЛЕННЫЕ СТИЛИ ДЛЯ ЧАТА --- */
-        <div id="buttonContainer" class="page active">
+</style>
+<div id=\"buttonContainer\" class="page active">
             <div class="button-container">
                 <h2>Меню</h2>
                 <div class="button-grid">
@@ -593,7 +594,9 @@ function showChat(requestId, opponentId, opponentName) {
     chatLog.innerHTML = '<h4>Загрузка сообщений...</h4>';
     
     // 3. Установить соединение
-    const ws_url = `ws://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
+    const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws_host = location.host;
+    const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
     // ВАЖНО: Render не поддерживает WS, вам может понадобиться использовать WSS (защищенный протокол)
     // Если ваш Render-сервис доступен по HTTPS, используйте WSS:
     // const ws_url = `wss://servertest2-0.onrender.com/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
