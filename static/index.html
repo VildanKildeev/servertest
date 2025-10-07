@@ -118,8 +118,7 @@
 
         .chat-input-container { display: flex; gap: 10px; padding: 15px; border-top: 1px solid #DCDCDC; align-items: center; }
         #chatInput { flex-grow: 1; padding: 12px; border-radius: 20px; border: 1px solid #DCDCDC; font-size: 15px; }
-        #sendMessageBtn { background: none; border: none; color: #E87D39; font-size: 24px; cursor: pointer; padding: 5px; }
-        
+                
         /* --- НОВАЯ НИЖНЯЯ ПАНЕЛЬ --- */
         .bottom-nav {
             display: none; /* Скрыта по умолчанию */
@@ -427,21 +426,7 @@
             </div>
         </div>
 
-
-
-        <div id="chatPage" class="page">
-            <div class="form-container" style="padding: 0;">
-                <h3 id="chatHeader">Чат по заявке</h3>
-                <div id="chatBox"></div>
-                <div class="chat-input-container">
-                    <input type="text" id="chatInput" placeholder="Введите сообщение...">
-                    <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
-                </div>
-            </div>
-            <button class="btn btn-secondary" onclick="goBackToRequests()">Назад к заявкам</button>
-        </div>
-        
-        <div id="createMachineryRequestPage" class="page">
+             <div id="createMachineryRequestPage" class="page">
             <div class="form-container">
                 <h2>Заявка на спецтехнику</h2>
                 <div id="machineryRequestStatus" class="message" style="display:none;"></div>
@@ -644,7 +629,7 @@
             'createWorkRequestPage', 'workRequestsPage',
             'createMachineryRequestPage', 'machineryRequestsPage',
             'createToolRequestPage', 'toolRequestsPage',
-            'createMaterialAdPage', 'materialAdsPage', 'myRequestsPage', 'chatPage'
+            'createMaterialAdPage', 'materialAdsPage', 'myRequestsPage'
         ];
         const cityModal = document.getElementById('cityModal');
         const cityNameEl = document.getElementById('cityName');
@@ -1004,16 +989,7 @@ function showChat(requestId, opponentId, opponentName) {
                      const takenP = document.createElement('p');
                      takenP.className = 'taken';
                      takenP.innerHTML = '<strong>Заявка принята вами.</strong>';
-                     item.appendChild(takenP);
-                     const chatBtn = document.createElement('button');
-                     chatBtn.className = 'chat-btn';
-                     chatBtn.textContent = 'Открыть чат с заказчиком';
-                     chatBtn.onclick = () => setupChat(req, req.user_id);
-                     item.appendChild(chatBtn);
-                 }
-
-                container.appendChild(item);
-            });
+                                });
         }
         
         // --- НОВАЯ ФУНКЦИЯ: ЗАГРУЗКА И РЕНДЕРИНГ ОТКЛИКОВ ---
@@ -1062,6 +1038,30 @@ function showChat(requestId, opponentId, opponentName) {
                 return;
             }
 
+async function takeRequest(requestId, type) {
+    if (!confirm('Вы уверены, что хотите взять эту заявку?')) return;
+
+    const statusEl = document.getElementById('takeOrderStatus');
+    try {
+        const response = await fetch(`${API_URL}/${type}_requests/${requestId}/take`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            // Просто показываем сообщение и обновляем список заявок
+            alert(data.message); // Показываем сообщение от сервера
+            fetchWorkRequests(); // Обновляем список, чтобы кнопка "Взять" исчезла
+        } else {
+            statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось взять заявку.'}`;
+            statusEl.className = 'message error';
+        }
+    } catch (error) {
+        console.error('Ошибка при взятии заявки:', error);
+        statusEl.textContent = 'Произошла сетевая ошибка.';
+        statusEl.className = 'message error';
+    }
+}
             requests.forEach(req => {
                 const item = document.createElement('div');
                 item.className = 'request-item';
@@ -1165,345 +1165,6 @@ function showChat(requestId, opponentId, opponentName) {
              await fetchRequests('material_ads', 'myMaterialAdsList', 'material', true);
         }
         
-        // --- ИЗМЕНЕННАЯ ЛОГИКА ЧАТА ---
-        async function setupChat(request, participantId) {
-            currentChatContext = { request, participantId };
-            showPage('chatPage', false);
-
-            document.getElementById('chatHeader').textContent = `Чат по заявке: ${request.specialization}`;
-            document.getElementById('chatBox').innerHTML = '<p style="text-align: center; color: #6B6B6B;">Загрузка сообщений...</p>';
-            document.getElementById('sendMessageBtn').onclick = sendMessage;
-            document.getElementById('chatInput').onkeypress = (e) => {
-                if (e.key === 'Enter') {
-                    sendMessage();
-                    e.preventDefault();
-                }
-            };
-            await fetchChatMessages();
-        }
-        
-function showChat(requestId, opponentId, opponentName) {
-    // 1. Закрыть предыдущее соединение, если оно есть
-    if (chatSocket) {
-        chatSocket.close();
-        chatSocket = null;
-    }
-    
-    // 2. Сменить отображаемую страницу на страницу чата
-    showPage('chatPage'); 
-    document.getElementById('chatTitle').textContent = `Чат по Заявке #${requestId} с ${opponentName}`;
-    const chatLog = document.getElementById('chatLog');
-    chatLog.innerHTML = '<h4>Установка соединения...</h4>';
-    
-    // 3. Установить соединение
-    // ВАЖНО: Если ваш сервис на Render использует HTTPS, замените ws:// на wss://
-    const ws_protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws_host = window.location.host;
-    const ws_url = `${ws_protocol}//${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
-    
-    chatSocket = new WebSocket(ws_url);
-
-    // 4. Обработка событий
-    chatSocket.onopen = function(e) {
-        chatLog.innerHTML = '<h4>Соединение установлено.</h4>'; 
-        // Здесь можно добавить HTTP-запрос для загрузки старой истории сообщений
-    };
-
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        const isSelf = data.sender_id === currentUser.id;
-        const senderName = isSelf ? 'Вы' : data.sender_name;
-        
-        const messageEl = document.createElement('p');
-        messageEl.className = isSelf ? 'chat-message self' : 'chat-message other';
-        messageEl.innerHTML = `
-            <span class="sender-name">${senderName}</span>: 
-            <span class="message-text">${data.message}</span>
-            <span class="message-time">(${data.time})</span>
-        `;
-        chatLog.appendChild(messageEl);
-        chatLog.scrollTop = chatLog.scrollHeight; // Прокрутка вниз
-    };
-
-    chatSocket.onclose = function(e) {
-        console.error('WebSocket закрыт:', e);
-        chatLog.innerHTML += '<p class="error-msg">Соединение потеряно.</p>';
-    };
-
-    chatSocket.onerror = function(e) {
-        console.error('WebSocket ошибка:', e);
-    };
-    
-    // 5. Логика отправки сообщения
-    document.getElementById('chatForm').onsubmit = function(event) {
-        event.preventDefault();
-        const input = document.getElementById('chatInput');
-        if (input.value && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(input.value);
-            input.value = '';
-        }
-    };
-}
-
-        async function fetchChatMessages() {
-            if (!currentChatContext) return;
-            const { request, participantId } = currentChatContext;
-            try {
-                const response = await fetch(`${API_URL}/work_requests/${request.id}/chat/${participantId}`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const messages = await response.json();
-                const chatBox = document.getElementById('chatBox');
-                chatBox.innerHTML = '';
-                
-                if (!response.ok) {
-                    chatBox.innerHTML = `<p class="message error">${messages.detail || 'Чат не активирован.'}</p>`;
-                    return;
-                }
-                
-                if (messages.length === 0) {
-                    chatBox.innerHTML = '<p style="text-align: center; color: #6B6B6B;">Сообщений пока нет. Начните диалог!</p>';
-                    return;
-                }
-
-                messages.forEach(msg => {
-                    const msgEl = document.createElement('div');
-                    const isMe = msg.sender_id === currentUser.id;
-                    msgEl.className = `chat-message ${isMe ? 'me' : 'other'}`;
-                    const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-                    
-                    msgEl.innerHTML = `
-                        <div class="msg-content"><p class="msg-text">${msg.message}</p></div>
-                        <div class="msg-info">${isMe ? 'Вы' : msg.sender_username.split('@')[0]}, ${time}</div>
-                    `;
-                    chatBox.appendChild(msgEl);
-                });
-                chatBox.scrollTop = chatBox.scrollHeight;
-            } catch (error) {
-                console.error('Ошибка при загрузке чата:', error);
-                document.getElementById('chatBox').innerHTML = '<p class="message error">Ошибка при загрузке сообщений.</p>';
-            }
-        }
-        
-        async function sendMessage() {
-            const chatInput = document.getElementById('chatInput');
-            const message = chatInput.value.trim();
-            if (!message || !currentChatContext) return;
-            
-            const { request, participantId } = currentChatContext;
-
-            try {
-                const response = await fetch(`${API_URL}/work_requests/${request.id}/chat/${participantId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                    body: JSON.stringify({ message: message })
-                });
-                if (response.ok) {
-                    chatInput.value = '';
-                    await fetchChatMessages(); 
-                } else {
-                    const data = await response.json();
-                    alert(`Ошибка отправки сообщения: ${data.detail}`);
-                }
-            } catch (error) {
-                console.error('Ошибка при отправке сообщения:', error);
-                alert('Не удалось отправить сообщение.');
-            }
-        }
-        
-        // --- НОВЫЕ ФУНКЦИИ ДЛЯ ОТКЛИКОВ ---
-        async function makeOffer(requestId) {
-            const statusEl = document.getElementById('offerStatus');
-            try {
-                const response = await fetch(`${API_URL}/work_requests/${requestId}/offer`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await response.json();
-                 if (response.ok) {
-                    statusEl.textContent = data.message || 'Вы успешно откликнулись на заявку!';
-                    statusEl.className = 'message success';
-                } else {
-                    statusEl.textContent = `Ошибка: ${data.detail || 'Не удалось откликнуться.'}`;
-                    statusEl.className = 'message error';
-                }
-            } catch(error) {
-                statusEl.textContent = 'Произошла сетевая ошибка.';
-                statusEl.className = 'message error';
-            }
-            statusEl.style.display = 'block';
-            setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
-        }
-
-function showProfileSection(sectionId) {
-    // Сначала показываем страницу профиля
-    showPage('profilePage'); 
-    
-    // Скрываем все секции профиля
-    document.querySelectorAll('.profile-content-section').forEach(section => {
-        section.style.display = 'none';
-    });
-
-let chatSocket = null; // Объявить один раз глобально
-const CHAT_HISTORY_COUNT = 50; // Сколько сообщений загружать за раз
-
-// ------------------------------------------------------------------
-// НОВАЯ ФУНКЦИЯ: Загрузка истории чата
-// ------------------------------------------------------------------
-async function fetchChatHistory(request_id, opponent_id) {
-    const chatLog = document.getElementById('chatLog');
-    chatLog.innerHTML = ''; // Очищаем лог перед загрузкой
-    
-    try {
-        const url = `${API_URL}/chats/${request_id}/${opponent_id}?limit=${CHAT_HISTORY_COUNT}`;
-        const response = await fetchWithAuth(url);
-        if (response.ok) {
-            const messages = await response.json();
-            messages.reverse().forEach(data => { // Обрабатываем отсортированные в обратном порядке сообщения
-                appendMessage(data, chatLog);
-            });
-            // Прокрутка вниз после загрузки всех сообщений
-            chatLog.scrollTop = chatLog.scrollHeight;
-        } else {
-            console.error('Failed to fetch chat history:', response.statusText);
-        }
-    } catch (error) {
-        console.error('Error fetching chat history:', error);
-    }
-}
-
-function appendMessage(data, chatLog) {
-    const isSelf = data.sender_id === currentUser.id;
-    const time = data.created_at ? new Date(data.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : data.time;
-    
-    const messageEl = document.createElement('div');
-    messageEl.className = `chat-message ${isSelf ? 'self' : 'other'}`;
-    messageEl.innerHTML = `
-        <div class="message-text">${data.message}</div>
-        <div class="message-time">${time}</div>
-    `;
-    
-    chatLog.appendChild(messageEl);
-}
-
-
-// ------------------------------------------------------------------
-// ИСПРАВЛЕННАЯ ФУНКЦИЯ: Открытие чата
-// ------------------------------------------------------------------
-function showChat(requestId, opponentId, opponentName) {
-    showPage('chatPage');
-    document.getElementById('chatOpponentName').textContent = opponentName;
-    
-    const chatLog = document.getElementById('chatLog');
-    const chatInput = document.getElementById('chatInput');
-    const chatForm = document.getElementById('chatForm');
-
-    // 1. Загрузка истории
-    fetchChatHistory(requestId, opponentId);
-    
-    // 2. Закрытие предыдущего соединения, если оно есть
-    if (chatSocket) {
-        chatSocket.close();
-    }
-    
-    // 3. Установка URL для WebSocket
-    const ws_protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws_host = location.host; // Используем текущий хост (servertest2-0.onrender.com)
-    const ws_url = `${ws_protocol}://${ws_host}/api/ws/chat/${requestId}/${opponentId}?token=${accessToken}`;
-    
-    // 4. Установка нового соединения
-    chatSocket = new WebSocket(ws_url);
-    
-    chatSocket.onopen = function(e) {
-        console.log("WebSocket connected.");
-    };
-    
-    // 5. Обработка входящих сообщений
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        // data уже содержит message, sender_id и time от сервера
-        appendMessage(data, chatLog);
-        chatLog.scrollTop = chatLog.scrollHeight; // Прокрутка вниз
-    };
-    
-    chatSocket.onclose = function(e) {
-        console.log("WebSocket closed.");
-    };
-
-    chatSocket.onerror = function(e) {
-        console.error("WebSocket error:", e);
-    };
-
-    // 6. Обработка отправки сообщения
-    chatForm.onsubmit = function(e) {
-        e.preventDefault();
-        const message = chatInput.value.trim();
-        if (message && chatSocket.readyState === WebSocket.OPEN) {
-            const messagePayload = JSON.stringify({
-                message: message
-            });
-            chatSocket.send(messagePayload);
-            chatInput.value = ''; // Очищаем поле ввода
-        }
-    };
-}
-    
-    // Показываем нужную секцию
-    const targetSection = document.getElementById(sectionId + 'Section'); // Предполагаем, что id секций: myRequestsSection, activeChatsSection и т.д.
-    if (targetSection) {
-        targetSection.style.display = 'block';
-    } else {
-        // Если секция 'activeChats' - то просто показываем контейнер
-        const chatsPage = document.getElementById('activeChatsPage'); 
-        if (chatsPage) chatsPage.style.display = 'block';
-    }
-}
-
-async function fetchActiveChats() {
-    const chatsListEl = document.getElementById('activeChatsList');
-    if (!accessToken) {
-        chatsListEl.innerHTML = '<p class="status-msg">Для просмотра чатов необходимо войти.</p>';
-        return;
-    }
-    
-    chatsListEl.innerHTML = '<p class="status-msg">Загрузка активных чатов...</p>'; 
-
-    try {
-        const response = await fetch(`${API_URL}/chats/my_active_chats`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
-        
-        if (response.ok) {
-            const chats = await response.json();
-            chatsListEl.innerHTML = '';
-            
-            if (chats.length === 0) {
-                chatsListEl.innerHTML = '<p class="status-msg">Активных диалогов пока нет.</p>';
-            }
-            
-            chats.forEach(chat => {
-                const chatItem = document.createElement('div');
-                chatItem.className = 'chat-item';
-                // При клике вызываем функцию showChat, которая установит WS-соединение
-                chatItem.onclick = () => showChat(chat.request_id, chat.opponent_id, chat.opponent_name); 
-                chatItem.innerHTML = `
-                    <h4>Заявка #${chat.request_id}</h4>
-                    <p>Собеседник: <b>${chat.opponent_name}</b></p>
-                    <p class="last-message">${chat.last_message || 'Начать диалог'}</p>
-                `;
-                chatsListEl.appendChild(chatItem);
-            });
-        } else {
-            // Если нет 200 OK
-            chatsListEl.innerHTML = `<p class="error-msg">Ошибка ${response.status} при загрузке чатов.</p>`;
-        }
-    } catch (error) {
-        console.error('Ошибка при загрузке активных чатов:', error);
-        chatsListEl.innerHTML = '<p class="error-msg">Произошла сетевая ошибка при загрузке чатов.</p>';
-    }
-}
 
         async function acceptOffer(offerId) {
             if (!confirm('Вы уверены, что хотите выбрать этого исполнителя? Это действие нельзя будет отменить.')) return;
