@@ -27,11 +27,6 @@ from database import metadata, engine, users, work_requests, machinery_requests,
 
 load_dotenv()
 
-# Path to index.html placed next to main.py
-from pathlib import Path as _Path
-INDEX_FILE = _Path(__file__).parent / 'index.html'
-
-
 
 # Настройки для токенов
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
@@ -184,7 +179,7 @@ manager = ConnectionManager()
 # --- WORK REQUESTS SCHEMAS ---
 class WorkRequestIn(BaseModel):
     name: str
-    phone_number: str
+    phone_number: Optional[str] = None
     description: str
     specialization: str
     budget: float
@@ -223,7 +218,7 @@ class MachineryRequestIn(BaseModel):
     machinery_type: str
     description: str
     rental_price: float
-    contact_info: str
+    contact_info: Optional[str] = None
     city_id: int
     rental_date: Optional[date] = None
     min_hours: int = 4
@@ -250,7 +245,7 @@ class ToolRequestIn(BaseModel):
     tool_count: int = 1
     rental_start_date: date
     rental_end_date: date
-    contact_info: str
+    contact_info: Optional[str] = None
     has_delivery: bool = False
     delivery_address: Optional[str] = None
     city_id: int
@@ -276,7 +271,7 @@ class MaterialAdIn(BaseModel):
     material_type: str
     description: Optional[str]
     price: float
-    contact_info: str
+    contact_info: Optional[str] = None
     city_id: int
 
 class MaterialAdOut(BaseModel):
@@ -561,7 +556,7 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
 
     query = work_requests.insert().values(
         user_id=current_user["id"], name=request.name, description=request.description,
-        specialization=request.specialization, budget=request.budget, phone_number=request.phone_number,
+        specialization=request.specialization, budget=request.budget, phone_number=current_user['phone_number'],
         city_id=request.city_id, address=request.address, visit_date=visit_date_data,
         is_premium=current_user["is_premium"], is_taken=False
     )
@@ -765,7 +760,7 @@ async def create_machinery_request(request: MachineryRequestIn, current_user: di
     query = machinery_requests.insert().values(
         user_id=current_user["id"], machinery_type=request.machinery_type, description=request.description,
         rental_date=request.rental_date, min_hours=request.min_hours, rental_price=request.rental_price,
-        contact_info=request.contact_info, city_id=request.city_id, is_premium=current_user["is_premium"]
+        contact_info=current_user['phone_number'], city_id=request.city_id, is_premium=current_user["is_premium"]
     )
     last_record_id = await database.execute(query)
     created_request_query = machinery_requests.select().where(machinery_requests.c.id == last_record_id)
@@ -786,7 +781,7 @@ async def create_tool_request(request: ToolRequestIn, current_user: dict = Depen
     query = tool_requests.insert().values(
         user_id=current_user["id"], tool_name=request.tool_name, description=request.description,
         rental_price=request.rental_price, tool_count=request.tool_count, rental_start_date=request.rental_start_date,
-        rental_end_date=request.rental_end_date, contact_info=request.contact_info, has_delivery=request.has_delivery,
+        rental_end_date=request.rental_end_date, contact_info=current_user['phone_number'], has_delivery=request.has_delivery,
         delivery_address=request.delivery_address, city_id=request.city_id
     )
     last_record_id = await database.execute(query)
@@ -807,7 +802,7 @@ async def get_my_tool_requests(current_user: dict = Depends(get_current_user)):
 async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_current_user)):
     query = material_ads.insert().values(
         user_id=current_user["id"], material_type=ad.material_type, description=ad.description,
-        price=ad.price, contact_info=ad.contact_info, city_id=ad.city_id, is_premium=current_user["is_premium"]
+        price=ad.price, contact_info=current_user['phone_number'], city_id=ad.city_id, is_premium=current_user["is_premium"]
     )
     last_record_id = await database.execute(query)
     created_ad_query = material_ads.select().where(material_ads.c.id == last_record_id)
