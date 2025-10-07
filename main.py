@@ -203,8 +203,9 @@ class MachineryRequestIn(BaseModel):
     city_id: int
     # Новые поля
     rental_date: date
-    min_hours_4: bool = True
+    min_hours_4: bool = False # Изменено на False (для чекбокса)
     hours_count: int
+    delivery_date: Optional[date] = None # ДОБАВЛЕНО: Дата доставки
 
 class MachineryRequestOut(BaseModel):
     id: int
@@ -220,11 +221,10 @@ class MachineryRequestOut(BaseModel):
     rental_date: Optional[date]
     min_hours_4: Optional[bool]
     hours_count: Optional[int]
+    delivery_date: Optional[date] # ДОБАВЛЕНО: Дата доставки
     
     class Config:
         from_attributes = True
-
-
 
 # --- TOOL REQUESTS SCHEMAS ---
 class ToolRequestIn(BaseModel):
