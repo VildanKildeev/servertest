@@ -64,6 +64,46 @@
 
         /* Футер */
         footer { width: 100%; background: #F5F2EA; border-top: 1px solid #E0DBCF; margin-top: auto; }
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #ffffff; /* Белый фон для контраста */
+    display: flex;
+    justify-content: space-around; /* Равномерно распределить элементы */
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.08); /* Легкая тень сверху */
+    z-index: 100;
+    border-top: 1px solid #E0DBCF;
+    padding: 5px 0;
+}
+.bottom-nav a {
+    color: #4A4A4A;
+    padding: 8px 12px;
+    font-size: 12px;
+    text-decoration: none; /* Убрать подчеркивание у ссылок */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px; /* Расстояние между иконкой и текстом */
+    flex-grow: 1;
+    transition: background-color 0.2s;
+}
+.bottom-nav a:hover {
+    background-color: #F5F2EA; /* Легкий фон при наведении */
+}
+.bottom-nav a i {
+    font-size: 22px;
+    /* Используем другой цвет из палитры для контактов */
+    color: #2A9D8F; 
+}
+
+/* ВАЖНО: Добавьте этот отступ для тега body, 
+чтобы нижнее меню не перекрывало контент страницы.
+*/
+body {
+    padding-bottom: 75px; /* Высота меню + небольшой запас */
+}
 
     </style>
 </head>
@@ -392,28 +432,20 @@
     </div>
     
     <footer>
-        <footer class="bottom-nav">
-        <button onclick="showPage('buttonContainer')">
-            <i class="fas fa-home"></i>
-            Главная
-        </button>
-        <a href="https://t.me/your_telegram_contact" target="_blank" title="Связаться с нами через Telegram">
-            <i class="fab fa-telegram-plane"></i>
-            Telegram
-        </a>
-        <a href="https://wa.me/your_whatsapp_number" target="_blank" title="Связаться с нами через WhatsApp">
-            <i class="fab fa-whatsapp"></i>
-            WhatsApp
-        </a>
-        <a href="http://your-forum-url.com" target="_blank" title="Перейти на Форум">
-            <i class="fas fa-comments"></i>
-            Форум
-        </a>
-        <button onclick="showPage('profilePage')">
-            <i class="fas fa-user-circle"></i>
-            Профиль
-        </button>
-        </div>
+        <div class="bottom-nav">
+    <a href="https://t.me/your_telegram_contact" target="_blank">
+        <i class="fab fa-telegram-plane"></i>
+        <span>Telegram</span>
+    </a>
+    <a href="https://wa.me/your_whatsapp_number" target="_blank">
+        <i class="fab fa-whatsapp"></i>
+        <span>WhatsApp</span>
+    </a>
+    <a href="http://your-forum-url.com" target="_blank">
+        <i class="fas fa-comments"></i>
+        <span>Форум</span>
+    </a>
+</div>
     </footer>
 
     <script>
@@ -457,7 +489,7 @@
         
         async function fetchCities() {
             try {
-                const response = await fetch(`${API_URL}/cities`);
+                const response = await fetch(`${API_URL}/cities/`);
                 const cities = await response.json();
                 citySelect.innerHTML = '<option value="">Выберите город</option>';
                 cities.forEach(city => {
@@ -519,7 +551,7 @@
 
         async function fetchAndPopulateSelect(endpoint, selectId) {
             try {
-                const response = await fetch(`${API_URL}/${endpoint}`);
+                const response = await fetch(`${API_URL}/${endpoint}/`);
                 const data = await response.json();
                 const selectEl = document.getElementById(selectId);
                 selectEl.innerHTML = '<option value="">Выберите...</option>';
