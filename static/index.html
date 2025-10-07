@@ -119,6 +119,58 @@
                 <button class="btn btn-link" onclick="logout()">Выйти</button>
             </div>
         </div>
+<div id="loginPage" class="page">
+        <div class="form-container">
+            <h2>Вход</h2>
+            <div id="loginStatus" class="message" style="display:none;"></div>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="input-group">
+                    <label for="loginPassword">Пароль:</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Войти</button>
+            </form>
+            <button class="btn btn-link" onclick="showPage('registerPage')">У меня еще нет аккаунта</button>
+        </div>
+    </div>
+
+    <div id="registerPage" class="page">
+        <div class="form-container">
+            <h2>Регистрация</h2>
+            <div id="registerStatus" class="message" style="display:none;"></div>
+            <form id="registerForm">
+                <div class="input-group">
+                    <label for="registerEmail">Email:</label>
+                    <input type="email" id="registerEmail" required>
+                </div>
+                <div class="input-group">
+                    <label for="registerPassword">Пароль:</label>
+                    <input type="password" id="registerPassword" required>
+                </div>
+                <div class="input-group">
+                    <label for="registerPhoneNumber">Номер телефона:</label>
+                    <input type="tel" id="registerPhoneNumber" required>
+                </div>
+                <div class="input-group">
+                    <label for="registerUserType">Тип аккаунта:</label>
+                    <select id="registerUserType" required>
+                        <option value="ЗАКАЗЧИК">Заказчик</option>
+                        <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
+                    </select>
+                </div>
+                <div class="input-group" id="specializationGroup" style="display:none;">
+                    <label for="registerSpecialization">Специализация:</label>
+                    <select id="registerSpecialization"></select>
+                </div>
+                <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+            </form>
+            <button class="btn btn-link" onclick="showPage('loginPage')">У меня уже есть аккаунт</button>
+        </div>
+    </div>
 
         <div id="profilePage" class="page">
             <div class="form-container">
