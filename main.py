@@ -197,39 +197,47 @@ class WorkRequestOut(BaseModel):
 # --- MACHINERY REQUESTS SCHEMAS ---
 class MachineryRequestIn(BaseModel):
     machinery_type: str
-    description: str
-    rental_price: float
-    contact_info: str # Будет маскироваться
+    description: Optional[str] = None
+    rental_price: float  # Цена за час
+    contact_info: str
     city_id: int
-    rental_date: Optional[date] = None
-    min_hours: int = 4
+    # Новые поля
+    rental_date: date
+    min_hours_4: bool = True
+    hours_count: int
 
 class MachineryRequestOut(BaseModel):
     id: int
     user_id: int
     machinery_type: str
     description: Optional[str]
-    rental_date: Optional[date]
-    min_hours: Optional[int]
     rental_price: float
     contact_info: str
     city_id: int
     created_at: datetime
     is_premium: Optional[bool]
+    # Новые поля
+    rental_date: Optional[date]
+    min_hours_4: Optional[bool]
+    hours_count: Optional[int]
+    
+    class Config:
+        from_attributes = True
+
 
 
 # --- TOOL REQUESTS SCHEMAS ---
 class ToolRequestIn(BaseModel):
     tool_name: str
-    description: str
-    rental_price: float
-    tool_count: int = 1
+    description: Optional[str] = None
+    rental_price: float # Цена в сутки
+    contact_info: str
+    city_id: int
+    # Новые поля
     rental_start_date: date
     rental_end_date: date
-    contact_info: str # Будет маскироваться
     has_delivery: bool = False
     delivery_address: Optional[str] = None
-    city_id: int
 
 class ToolRequestOut(BaseModel):
     id: int
@@ -237,16 +245,18 @@ class ToolRequestOut(BaseModel):
     tool_name: str
     description: Optional[str]
     rental_price: float
-    tool_count: int
-    rental_start_date: date
-    rental_end_date: date
     contact_info: str
-    has_delivery: bool
-    delivery_address: Optional[str]
     city_id: int
     created_at: datetime
-    is_premium: Optional[bool] = False # Хотя в таблице нет, для единообразия
+    is_premium: Optional[bool]
+    # Новые поля
+    rental_start_date: Optional[date]
+    rental_end_date: Optional[date]
+    has_delivery: Optional[bool]
+    delivery_address: Optional[str]
 
+    class Config:
+        from_attributes = True
 
 # --- MATERIAL ADS SCHEMAS ---
 class MaterialAdIn(BaseModel):
@@ -525,7 +535,7 @@ async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
 
 # --- MACHINERY ENDPOINTS ---
 # ОБНОВЛЕНО: Сохранение is_premium
-@api_router.post("/machinery_requests", response_model=MachineryRequestOut)
+@api_router.post("/machinery_requests/", response_model=MachineryRequestOut)
 async def create_machinery_request(ad: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
     query = machinery_requests.insert().values(
         user_id=current_user["id"],
@@ -534,9 +544,11 @@ async def create_machinery_request(ad: MachineryRequestIn, current_user: dict = 
         rental_price=ad.rental_price,
         contact_info=ad.contact_info,
         city_id=ad.city_id,
+        # Новые поля
         rental_date=ad.rental_date,
-        min_hours=ad.min_hours,
-        is_premium=current_user["is_premium"] # СОХРАНЯЕМ is_premium
+        min_hours_4=ad.min_hours_4,
+        hours_count=ad.hours_count,
+        is_premium=current_user["is_premium"]
     )
     last_record_id = await database.execute(query)
     created_ad_query = machinery_requests.select().where(machinery_requests.c.id == last_record_id)
@@ -567,21 +579,21 @@ async def get_machinery_requests_by_city(city_id: int, current_user: dict = Depe
     return result_list
 
 # --- TOOL ENDPOINTS ---
-@api_router.post("/tool_requests", response_model=ToolRequestOut)
+@api_router.post("/tool_requests/", response_model=ToolRequestOut)
 async def create_tool_request(ad: ToolRequestIn, current_user: dict = Depends(get_current_user)):
-    # is_premium не сохраняем, так как колонки нет в tool_requests (в соответствии с предыдущими версиями)
     query = tool_requests.insert().values(
         user_id=current_user["id"], 
         tool_name=ad.tool_name, 
         description=ad.description,
         rental_price=ad.rental_price, 
-        tool_count=ad.tool_count,
+        contact_info=ad.contact_info,
+        city_id=ad.city_id,
+        # Новые поля
         rental_start_date=ad.rental_start_date, 
         rental_end_date=ad.rental_end_date,
-        contact_info=ad.contact_info,
         has_delivery=ad.has_delivery,
-        delivery_address=ad.delivery_address,
-        city_id=ad.city_id
+        delivery_address=ad.delivery_address if ad.has_delivery else None,
+        is_premium=current_user["is_premium"]
     )
     last_record_id = await database.execute(query)
     created_ad_query = tool_requests.select().where(tool_requests.c.id == last_record_id)

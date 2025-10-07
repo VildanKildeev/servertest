@@ -74,13 +74,20 @@ work_requests = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.ForeignKey("users.id"), nullable=False),
+    # НОВОЕ: ID исполнителя, который взял заявку
+    sqlalchemy.Column("executor_id", sqlalchemy.ForeignKey("users.id"), nullable=True), 
     sqlalchemy.Column("city_id", sqlalchemy.ForeignKey("cities.id"), nullable=False),
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False), # Ссылка на specialization.name
+    sqlalchemy.Column("name", sqlalchemy.String, nullable=False), # Добавлено поле name из схемы
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("description", sqlalchemy.Text, nullable=False),
-    sqlalchemy.Column("budget", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False), # Телефон, указанный в заявке
+    sqlalchemy.Column("budget", sqlalchemy.Float, nullable=True), # Изменен тип на Float
+    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("address", sqlalchemy.String, nullable=True), # Добавлено поле address
+    sqlalchemy.Column("visit_date", sqlalchemy.DateTime, nullable=True), # Добавлено поле visit_date
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=datetime.utcnow),
-    sqlalchemy.Column("status", sqlalchemy.String, default="active"), # active, completed, closed
+    # НОВОЕ: Поле, чтобы отслеживать, взята ли заявка
+    sqlalchemy.Column("is_taken", sqlalchemy.Boolean, default=False, nullable=False),
+    # Поле status больше не нужно, так как is_taken его заменяет для фильтрации
 )
 
 # Таблица для объявлений о спецтехнике (Machinery Ads)
@@ -90,10 +97,15 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.ForeignKey("users.id"), nullable=False),
     sqlalchemy.Column("city_id", sqlalchemy.ForeignKey("cities.id"), nullable=False),
-    sqlalchemy.Column("machinery_type_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("machinery_types.id"), nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.Text, nullable=False),
-    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("price", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("description", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("contact_info", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("rental_price", sqlalchemy.Float, nullable=False), # Цена за час
+    # НОВЫЕ ПОЛЯ
+    sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("min_hours_4", sqlalchemy.Boolean, default=True),
+    sqlalchemy.Column("hours_count", sqlalchemy.Integer, nullable=True),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=datetime.utcnow)
 )
 
@@ -104,12 +116,19 @@ tool_requests = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.ForeignKey("users.id"), nullable=False),
     sqlalchemy.Column("city_id", sqlalchemy.ForeignKey("cities.id"), nullable=False),
-    sqlalchemy.Column("tool_type_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("tool_types.id"), nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.Text, nullable=False),
-    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("price", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("tool_name", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("description", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("contact_info", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("rental_price", sqlalchemy.Float, nullable=False), # Цена в сутки
+    # НОВЫЕ ПОЛЯ
+    sqlalchemy.Column("rental_start_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=datetime.utcnow)
 )
+
 
 # Таблица для объявлений о материалах (Material Ads)
 material_ads = sqlalchemy.Table(
