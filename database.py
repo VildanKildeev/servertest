@@ -136,16 +136,3 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
-
-# Таблица сообщений чата
-chat_messages = sqlalchemy.Table(
-    "chat_messages",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id")),
-    sqlalchemy.Column("sender_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    # Добавлен получатель для поддержки диалогов 1-на-1
-    sqlalchemy.Column("recipient_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("message", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("timestamp", sqlalchemy.DateTime, default=sqlalchemy.func.now())
-)

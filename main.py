@@ -23,7 +23,7 @@ from fastapi import Query # Новый импорт
 from sqlalchemy import select, or_, and_ # Обновите для более сложного запроса
 
 # --- Database setup ---
-from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, chat_messages, work_request_offers
+from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, work_request_offers
 
 load_dotenv()
 
@@ -323,18 +323,6 @@ class ConnectionManager:
                 await connection.send_text(message)
 
 manager = ConnectionManager()
-
-class ChatMessageIn(BaseModel):
-    message: str
-
-class ChatMessageOut(BaseModel):
-    id: int
-    request_id: int
-    sender_id: int
-    recipient_id: int
-    sender_username: str
-    message: str
-    timestamp: datetime
 
 class RatingIn(BaseModel):
     rating_value: int = Field(..., ge=1, le=5)
@@ -803,80 +791,6 @@ async def accept_offer(offer_id: int, current_user: dict = Depends(get_current_u
     
     return {"message": "Исполнитель успешно выбран!"}
 
-# ----------------------------------------------------
-# --- Chat Endpoints ---
-# ----------------------------------------------------
-
-@api_router.get("/work_requests/{request_id}/chat/{participant_id}", response_model=List[ChatMessageOut])
-async def get_chat_messages(request_id: int, participant_id: int, current_user: dict = Depends(get_current_user)):
-    request_query = work_requests.select().where(work_requests.c.id == request_id)
-    request_item = await database.fetch_one(request_query)
-    if not request_item:
-        raise HTTPException(status_code=404, detail="Заявка не найдена")
-
-    is_customer = request_item["user_id"] == current_user["id"] and participant_id != current_user["id"]
-    is_performer = current_user["id"] == participant_id and request_item["user_id"] != current_user["id"]
-
-    if not (is_customer or is_performer):
-        raise HTTPException(status_code=403, detail="У вас нет доступа к этому чату")
-
-    # Проверяем, что исполнитель откликнулся на заявку
-    if is_performer:
-        offer_query = work_request_offers.select().where(
-            (work_request_offers.c.request_id == request_id) & (work_request_offers.c.performer_id == current_user["id"])
-        )
-        if not await database.fetch_one(offer_query):
-            raise HTTPException(status_code=403, detail="Вы должны откликнуться на заявку, чтобы начать чат")
-
-    customer_id = request_item["user_id"]
-    
-    query = """
-    SELECT cm.id, cm.request_id, cm.sender_id, cm.recipient_id, cm.message, cm.timestamp, u.email as sender_username
-    FROM chat_messages cm JOIN users u ON cm.sender_id = u.id
-    WHERE cm.request_id = :request_id AND 
-          ((cm.sender_id = :user1_id AND cm.recipient_id = :user2_id) OR 
-           (cm.sender_id = :user2_id AND cm.recipient_id = :user1_id))
-    ORDER BY cm.timestamp
-    """
-    messages = await database.fetch_all(query, values={
-        "request_id": request_id,
-        "user1_id": customer_id,
-        "user2_id": participant_id
-    })
-    return messages
-
-
-@api_router.post("/work_requests/{request_id}/chat/{recipient_id}", status_code=status.HTTP_201_CREATED)
-async def send_chat_message(request_id: int, recipient_id: int, message: ChatMessageIn, current_user: dict = Depends(get_current_user)):
-    request_query = work_requests.select().where(work_requests.c.id == request_id)
-    request_item = await database.fetch_one(request_query)
-    if not request_item:
-        raise HTTPException(status_code=404, detail="Заявка не найдена")
-
-    # Проверяем, что чат легитимен (между заказчиком и откликнувшимся исполнителем)
-    is_sender_customer = request_item["user_id"] == current_user["id"]
-    is_sender_performer = recipient_id == request_item["user_id"]
-
-    if not (is_sender_customer or is_sender_performer):
-         raise HTTPException(status_code=403, detail="У вас нет доступа к этому чату")
-
-    # Исполнитель может писать только если он откликнулся
-    if is_sender_performer:
-        offer_query = work_request_offers.select().where(
-            (work_request_offers.c.request_id == request_id) & (work_request_offers.c.performer_id == current_user["id"])
-        )
-        if not await database.fetch_one(offer_query):
-            raise HTTPException(status_code=403, detail="Вы должны откликнуться на заявку, чтобы начать чат")
-
-    query = chat_messages.insert().values(
-        request_id=request_id,
-        sender_id=current_user["id"],
-        recipient_id=recipient_id,
-        message=message.message
-    )
-    await database.execute(query)
-    
-    return {"message": "Сообщение отправлено"}
 
 # ----------------------------------------------------
 # --- Machinery, Tool, Material Endpoints (без изменений) ---
