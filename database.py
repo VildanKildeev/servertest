@@ -46,12 +46,17 @@ users = sqlalchemy.Table(
     "users",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("email", sqlalchemy.String, unique=True, nullable=False),
+    sqlalchemy.Column("email", sqlalchemy.String, unique=True, index=True, nullable=False),
     sqlalchemy.Column("hashed_password", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("first_name", sqlalchemy.String),
-    sqlalchemy.Column("phone_number", sqlalchemy.String, unique=True, nullable=True),
-    # НОВОЕ: Колонка для Premium-статуса
+    sqlalchemy.Column("first_name", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("phone_number", sqlalchemy.String, unique=True, index=True, nullable=False),
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # "ЗАКАЗЧИК" или "ИСПОЛНИТЕЛЬ"
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("city_id", sqlalchemy.ForeignKey("cities.id"), nullable=False),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False, nullable=False),
+    sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
+    sqlalchemy.Column("rating", sqlalchemy.Float, default=0.0),
+    sqlalchemy.Column("rating_count", sqlalchemy.Integer, default=0),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=datetime.utcnow)
 )
 
