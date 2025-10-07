@@ -16,8 +16,14 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 import sqlalchemy
+
 # Импорты только необходимых таблиц
-from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, specializations, machinery_types, tool_types, material_types, initial_cities, initial_specializations, initial_machinery_types, initial_tool_types, initial_material_types
+from database import (
+    metadata, engine, users, work_requests, machinery_requests, tool_requests, 
+    material_ads, cities, database, specializations, machinery_types, 
+    tool_types, material_types, initial_cities, initial_specializations, 
+    initial_machinery_types, initial_tool_types, initial_material_types
+)
 
 load_dotenv()
 
@@ -25,7 +31,8 @@ load_dotenv()
 # Настройки для токенов
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Увеличен до 24 часов для удобства
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
@@ -58,12 +65,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        # Используем глобальную переменную
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
+# ОБНОВЛЕНО: Получение is_premium из базы данных
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -78,11 +86,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise credentials_exception
     
+    # Запрос всех данных пользователя, включая is_premium
     query = users.select().where(users.c.id == int(user_id))
     user = await database.fetch_one(query)
     if user is None:
         raise credentials_exception
-    return user
+    # Возвращаем dict для легкого доступа к полям
+    return dict(user)
 
 
 async def is_email_taken(email: str) -> bool:
@@ -92,7 +102,6 @@ async def is_email_taken(email: str) -> bool:
 
 # Функция для заполнения справочников
 async def populate_reference_table(table, initial_data):
-    # ИСПРАВЛЕНИЕ: Убраны квадратные скобки вокруг sqlalchemy.func.count()
     count_query = select(sqlalchemy.func.count()).select_from(table) 
     count = await database.fetch_val(count_query)
 
@@ -130,22 +139,22 @@ async def shutdown():
 class UserIn(BaseModel):
     email: EmailStr
     password: str
-    phone_number: str # <<< ОБЯЗАТЕЛЬНО
+    phone_number: str
     user_type: str
     specialization: Optional[str] = None
     city_id: int
-    first_name: str    # <<< ОБЯЗАТЕЛЬНО, только имя
+    first_name: str
 
 class UserOut(BaseModel):
     id: int
     email: EmailStr
-    first_name: str    # <<< Изменено на str
-    phone_number: str  # <<< Изменено на str
+    first_name: str
+    phone_number: str
     is_active: Optional[bool] = True
     created_at: datetime
     city_id: Optional[int] = None
     specialization: Optional[str] = None
-    is_premium: Optional[bool] = False
+    is_premium: Optional[bool] = False # is_premium
     user_type: str
     rating: Optional[float] = Field(None, description="Рейтинг пользователя", ge=0.0, le=5.0)
     rating_count: Optional[int] = Field(None, description="Количество оценок", ge=0)
@@ -176,13 +185,13 @@ class WorkRequestOut(BaseModel):
     description: str
     specialization: str
     budget: float
-    phone_number: str
+    phone_number: str # Будет маскироваться
     city_id: int
     created_at: datetime
     is_taken: bool
     address: Optional[str]
     visit_date: Optional[datetime]
-    is_premium: Optional[bool]
+    is_premium: Optional[bool] # Premium-статус создателя заявки
 
 
 # --- MACHINERY REQUESTS SCHEMAS ---
@@ -190,7 +199,7 @@ class MachineryRequestIn(BaseModel):
     machinery_type: str
     description: str
     rental_price: float
-    contact_info: str
+    contact_info: str # Будет маскироваться
     city_id: int
     rental_date: Optional[date] = None
     min_hours: int = 4
@@ -217,7 +226,7 @@ class ToolRequestIn(BaseModel):
     tool_count: int = 1
     rental_start_date: date
     rental_end_date: date
-    contact_info: str
+    contact_info: str # Будет маскироваться
     has_delivery: bool = False
     delivery_address: Optional[str] = None
     city_id: int
@@ -236,6 +245,7 @@ class ToolRequestOut(BaseModel):
     delivery_address: Optional[str]
     city_id: int
     created_at: datetime
+    is_premium: Optional[bool] = False # Хотя в таблице нет, для единообразия
 
 
 # --- MATERIAL ADS SCHEMAS ---
@@ -243,7 +253,7 @@ class MaterialAdIn(BaseModel):
     material_type: str
     description: Optional[str]
     price: float
-    contact_info: str
+    contact_info: str # Будет маскироваться
     city_id: int
 
 class MaterialAdOut(BaseModel):
@@ -256,7 +266,6 @@ class MaterialAdOut(BaseModel):
     city_id: int
     created_at: datetime
     is_premium: Optional[bool]
-
 
 # --- UTILITY SCHEMAS ---
 class SpecializationUpdate(BaseModel):
@@ -278,6 +287,7 @@ class RatingIn(BaseModel):
 # --- API endpoints ---
 # ----------------------------------------------------
 
+# ОБНОВЛЕНО: Добавление is_premium в токен
 @api_router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     query = users.select().where(users.c.email == form_data.username)
@@ -291,8 +301,10 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
         
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # Включаем is_premium в токен
     access_token = create_access_token(
-        data={"sub": str(user["id"])}, expires_delta=access_token_expires
+        data={"sub": str(user["id"]), "is_premium": user["is_premium"]}, 
+        expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -302,10 +314,11 @@ async def create_user(user: UserIn):
     if user.user_type not in ["ЗАКАЗЧИК", "ИСПОЛНИТЕЛЬ"]:
         raise HTTPException(status_code=400, detail="Invalid user_type")
 
-    if await is_email_taken(user.email):
+    check_query = users.select().where((users.c.email == user.email) | (users.c.phone_number == user.phone_number))
+    if await database.fetch_one(check_query):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, 
-            detail="Пользователь с таким email уже существует."
+            detail="Пользователь с таким email или номером телефона уже существует."
         )
 
     if user.user_type == "ИСПОЛНИТЕЛЬ" and not user.specialization:
@@ -314,7 +327,6 @@ async def create_user(user: UserIn):
             detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
         )
 
-    # Проверка обязательности phone_number и first_name (для ясности, хотя Pydantic это делает)
     if not user.phone_number:
         raise HTTPException(status_code=400, detail="Поле 'phone_number' обязательно.")
     if not user.first_name:
@@ -324,7 +336,6 @@ async def create_user(user: UserIn):
 
     hashed_password = get_password_hash(user.password)
     
-    # Вставляем first_name и phone_number напрямую
     query = users.insert().values(
         email=user.email,
         hashed_password=hashed_password,
@@ -332,7 +343,7 @@ async def create_user(user: UserIn):
         phone_number=user.phone_number,
         specialization=specialization_to_insert,
         city_id=user.city_id,
-        is_premium=False,
+        is_premium=False, # По умолчанию False
         rating=0.0,
         rating_count=0,
         first_name=user.first_name 
@@ -346,7 +357,7 @@ async def create_user(user: UserIn):
 
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
-    return current_user
+    return UserOut(**current_user)
 
 @api_router.post("/work_requests/{request_id}/rate")
 async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = Depends(get_current_user)):
@@ -382,7 +393,6 @@ async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = 
 
 # --- ENDPOINTS FOR REFERENCE DATA (CITIES, SPECIALIZATIONS, etc.) ---
 
-# ИСПРАВЛЕНИЕ: Добавлен замыкающий слэш в маршрутах для соответствия фронтенду
 @api_router.get("/cities/", response_model=List[CityOut])
 async def get_cities():
     """Получает список городов."""
@@ -432,16 +442,58 @@ async def create_work_request(request: WorkRequestIn, current_user: dict = Depen
         visit_date=request.visit_date
     )
     last_record_id = await database.execute(query)
+    
+    # Получаем созданную заявку, чтобы вернуть ее с id и датой
     created_request_query = work_requests.select().where(work_requests.c.id == last_record_id)
-    return await database.fetch_one(created_request_query)
+    created_request = await database.fetch_one(created_request_query)
 
+    # Добавляем статус is_premium создателя заявки для вывода
+    request_dict = dict(created_request)
+    request_dict["is_premium"] = current_user["is_premium"]
+
+    return WorkRequestOut(**request_dict)
+
+# ОБНОВЛЕНО: Сортировка по is_premium и маскировка телефона
 @api_router.get("/work_requests/by_city/{city_id}", response_model=List[WorkRequestOut])
-async def get_work_requests_by_city(city_id: int):
-    # Запрос показывает только не взятые в работу заявки
-    query = work_requests.select().where(
+async def get_work_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
+    """Получает и сортирует заявки на работу (премиум-заявки выше), маскируя телефон для обычных пользователей."""
+    
+    # 1. Формируем запрос с JOIN для получения статуса Premium создателя заявки (для сортировки)
+    join_clause = work_requests.join(users, work_requests.c.user_id == users.c.id)
+    
+    # Выбираем колонки work_requests и статус is_premium пользователя (переименованный)
+    query = select(
+        work_requests, 
+        users.c.is_premium.label("request_is_premium")
+    ).select_from(join_clause).where(
         (work_requests.c.city_id == city_id) & (work_requests.c.is_taken == False)
-    ).order_by(work_requests.c.created_at.desc())
-    return await database.fetch_all(query)
+    )
+
+    # 2. Сортировка: сначала заявки от Premium-пользователей (True=1), затем по дате
+    query = query.order_by(
+        users.c.is_premium.desc(), 
+        work_requests.c.created_at.desc()
+    )
+
+    requests = await database.fetch_all(query)
+    
+    # 3. Применяем маскировку номера на основе статуса *текущего* пользователя
+    is_premium_user = current_user.get("is_premium", False)
+    
+    result_list = []
+    for req in requests:
+        req_dict = dict(req)
+        
+        # Переносим статус Premium создателя заявки в поле схемы WorkRequestOut
+        req_dict["is_premium"] = req_dict.pop("request_is_premium", False)
+        
+        # Если текущий пользователь не Premium, маскируем номер
+        if not is_premium_user:
+            req_dict["phone_number"] = "ПРЕМИУМ ДОСТУП"
+            
+        result_list.append(WorkRequestOut(**req_dict))
+
+    return result_list
 
 @api_router.get("/work_requests/my", response_model=List[WorkRequestOut])
 async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
@@ -455,11 +507,24 @@ async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
     executor_query = work_requests.select().where(work_requests.c.executor_id == user_id)
     
     # Объединяем и сортируем по дате создания
+    # Здесь не нужна маскировка, так как пользователь сам создал или взял заявку
     combined_query = owner_query.union(executor_query).order_by(work_requests.c.created_at.desc())
     
-    return await database.fetch_all(combined_query)
+    requests = await database.fetch_all(combined_query)
+    
+    # Добавляем is_premium создателя в результат (для созданных им заявок)
+    result_list = []
+    for req in requests:
+        req_dict = dict(req)
+        # Устанавливаем статус is_premium создателя
+        req_dict["is_premium"] = current_user.get("is_premium", False) if req["user_id"] == user_id else None
+        result_list.append(WorkRequestOut(**req_dict))
+        
+    return result_list
+
 
 # --- MACHINERY ENDPOINTS ---
+# ОБНОВЛЕНО: Сохранение is_premium
 @api_router.post("/machinery_requests", response_model=MachineryRequestOut)
 async def create_machinery_request(ad: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
     query = machinery_requests.insert().values(
@@ -471,27 +536,47 @@ async def create_machinery_request(ad: MachineryRequestIn, current_user: dict = 
         city_id=ad.city_id,
         rental_date=ad.rental_date,
         min_hours=ad.min_hours,
-        is_premium=current_user["is_premium"]
+        is_premium=current_user["is_premium"] # СОХРАНЯЕМ is_premium
     )
     last_record_id = await database.execute(query)
     created_ad_query = machinery_requests.select().where(machinery_requests.c.id == last_record_id)
     return await database.fetch_one(created_ad_query)
 
+# ОБНОВЛЕНО: Сортировка по is_premium и маскировка контакта
 @api_router.get("/machinery_requests/by_city/{city_id}", response_model=List[MachineryRequestOut])
-async def get_machinery_requests_by_city(city_id: int):
+async def get_machinery_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
+    """Получает и сортирует объявления о спецтехнике, маскируя контакт для обычных пользователей."""
+    is_premium_user = current_user.get("is_premium", False)
+
     query = machinery_requests.select().where(machinery_requests.c.city_id == city_id)
-    return await database.fetch_all(query)
+    # Сортировка: Premium-объявления выше
+    query = query.order_by(machinery_requests.c.is_premium.desc(), machinery_requests.c.created_at.desc()) 
+    
+    ads = await database.fetch_all(query)
+    
+    result_list = []
+    for ad in ads:
+        ad_dict = dict(ad)
+        
+        # Маскировка контакта
+        if not is_premium_user:
+            ad_dict["contact_info"] = "ПРЕМИУМ ДОСТУП"
+            
+        result_list.append(MachineryRequestOut(**ad_dict))
+
+    return result_list
 
 # --- TOOL ENDPOINTS ---
 @api_router.post("/tool_requests", response_model=ToolRequestOut)
 async def create_tool_request(ad: ToolRequestIn, current_user: dict = Depends(get_current_user)):
+    # is_premium не сохраняем, так как колонки нет в tool_requests (в соответствии с предыдущими версиями)
     query = tool_requests.insert().values(
-        user_id=current_user["id"],
-        tool_name=ad.tool_name,
+        user_id=current_user["id"], 
+        tool_name=ad.tool_name, 
         description=ad.description,
-        rental_price=ad.rental_price,
+        rental_price=ad.rental_price, 
         tool_count=ad.tool_count,
-        rental_start_date=ad.rental_start_date,
+        rental_start_date=ad.rental_start_date, 
         rental_end_date=ad.rental_end_date,
         contact_info=ad.contact_info,
         has_delivery=ad.has_delivery,
@@ -502,26 +587,64 @@ async def create_tool_request(ad: ToolRequestIn, current_user: dict = Depends(ge
     created_ad_query = tool_requests.select().where(tool_requests.c.id == last_record_id)
     return await database.fetch_one(created_ad_query)
 
+# ОБНОВЛЕНО: Маскировка контакта
 @api_router.get("/tool_requests/by_city/{city_id}", response_model=List[ToolRequestOut])
-async def get_tool_requests_by_city(city_id: int):
-    query = tool_requests.select().where(tool_requests.c.city_id == city_id)
-    return await database.fetch_all(query)
+async def get_tool_requests_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
+    """Получает объявления об инструментах, маскируя контакт для обычных пользователей."""
+    is_premium_user = current_user.get("is_premium", False)
+
+    query = tool_requests.select().where(tool_requests.c.city_id == city_id).order_by(tool_requests.c.created_at.desc())
+    ads = await database.fetch_all(query)
+    
+    result_list = []
+    for ad in ads:
+        ad_dict = dict(ad)
+        
+        # Маскировка контакта
+        if not is_premium_user:
+            ad_dict["contact_info"] = "ПРЕМИУМ ДОСТУП"
+            
+        result_list.append(ToolRequestOut(**ad_dict))
+
+    return result_list
 
 # --- MATERIAL ENDPOINTS ---
+# ОБНОВЛЕНО: Сохранение is_premium
 @api_router.post("/material_ads", response_model=MaterialAdOut)
 async def create_material_ad(ad: MaterialAdIn, current_user: dict = Depends(get_current_user)):
     query = material_ads.insert().values(
         user_id=current_user["id"], material_type=ad.material_type, description=ad.description,
-        price=ad.price, contact_info=ad.contact_info, city_id=ad.city_id, is_premium=current_user["is_premium"]
+        price=ad.price, contact_info=ad.contact_info, city_id=ad.city_id, 
+        is_premium=current_user["is_premium"] # СОХРАНЯЕМ is_premium
     )
     last_record_id = await database.execute(query)
     created_ad_query = material_ads.select().where(material_ads.c.id == last_record_id)
     return await database.fetch_one(created_ad_query)
 
+# ОБНОВЛЕНО: Сортировка по is_premium и маскировка контакта
 @api_router.get("/material_ads/by_city/{city_id}", response_model=List[MaterialAdOut])
-async def get_material_ads_by_city(city_id: int):
+async def get_material_ads_by_city(city_id: int, current_user: dict = Depends(get_current_user)):
+    """Получает и сортирует объявления о материалах, маскируя контакт для обычных пользователей."""
+    is_premium_user = current_user.get("is_premium", False)
+
     query = material_ads.select().where(material_ads.c.city_id == city_id)
-    return await database.fetch_all(query)
+    # Сортировка: Premium-объявления выше
+    query = query.order_by(material_ads.c.is_premium.desc(), material_ads.c.created_at.desc()) 
+    
+    ads = await database.fetch_all(query)
+    
+    result_list = []
+    for ad in ads:
+        ad_dict = dict(ad)
+        
+        # Маскировка контакта
+        if not is_premium_user:
+            ad_dict["contact_info"] = "ПРЕМИУМ ДОСТУП"
+            
+        result_list.append(MaterialAdOut(**ad_dict))
+
+    return result_list
+
 
 @api_router.get("/material_ads/my", response_model=List[MaterialAdOut])
 async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
@@ -558,13 +681,14 @@ async def get_all_my_ads(current_user: dict = Depends(get_current_user)):
         ad_dict["type"] = "material"
         all_ads.append(ad_dict)
         
+    # Сортируем все объявления по дате создания
     return sorted(all_ads, key=lambda x: x['created_at'], reverse=True)
 
 
 app.include_router(api_router)
 
 # ----------------------------------------------------
-# --- Static Files Mounting (ИСПРАВЛЕНО) ---
+# --- Static Files Mounting ---
 # ----------------------------------------------------
 app.include_router(api_router)
 
@@ -574,10 +698,10 @@ static_dir = Path(__file__).parent / "static"
 # Проверяем существование папки static
 if static_dir.is_dir():
     # Монтируем папку 'static' К КОРНЕВОМУ URL ("/")
-    # 1. Это гарантирует, что index.html (внутри 'static') будет возвращен при запросе "/" (благодаря html=True).
-    # 2. Все остальные ресурсы (например, /main.js) будут корректно обслуживаться из папки 'static'.
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static_spa")
 
-# Убедитесь, что после этого блока нет лишних символов (вроде '}')
 if __name__ == "__main__":
+    # Исправлена ошибка: uvicorn.run должен использовать app, а не "main:app" в этом блоке
+    # Но для использования "main:app" при запуске через консоль, оставим как было, 
+    # чтобы не нарушать стандартный способ запуска FastAPI.
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
