@@ -1,5 +1,3 @@
-# main.py
-
 import json
 import uvicorn
 import databases
@@ -7,8 +5,8 @@ import asyncpg
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
-from typing import Optional, List, Dict # <<< ИСПРАВЛЕНО: Optional, List, Dict импортируются из typing
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter # <<< ИСПРАВЛЕНО: Оставлены только необходимые импорты из fastapi
+from typing import Optional, List, Dict 
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 from fastapi.staticfiles import StaticFiles
@@ -94,7 +92,8 @@ async def is_email_taken(email: str) -> bool:
 
 # Функция для заполнения справочников
 async def populate_reference_table(table, initial_data):
-    count_query = select([sqlalchemy.func.count()]).select_from(table)
+    # ИСПРАВЛЕНИЕ: Убраны квадратные скобки вокруг sqlalchemy.func.count()
+    count_query = select(sqlalchemy.func.count()).select_from(table) 
     count = await database.fetch_val(count_query)
 
     if count == 0:
