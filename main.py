@@ -563,9 +563,21 @@ async def get_all_my_ads(current_user: dict = Depends(get_current_user)):
 
 app.include_router(api_router)
 
-# Статические файлы должны быть смонтированы в конце
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
+# ----------------------------------------------------
+# --- Static Files Mounting (ИСПРАВЛЕНО) ---
+# ----------------------------------------------------
+app.include_router(api_router)
 
+# Определяем путь к папке 'static'
+static_dir = Path(__file__).parent / "static"
 
+# Проверяем существование папки static
+if static_dir.is_dir():
+    # Монтируем папку 'static' К КОРНЕВОМУ URL ("/")
+    # 1. Это гарантирует, что index.html (внутри 'static') будет возвращен при запросе "/" (благодаря html=True).
+    # 2. Все остальные ресурсы (например, /main.js) будут корректно обслуживаться из папки 'static'.
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static_spa")
+
+# Убедитесь, что после этого блока нет лишних символов (вроде '}')
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
