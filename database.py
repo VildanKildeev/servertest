@@ -43,14 +43,16 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("email", sqlalchemy.String, unique=True, index=True),
     sqlalchemy.Column("hashed_password", sqlalchemy.String),
-    sqlalchemy.Column("full_name", sqlalchemy.String),
-    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("user_role", sqlalchemy.String, default="worker"), # 'worker', 'customer'
-    sqlalchemy.Column("rating", sqlalchemy.Float, default=0.0),
-    sqlalchemy.Column("review_count", sqlalchemy.Integer, default=0),
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=True),
+    sqlalchemy.Column("first_name", sqlalchemy.String, nullable=True),  # Только имя
+    sqlalchemy.Column("phone_number", sqlalchemy.String),
     sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=False),
+    sqlalchemy.Column("rating", sqlalchemy.Float, nullable=True, default=0.0),
+    sqlalchemy.Column("rating_count", sqlalchemy.Integer, nullable=False, default=0)
 )
 
 # Таблица для заявок на работу (УБРАН is_premium, ДОБАВЛЕН is_rated)
