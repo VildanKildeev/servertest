@@ -105,17 +105,17 @@
             <div class="button-container">
                 <h2>Меню</h2>
                 <div class="button-grid">
-                    <button class="btn btn-primary" onclick="showPage('createWorkRequestPage')">Создать заявку на работу</button>
-                    <button class="btn btn-primary" onclick="showPage('workRequestsPage')">Найти работу</button>
-                    <button class="btn btn-primary" onclick="showPage('createMachineryRequestPage')">Создать заявку на технику</button>
-                    <button class="btn btn-primary" onclick="showPage('machineryRequestsPage')">Найти технику</button>
-                    <button class="btn btn-primary" onclick="showPage('createToolRequestPage')">Создать заявку на инструмент</button>
-                    <button class="btn btn-primary" onclick="showPage('toolRequestsPage')">Найти инструмент</button>
-                    <button class="btn btn-primary" onclick="showPage('createMaterialAdPage')">Разместить объявление</button>
-                    <button class="btn btn-primary" onclick="showPage('materialAdsPage')">Найти материалы</button>
+                    <button class="btn btn-primary" onclick="openModalPage('createWorkRequestPage')">Создать заявку на работу</button>
+                    <button class="btn btn-primary" onclick="openModalPage('workRequestsPage')">Найти работу</button>
+                    <button class="btn btn-primary" onclick="openModalPage('createMachineryRequestPage')">Создать заявку на технику</button>
+                    <button class="btn btn-primary" onclick="openModalPage('machineryRequestsPage')">Найти технику</button>
+                    <button class="btn btn-primary" onclick="openModalPage('createToolRequestPage')">Создать заявку на инструмент</button>
+                    <button class="btn btn-primary" onclick="openModalPage('toolRequestsPage')">Найти инструмент</button>
+                    <button class="btn btn-primary" onclick="openModalPage('createMaterialAdPage')">Разместить объявление</button>
+                    <button class="btn btn-primary" onclick="openModalPage('materialAdsPage')">Найти материалы</button>
                 </div>
-                <button class="btn btn-secondary" onclick="showPage('myRequestsPage')">Мои заявки</button>
-                <button class="btn btn-secondary" onclick="showPage('profilePage')">Профиль</button>
+                <button class="btn btn-secondary" onclick="openModalPage('myRequestsPage')">Мои заявки</button>
+                <button class="btn btn-secondary" onclick="openModalPage('profilePage')">Профиль</button>
                 <button class="btn btn-link" onclick="logout()">Выйти</button>
             </div>
         </div>
@@ -136,7 +136,7 @@
                 
                 <div id="profileChatsSection" class="my-requests-section" style="margin-top: 20px;">
                     <h3>Активные Чаты</h3>
-                    <div id="profileChatsList"></div>
+                    <div id="activeChatsList"></div>
                 </div>
                 
 
@@ -147,7 +147,7 @@
     </form>
 </div>
 
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -186,7 +186,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -195,7 +195,7 @@
                 <h2>Заявки на работу</h2>
                 <div id="workRequestsList"></div>
                 <div id="offerStatus" class="message" style="display:none;"></div>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -241,7 +241,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -249,7 +249,7 @@
             <div class="list-container">
                 <h2>Заявки на спецтехнику</h2>
                 <div id="machineryRequestsList"></div>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -298,7 +298,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -306,7 +306,7 @@
             <div class="list-container">
                 <h2>Заявки на инструмент</h2>
                 <div id="toolRequestsList"></div>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -333,7 +333,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -341,7 +341,7 @@
             <div class="list-container">
                 <h2>Объявления на материалы</h2>
                 <div id="materialAdsList"></div>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
@@ -385,7 +385,7 @@
                     <h3>Объявления о материалах</h3>
                     <div id="myMaterialAdsList"></div>
                 </div>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="openModalPage('buttonContainer')">Назад</button>
             </div>
         </div>
     </div>
@@ -1485,5 +1485,57 @@ async function fetchActiveChats() {
             }
         });
     </script>
+
+<!-- App Modal -->
+<div id="appModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width: 640px; width: 96%; margin: 40px auto; border-radius: 12px; overflow: hidden;">
+    <div class="modal-header" style="display:flex; align-items:center; justify-content: space-between; padding: 10px 12px; border-bottom:1px solid #E0E0E0; background:#fff;">
+      <div style="font-weight:600;">Окно</div>
+      <button type="button" class="close-btn" onclick="closeAppModal()" style="border:none;background:none;font-size:20px;cursor:pointer">&times;</button>
+    </div>
+    <div id="appModalBody" class="modal-body" style="background:#fff; max-height: 70vh; overflow:auto;"></div>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  const pages = Array.from(document.querySelectorAll('.page')).map(el => el.id);
+  const bottomNav = document.querySelector('.bottom-nav');
+
+  function openAppModal(){
+    const m = document.getElementById('appModal');
+    m.style.display = 'block';
+    if (bottomNav) bottomNav.classList.remove('visible');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeAppModal(){
+    const m = document.getElementById('appModal');
+    const body = document.getElementById('appModalBody');
+    if (body.firstChild){
+      const node = body.firstChild;
+      node.classList.remove('active');
+      document.body.appendChild(node);
+      node.style.display = 'none';
+    }
+    m.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+  window.openModalPage = function(pageId){
+    const page = document.getElementById(pageId);
+    if (!page) return;
+    pages.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active'), el.style.display = 'none';
+    });
+    document.getElementById('appModalBody').appendChild(page);
+    page.classList.add('active');
+    page.style.display = 'block';
+    openAppModal();
+  };
+  window.closeAppModal = closeAppModal;
+})();
+</script>
+
 </body>
 </html>
