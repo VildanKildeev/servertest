@@ -7,7 +7,8 @@ import asyncpg
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
-from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, Optional, List, Dict
+from typing import Optional, List, Dict # <<< ИСПРАВЛЕНО: Optional, List, Dict импортируются из typing
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter # <<< ИСПРАВЛЕНО: Оставлены только необходимые импорты из fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 from fastapi.staticfiles import StaticFiles
@@ -458,10 +459,6 @@ async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
     combined_query = owner_query.union(executor_query).order_by(work_requests.c.created_at.desc())
     
     return await database.fetch_all(combined_query)
-
-# >>> УДАЛЕНЫ ЭНДПОИНТЫ ДЛЯ work_request_offers (предложения по заявкам) <<<
-# >>> УДАЛЕНЫ ЭНДПОИНТЫ ДЛЯ ЧАТА <<<
-
 
 # --- MACHINERY ENDPOINTS ---
 @api_router.post("/machinery_requests", response_model=MachineryRequestOut)
