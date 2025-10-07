@@ -421,7 +421,8 @@ app.include_router(api_router)
 # Обслуживание index.html
 @app.get("/", include_in_schema=False)
 async def serve_app():
-    return FileResponse('index.html')
+    return FileResponse('static/index.html')
+
 
 # --- Lifespan Events ---
 @app.on_event("startup")
