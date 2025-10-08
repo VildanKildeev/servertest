@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from sqlalchemy import text
 
+
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database
@@ -251,6 +252,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # Определяем базовый путь
 base_path = Path(__file__).parent
+static_path = base_path / "static"
 # ИСПРАВЛЕНО: Предполагаем, что index.html находится в корне, а не в /static
 app.mount("/static", StaticFiles(directory=base_path), name="static")
 
@@ -258,7 +260,7 @@ app.mount("/static", StaticFiles(directory=base_path), name="static")
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def serve_index():
     # Файл должен лежать рядом с main.py
-    return FileResponse(Path(base_path, "index.html"))
+    return FileResponse(static_path / "index.html")
 
 
 # НОВЫЙ МАРШРУТ для получения токена
