@@ -294,7 +294,16 @@ body {
             </div>
         </div>
 
-        <div id="createMachineryAdPage" class="page">
+        <div 
+<div id="machineryPage" class="page">
+    <button class="btn-secondary" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад</button>
+    <h2>Аренда спецтехники в <span id="machineryCityName"></span></h2>
+    <button class="btn-primary" style="margin-bottom: 20px;" onclick="showPage('createMachineryAdPage')">Разместить объявление</button>
+    <div class="card-list" id="machineryList">
+        <p>Загрузка объявлений...</p>
+    </div>
+</div>
+id="createMachineryAdPage" class="page">
     <button class="btn-secondary" onclick="showPage('machineryPage')"><i class="fas fa-arrow-left"></i> Назад</button>
     <h2>Объявление о спецтехнике</h2>
     <form id="machineryAdForm">
