@@ -38,9 +38,10 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("hashed_password", sqlalchemy.String),
     sqlalchemy.Column("phone_number", sqlalchemy.String),
     sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
-    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # НОВЫЙ СТОЛБЕЦ
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # НОВЫЙ СТОЛБЕЦ
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, server_default=sqlalchemy.text("FALSE")),
 )
 
 # Таблица запросов на работу
