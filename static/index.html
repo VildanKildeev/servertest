@@ -30,962 +30,1452 @@
             -webkit-tap-highlight-color: transparent; 
             touch-action: manipulation; 
             
-            /* КРИТИЧЕСКИ ВАЖНО: Отступ снизу для фиксированной нижней панели */
-            padding-bottom: 60px; 
+            /* КРИТИЧЕСКИ ВАЖНО: 100vh часто работает плохо на мобильных, используем min-height */
+            min-height: 100vh;
         }
 
-        /* Скрываем фоновое видео */
-        .background-video { 
-            display: none; 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            z-index: -2; 
+        /* =======================================
+           HEADER & NAVIGATION (ШАПКА И МЕНЮ)
+           ======================================= */
+        .header {
+            width: 100%;
+            background-color: #4CAF50; /* Зеленый цвет для шапки */
+            color: white;
+            padding: 15px 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        /* Заголовки делаем темными для читаемости на светлом фоне */
-        h1 { font-size: 20px; text-align: center; color: #333; margin-bottom: 20px; }
-        .form-container h2, .button-container h2, .list-container h2 { color: #333; }
+        .header h1 {
+            font-size: 1.2em;
+            font-weight: 500;
+        }
+
+        .nav-buttons button, .header-buttons button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 10px;
+            outline: none;
+        }
+
+        /* =======================================
+           LOCATION BAR (ПАНЕЛЬ ГОРОДА)
+           ======================================= */
+        .location-bar {
+            width: 100%;
+            padding: 10px 15px;
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+        }
+        
+        .location-bar button {
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 5px 10px;
+            color: #4CAF50; /* Зеленый текст */
+            font-size: 0.9em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+        }
+        
+        .location-bar i {
+            margin-right: 5px;
+        }
+
+        /* =======================================
+           MAIN CONTENT & TABS
+           ======================================= */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 0 10px;
+        }
+
+        .tabs {
+            width: 100%;
+            display: flex;
+            margin-top: 10px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .tab-button {
+            flex-grow: 1;
+            padding: 15px 10px;
+            border: none;
+            background-color: #fff;
+            color: #666;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            outline: none;
+            font-weight: 500;
+        }
+
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+            width: 100%;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
         
         /* =======================================
-           ОРАНЖЕВЫЕ АКЦЕНТЫ И КНОПКИ
+           CARD STYLES (ОБЪЯВЛЕНИЯ)
            ======================================= */
-        /* Цвет акцента для выбранного города */
-        .selected-city { 
-            margin-top: 12px; 
-            font-size: 16px; 
-            color: #FF8C00; /* Оранжевый акцент */
-            text-align: center; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 5px; 
-            flex-wrap: wrap; 
+        .card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin-bottom: 15px;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .card p {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
         }
         
-        /* Основные кнопки, кнопки меню, активные тогглы */
-        .btn-primary, .btn-secondary, .toggle-view button.active, #subscribeBtn, .request-item .take-btn {
-            background-color: #FF8C00 !important; /* Насыщенный Оранжевый */
-            color: white !important;
-            border: 1px solid #CC7000; /* Более темный оранжевый для рамки */
+        .card .details {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #eee;
+            font-size: 0.85em;
+        }
+        
+        .card .details span {
+            display: block;
+            margin-bottom: 3px;
+            color: #444;
+        }
+
+        .card .badge {
+            display: inline-block;
+            background-color: #FFC107;
+            color: #333;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+
+        .card .contact-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .card .contact-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* =======================================
+           MODAL STYLES (МОДАЛЬНЫЕ ОКНА)
+           ======================================= */
+        .modal {
+            display: none; /* Скрыто по умолчанию */
+            position: fixed; 
+            z-index: 2000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.4); 
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%; 
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0 15px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .modal-content button.primary {
+            background-color: #4CAF50;
+            color: white;
             padding: 10px 15px;
+            border: none;
             border-radius: 5px;
             cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
             width: 100%;
-            margin-bottom: 10px;
-        }
-        .btn-primary:hover, .btn-secondary:hover, #subscribeBtn:hover, .request-item .take-btn:hover {
-             background-color: #CC7000 !important; 
-        }
-        
-        /* Кнопки ссылок и премиум-статуса */
-        .btn-link, .request-item h4, .my-requests-section h3, .request-item .premium { 
-            color: #FF8C00 !important; /* Оранжевый для ссылок и заголовков */
-        }
-        .btn-link {
-            background: none !important;
-            border: none;
-            padding: 0;
-            cursor: pointer;
-            text-decoration: underline;
-            width: auto;
         }
 
-        /* =======================================
-           КОНТЕЙНЕРЫ, ФОРМЫ, СПИСКИ
-           ======================================= */
-        .main-container { width: 100%; max-width: 600px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
-        .logo { width: 80px; margin-bottom: 10px; }
-        .page { display: none; width: 100%; }
-        .page.active { display: block; }
-        
-        /* Светлый фон контейнеров для контраста с бежевым body */
-        .form-container, .button-container, .list-container { 
-            background-color: rgba(255, 255, 255, 0.9); 
-            padding: 20px; 
-            border-radius: 10px; 
-            width: 100%; 
-            max-width: 400px; 
-            margin-bottom: 10px;
-            color: #333; 
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .modal-content button.primary:hover {
+            background-color: #45a049;
         }
-        
-        /* ИСПРАВЛЕНИЕ: Добавлены стили для двух колонок в меню */
-        .button-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .button-grid .btn-primary {
-            margin-bottom: 0; /* Убираем лишний отступ у кнопок в сетке */
-        }
-        
-        .input-group { margin-bottom: 15px; }
-        .input-group label { display: block; margin-bottom: 5px; }
-        /* Входные поля */
-        .input-group input, .input-group select, .input-group textarea { 
-            width: 100%; 
-            padding: 10px; 
-            border-radius: 5px; 
-            border: 1px solid #ccc; 
-            background-color: #fff; /* Белый фон */
-            color: #333; /* Темный текст */
-            font-size: 14px; 
-        }
-        
-        .request-item { 
-            background-color: #f7f7f7; 
-            color: #333;
-            padding: 15px; 
-            margin-bottom: 10px; 
-            border-radius: 5px; 
-        }
-        .message { padding: 10px; border-radius: 5px; margin: 10px 0; }
-        .message.success { background-color: #d4edda; color: #155724; }
-        .message.error { background-color: #f8d7da; color: #721c24; }
         
         /* =======================================
-           СТИЛИ МОДАЛЬНЫХ ОКОН
+           POSTING BUTTON (КНОПКА ДОБАВЛЕНИЯ)
            ======================================= */
-        .city-modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
-        .city-modal.active { display: flex; }
-        .city-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; color: #333; }
-        .city-button { width: 100%; padding: 10px; margin: 5px 0; background-color: #eee; color: #333; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        .city-button:hover { background-color: #ddd; }
-
-
-        /* =======================================
-           СТИЛИ НИЖНЕЙ ФИКСИРОВАННОЙ ПАНЕЛИ
-           ======================================= */
-        .bottom-bar {
-            position: fixed; 
-            bottom: 0;       
-            left: 0;
-            width: 100%;
+        .add-post-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
             height: 60px;
-            background-color: #FFFFFF; /* Белый фон панели */
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15); 
-            display: flex;
-            justify-content: space-around; 
-            align-items: center;
-            z-index: 1000;   
-            padding-bottom: env(safe-area-inset-bottom); 
+            background-color: #FF5722; /* Оранжевый */
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 2em;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            z-index: 100;
         }
 
-        .bb-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        .add-post-btn:hover {
+            background-color: #e64a19;
+        }
+        
+        /* =======================================
+           FOOTER (НИЖНИЙ КОНТАКТНЫЙ БЛОК)
+           ======================================= */
+        .bottom-contacts {
+            width: 100%;
+            background-color: #333;
+            color: white;
+            padding: 20px 10px;
+            margin-top: 30px;
+            text-align: center;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .bottom-contacts a {
+            color: #4CAF50;
+            margin: 0 15px;
+            font-size: 1.5em;
             text-decoration: none;
-            color: #333; 
-            font-size: 10px;
-            flex-grow: 1; 
-            height: 100%; 
         }
 
-        .bb-icon {
-            font-size: 20px; 
+        .bottom-contacts p {
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #ccc;
+        }
+
+        /* =======================================
+           УВЕДОМЛЕНИЯ О ВХОДЕ
+           ======================================= */
+        #loginMessage {
+            text-align: center;
+            padding: 15px;
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            margin-top: 10px;
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        /* Стили для профиля */
+        .profile-info h2 {
+            margin-bottom: 5px;
+        }
+        .profile-info p {
             margin-bottom: 2px;
         }
-
-        .bb-btn:hover, .bb-btn.active {
-            color: #FF8C00; /* Оранжевый цвет */
+        .profile-info .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
         }
-
+        .profile-info .verified {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .profile-info .premium {
+            background-color: #FFC107;
+            color: #333;
+        }
+        .profile-buttons {
+            margin-top: 15px;
+        }
+        .profile-buttons button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        #editSpecializationForm {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            display: none; /* Скрыто по умолчанию */
+        }
+        
+        /* Стили для форм */
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #444;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .form-group button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+        .form-group button:hover {
+            background-color: #45a049;
+        }
+        
+        /* Стили для табов "Мои заявки" */
+        .my-requests-tabs {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ddd;
+        }
+        .my-requests-tab-btn {
+            padding: 10px 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1em;
+            color: #666;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: color 0.2s, border-bottom 0.2s;
+        }
+        .my-requests-tab-btn.active {
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+        }
+        .my-requests-tab-content {
+            display: none;
+        }
+        .my-requests-tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <video autoplay muted loop class="background-video">
-        <source src="https://assets.mixkit.co/videos/preview/mixkit-hand-holding-and-drilling-into-a-wooden-plank-25217-large.mp4" type="video/mp4">
-    </video>
 
-    <div class="selected-city" onclick="showCityModal()">
-        <i class="fas fa-map-marker-alt"></i>
-        <span id="cityName">Выберите город</span>
+    <header class="header">
+        <h1>СМЗ.РФ</h1>
+        <div class="header-buttons">
+            <button id="authBtn" onclick="showAuthModal()"><i class="fas fa-user"></i></button>
+            <button id="logoutBtn" style="display:none;" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </header>
+
+    <div class="location-bar">
+        <button id="cityButton" onclick="showCityModal()">
+            <i class="fas fa-map-marker-alt"></i>
+            <span id="currentCityName">Выбрать город</span>
+        </button>
     </div>
 
-    <div class="main-container">
-        <img src="https://smz.rf-dev.ru/img/logo_smz.png" alt="СМЗ.РФ Логотип" class="logo">
-        <h1>СМЗ.РФ - Заявки для Самозанятых и Мастеров</h1>
-        <div id="loadingMessage">Загрузка...</div>
+    <div id="loginMessage" style="display: none;">
+        Пожалуйста, <a href="#" onclick="showAuthModal()">войдите</a> или <a href="#" onclick="showAuthModal('register')">зарегистрируйтесь</a>, чтобы размещать и принимать заявки.
+    </div>
 
-        <div id="cityModal" class="city-modal">
-            <div class="city-modal-content">
-                <h2>Выберите ваш город</h2>
-                <div id="cityList" class="city-list-container"></div>
-            </div>
+    <div class="container">
+        
+        <div class="tabs">
+            <button class="tab-button active" onclick="changeTab('work-requests', this)">Заявки на работу</button>
+            <button class="tab-button" onclick="changeTab('machinery-requests', this)">Спецтехника</button>
+            <button class="tab-button" onclick="changeTab('material-ads', this)">Материалы</button>
+            <button class="tab-button" id="profile-tab-btn" style="display:none;" onclick="changeTab('profile', this)">Профиль</button>
         </div>
 
-        <div id="loginPage" class="page active">
-            <div class="form-container">
-                <h2>Вход</h2>
-                <div id="loginStatus" class="message"></div>
-                <form id="loginForm">
-                    <div class="input-group">
-                        <label for="loginEmail">Email:</label>
-                        <input type="email" id="loginEmail" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="loginPassword">Пароль:</label>
-                        <input type="password" id="loginPassword" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Войти</button>
-                    <button type="button" class="btn-link" onclick="showPage('registerPage')">Создать аккаунт</button>
-                </form>
-            </div>
-        </div>
-
-        <div id="registerPage" class="page">
-            <div class="form-container">
-                <h2>Регистрация</h2>
-                <div id="registerStatus" class="message"></div>
-                <form id="registerForm">
-                    <div class="input-group">
-                        <label for="registerEmail">Email:</label>
-                        <input type="email" id="registerEmail" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="registerPassword">Пароль:</label>
-                        <input type="password" id="registerPassword" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="registerPhoneNumber">Номер телефона:</label>
-                        <input type="text" id="registerPhoneNumber" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="registerUserType">Тип аккаунта:</label>
-                        <select id="registerUserType" required>
-                            <option value="">Выберите тип</option>
-                            <option value="ЗАКАЗЧИК">Заказчик</option>
-                            <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
-                        </select>
-                    </div>
-                    <div class="input-group" id="specializationGroup" style="display: none;">
-                        <label for="registerSpecialization">Специализация:</label>
-                        <select id="registerSpecialization"></select>
-                    </div>
-                    <button type="submit" class="btn-primary">Зарегистрироваться</button>
-                    <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
-                </form>
-            </div>
-        </div>
-
-        <div id="buttonContainer" class="page">
-            <div class="button-container">
-                <h2>Меню</h2>
-                <div class="button-grid">
-                    <button class="btn-primary" onclick="showPage('createWorkRequestPage')">Создать заявку на работу</button>
-                    <button class="btn-primary" onclick="showPage('workRequestsPage')">Найти работу</button>
-                    <button class="btn-primary" onclick="showPage('createMachineryRequestPage')">Создать заявку на технику</button>
-                    <button class="btn-primary" onclick="showPage('machineryRequestsPage')">Найти технику</button>
-                    <button class="btn-primary" onclick="showPage('createToolRequestPage')">Создать заявку на инструмент</button>
-                    <button class="btn-primary" onclick="showPage('toolRequestsPage')">Найти инструмент</button>
-                    <button class="btn-primary" onclick="showPage('createMaterialAdPage')">Разместить объявление</button>
-                    <button class="btn-primary" onclick="showPage('materialAdsPage')">Найти материалы</button>
+        <div id="work-requests" class="tab-content active">
+            <div id="workRequestsList">
                 </div>
-                <button class="btn-secondary" onclick="showPage('myRequestsPage')">Мои заявки</button>
-                <button class="btn-secondary" onclick="showPage('profilePage')">Профиль</button>
-                <button class="btn-link" onclick="logout()">Выйти</button>
-            </div>
         </div>
 
-        <div id="profilePage" class="page">
-            <div class="form-container">
-                <h2>Профиль</h2>
-                <div id="profileInfo"></div>
-                <div id="editSpecializationForm" style="display: none;">
-                    <div class="input-group">
-                        <label for="newSpecialization">Новая специализация:</label>
-                        <select id="newSpecialization"></select>
-                    </div>
-                    <button id="saveSpecializationBtn" class="btn-primary">Сохранить</button>
-                </div>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="createWorkRequestPage" class="page">
-            <div class="form-container">
-                <h2>Новая заявка на работу</h2>
-                <div id="workRequestStatus" class="message"></div>
-                <form id="workRequestForm">
-                    <div class="input-group">
-                        <label for="workDescription">Описание:</label>
-                        <textarea id="workDescription" required></textarea>
-                    </div>
-                    <div class="input-group">
-                        <label for="workSpecialization">Специализация:</label>
-                        <select id="workSpecialization"></select>
-                    </div>
-                    <div class="input-group">
-                        <label for="workBudget">Бюджет:</label>
-                        <input type="number" id="workBudget" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="workContact">Контакт:</label>
-                        <input type="text" id="workContact" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="isMasterVisitRequired" class="checkbox-label">
-                            <input type="checkbox" id="isMasterVisitRequired">
-                            Нужен выезд мастера?
-                        </label>
-                    </div>
-                    <button type="submit" class="btn-primary">Разместить</button>
-                </form>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="workRequestsPage" class="page">
-            <div class="list-container">
-                <h2>Заявки на работу</h2>
-                <div id="workRequestsList"></div>
-                <div id="takeOrderStatus" class="message"></div>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="createMachineryRequestPage" class="page">
-            <div class="form-container">
-                <h2>Заявка на спецтехнику</h2>
-                <div id="machineryRequestStatus" class="message"></div>
-                <form id="machineryRequestForm">
-                    <div class="input-group">
-                        <label for="machineryType">Тип техники:</label>
-                        <select id="machineryType"></select>
-                    </div>
-                    <div class="input-group">
-                        <label for="machineryDescription">Описание задачи:</label>
-                        <textarea id="machineryDescription" required></textarea>
-                    </div>
-                    <div class="input-group">
-                        <label for="machineryRentalDate">Дата (необязательно):</label>
-                        <input type="date" id="machineryRentalDate">
-                    </div>
-                    <div class="input-group">
-                        <label for="machineryMinHours">Минимальное кол-во часов:</label>
-                        <input type="number" id="machineryMinHours" value="4" min="1" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="machineryRentalPrice">Цена аренды (за час):</label>
-                        <input type="number" id="machineryRentalPrice" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="machineryContact">Контакт:</label>
-                        <input type="text" id="machineryContact" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="machineryHasDelivery" class="checkbox-label">
-                            <input type="checkbox" id="machineryHasDelivery">
-                            Нужна доставка?
-                        </label>
-                    </div>
-                    <div class="input-group" id="machineryDeliveryAddressGroup" style="display: none;">
-                        <label for="machineryDeliveryAddress">Адрес доставки:</label>
-                        <input type="text" id="machineryDeliveryAddress">
-                    </div>
-                    <button type="submit" class="btn-primary">Разместить</button>
-                </form>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="machineryRequestsPage" class="page">
-            <div class="list-container">
-                <h2>Заявки на спецтехнику</h2>
-                <div id="machineryRequestsList"></div>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="createToolRequestPage" class="page">
-            <div class="form-container">
-                <h2>Заявка на инструмент</h2>
-                <div id="toolRequestStatus" class="message"></div>
-                <form id="toolRequestForm">
-                    <div class="input-group">
-                        <label for="toolName">Название инструмента:</label>
-                        <select id="toolName"></select>
-                    </div>
-                    <div class="input-group">
-                        <label for="toolDescription">Описание:</label>
-                        <textarea id="toolDescription" required></textarea>
-                    </div>
-                    <div class="input-group">
-                        <label for="toolRentalPrice">Цена аренды:</label>
-                        <input type="number" id="toolRentalPrice" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="toolCount">Количество:</label>
-                        <input type="number" id="toolCount" value="1" min="1" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="toolRentalStartDate">Срок аренды (Начало):</label>
-                        <input type="date" id="toolRentalStartDate" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="toolRentalEndDate">Срок аренды (Окончание):</label>
-                        <input type="date" id="toolRentalEndDate" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="toolContact">Контакт:</label>
-                        <input type="text" id="toolContact" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="hasDelivery" class="checkbox-label">
-                            <input type="checkbox" id="hasDelivery">
-                            Нужна доставка?
-                        </label>
-                    </div>
-                    <div class="input-group" id="deliveryAddressGroup" style="display: none;">
-                        <label for="deliveryAddress">Адрес доставки:</label>
-                        <input type="text" id="deliveryAddress">
-                    </div>
-                    <button type="submit" class="btn-primary">Разместить</button>
-                </form>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="toolRequestsPage" class="page">
-            <div class="list-container">
-                <h2>Заявки на инструмент</h2>
-                <div id="toolRequestsList"></div>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="createMaterialAdPage" class="page">
-            <div class="form-container">
-                <h2>Объявление на материалы</h2>
-                <div id="materialAdStatus" class="message"></div>
-                <form id="materialAdForm">
-                    <div class="input-group">
-                        <label for="materialType">Тип материала:</label>
-                        <input type="text" id="materialType" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="materialDescription">Описание:</label>
-                        <textarea id="materialDescription" required></textarea>
-                    </div>
-                    <div class="input-group">
-                        <label for="materialPrice">Цена:</label>
-                        <input type="number" id="materialPrice" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="materialContact">Контакт:</label>
-                        <input type="text" id="materialContact" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Разместить</button>
-                </form>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="materialAdsPage" class="page">
-            <div class="list-container">
-                <h2>Объявления на материалы</h2>
-                <div id="materialAdsList"></div>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
-        </div>
-
-        <div id="myRequestsPage" class="page">
-            <div class="list-container">
-                <h2>Мои заявки</h2>
-                <div id="myWorkRequests" class="my-requests-section">
-                    <h3>Заявки на работу</h3>
-                    <div id="myWorkRequestsList"></div>
-                </div>
-                <div id="myMachineryRequests" class="my-requests-section">
-                    <h3>Заявки на спецтехнику</h3>
-                    <div id="myMachineryRequestsList"></div>
-                </div>
-                <div id="myToolRequests" class="my-requests-section">
-                    <h3>Заявки на инструмент</h3>
-                    <div id="myToolRequestsList"></div>
-                </div>
-                <div id="myMaterialAds" class="my-requests-section">
-                    <h3>Объявления о материалах</h3>
-                    <div id="myMaterialAdsList"></div>
-                </div>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-            </div>
+        <div id="machinery-requests" class="tab-content">
+            <div id="machineryRequestsList">
+                 </div>
         </div>
         
-    </div> <div class="bottom-bar">
-      <a id="bb-telegram" class="bb-btn" href="#" target="_blank" rel="noopener">
-        <span class="bb-icon" aria-hidden="true">✈️</span><span>Telegram</span>
-      </a>
-      <a id="bb-whatsapp" class="bb-btn" href="#" target="_blank" rel="noopener">
-        <span class="bb-icon" aria-hidden="true">💬</span><span>WhatsApp</span>
-      </a>
-      <a id="bb-forum" class="bb-btn" href="/forum" target="_blank" rel="noopener">
-        <span class="bb-icon" aria-hidden="true">🧰</span><span>Форум</span>
-      </a>
+        <div id="material-ads" class="tab-content">
+            <div id="materialAdsList">
+                 </div>
+        </div>
+
+        <div id="profile" class="tab-content">
+            <div class="card profile-info">
+                <h2>Профиль пользователя <span id="userTypeBadge" class="status-badge"></span></h2>
+                <p>Email: <strong id="profileEmail"></strong></p>
+                <p>Телефон: <strong id="profilePhone"></strong></p>
+                <p>Специализация: <strong id="profileSpecialization">Не указана</strong> <a href="#" onclick="document.getElementById('editSpecializationForm').style.display = 'block'; return false;">(Изменить)</a></p>
+                <p>Статус: <span id="profileStatus" class="status-badge"></span></p>
+                
+                <div id="editSpecializationForm">
+                    <label for="newSpecialization">Новая специализация:</label>
+                    <select id="newSpecialization">
+                        </select>
+                    <button id="saveSpecializationBtn">Сохранить</button>
+                </div>
+                
+                <div class="profile-buttons">
+                    <button onclick="document.getElementById('myRequestsModal').style.display = 'flex';">Мои заявки</button>
+                    <button onclick="document.getElementById('subscribeModal').style.display = 'flex';">Премиум-подписка</button>
+                </div>
+            </div>
+            
+            <div id="myRequestsModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-button" onclick="document.getElementById('myRequestsModal').style.display = 'none'">&times;</span>
+                    <h2>Мои объявления и заявки</h2>
+                    
+                    <div class="my-requests-tabs">
+                        <button class="my-requests-tab-btn active" onclick="showMyRequestsTab('my-work-requests-tab', this)">Работа</button>
+                        <button class="my-requests-tab-btn" onclick="showMyRequestsTab('my-machinery-requests-tab', this)">Техника</button>
+                        <button class="my-requests-tab-btn" onclick="showMyRequestsTab('my-material-ads-tab', this)">Материалы</button>
+                    </div>
+
+                    <div id="my-work-requests-tab" class="my-requests-tab-content active">
+                        <div id="myWorkRequestsList"></div>
+                    </div>
+                    <div id="my-machinery-requests-tab" class="my-requests-tab-content">
+                        <div id="myMachineryRequestsList"></div>
+                    </div>
+                    <div id="my-material-ads-tab" class="my-requests-tab-content">
+                        <div id="myMaterialAdsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div> <div id="cityModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="hideCityModal()">&times;</span> 
+            <h2>Выберите город</h2>
+            <select id="citySelect"></select>
+            <button class="primary" onclick="selectCity()">Выбрать</button>
+        </div>
+    </div>
+    
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="hideAuthModal()">&times;</span>
+            <h2 id="authTitle">Вход</h2>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <label for="loginEmail">Email:</label>
+                <input type="email" id="loginEmail" required>
+
+                <label for="loginPassword">Пароль:</label>
+                <input type="password" id="loginPassword" required>
+
+                <button type="submit" class="primary">Войти</button>
+                <p style="text-align:center; margin-top: 10px;">Нет аккаунта? <a href="#" onclick="showAuthModal('register'); return false;">Зарегистрироваться</a></p>
+            </form>
+
+            <form id="registerForm" onsubmit="handleRegister(event)" style="display:none;">
+                <label for="registerEmail">Email:</label>
+                <input type="email" id="registerEmail" required>
+
+                <label for="registerPassword">Пароль:</label>
+                <input type="password" id="registerPassword" required>
+                
+                <label for="registerPhone">Номер телефона:</label>
+                <input type="text" id="registerPhone" required>
+                
+                <label for="userType">Тип пользователя:</label>
+                <select id="userType" onchange="toggleSpecializationField()" required>
+                    <option value="">Выберите тип</option>
+                    <option value="ЗАКАЗЧИК">Заказчик</option>
+                    <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
+                </select>
+                
+                <div id="specializationField" style="display:none;">
+                    <label for="registerSpecialization">Специализация:</label>
+                    <select id="registerSpecialization"></select>
+                </div>
+                
+                <button type="submit" class="primary">Зарегистрироваться</button>
+                <p style="text-align:center; margin-top: 10px;">Уже есть аккаунт? <a href="#" onclick="showAuthModal('login'); return false;">Войти</a></p>
+            </form>
+        </div>
+    </div>
+    
+    <div id="postModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="hidePostModal()">&times;</span>
+            <h2 id="postTitle">Создать заявку/объявление</h2>
+            
+            <select id="postTypeSelect" onchange="changePostType()">
+                <option value="work">Заявка на работу</option>
+                <option value="machinery">Заявка на спецтехнику</option>
+                <option value="material">Объявление о материалах</option>
+            </select>
+
+            <form id="workRequestForm" onsubmit="postWorkRequest(event)">
+                <div class="form-group">
+                    <label for="wrDescription">Описание работы:</label>
+                    <textarea id="wrDescription" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="wrSpecialization">Требуемая специализация:</label>
+                    <select id="wrSpecialization" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="wrBudget">Бюджет (руб.):</label>
+                    <input type="number" id="wrBudget" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="wrContact">Контактная информация:</label>
+                    <input type="text" id="wrContact" required>
+                </div>
+                <div class="form-group">
+                    <label for="wrCity">Город:</label>
+                    <select id="wrCity" required></select>
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="wrPremium"> <label for="wrPremium" style="display:inline;">Премиум-заявка</label>
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="wrMasterVisit"> <label for="wrMasterVisit" style="display:inline;">Требуется выезд мастера</label>
+                </div>
+                <div class="form-group">
+                    <button type="submit">Разместить заявку</button>
+                </div>
+            </form>
+            
+            <form id="machineryRequestForm" onsubmit="postMachineryRequest(event)" style="display:none;">
+                <div class="form-group">
+                    <label for="mrType">Тип спецтехники:</label>
+                    <select id="mrType" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="mrDescription">Описание / характеристики:</label>
+                    <textarea id="mrDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="mrPrice">Цена аренды (руб./час):</label>
+                    <input type="number" id="mrPrice" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="mrContact">Контактная информация:</label>
+                    <input type="text" id="mrContact" required>
+                </div>
+                <div class="form-group">
+                    <label for="mrCity">Город:</label>
+                    <select id="mrCity" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="mrDate">Дата аренды:</label>
+                    <input type="date" id="mrDate">
+                </div>
+                <div class="form-group">
+                    <label for="mrHours">Мин. часов аренды:</label>
+                    <input type="number" id="mrHours" value="4" required>
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="mrDelivery"> <label for="mrDelivery" style="display:inline;">С доставкой</label>
+                </div>
+                <div class="form-group">
+                    <label for="mrDeliveryAddress">Адрес доставки (если с доставкой):</label>
+                    <input type="text" id="mrDeliveryAddress">
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="mrPremium"> <label for="mrPremium" style="display:inline;">Премиум-объявление</label>
+                </div>
+                <div class="form-group">
+                    <button type="submit">Разместить заявку</button>
+                </div>
+            </form>
+            
+            <form id="materialAdForm" onsubmit="postMaterialAd(event)" style="display:none;">
+                <div class="form-group">
+                    <label for="maType">Тип материала:</label>
+                    <select id="maType" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="maDescription">Описание/характеристики:</label>
+                    <textarea id="maDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="maPrice">Цена (руб.):</label>
+                    <input type="number" id="maPrice" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="maContact">Контактная информация:</label>
+                    <input type="text" id="maContact" required>
+                </div>
+                <div class="form-group">
+                    <label for="maCity">Город:</label>
+                    <select id="maCity" required></select>
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="maPremium"> <label for="maPremium" style="display:inline;">Премиум-объявление</label>
+                </div>
+                <div class="form-group">
+                    <button type="submit">Разместить объявление</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="subscribeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="document.getElementById('subscribeModal').style.display = 'none'">&times;</span>
+            <h2>Премиум-подписка</h2>
+            <p>Станьте премиум-пользователем, чтобы:</p>
+            <ul>
+                <li>Размещать до 5 премиум-заявок (они выделяются).</li>
+                <li>Получить значок верификации (после проверки).</li>
+            </ul>
+            <button class="primary" onclick="activatePremium()">Активировать Премиум (бесплатно)</button>
+        </div>
+    </div>
+
+
+    <button class="add-post-btn" id="addPostBtn" onclick="showPostModal()" style="display:none;">+</button>
+
+    <div class="bottom-contacts">
+        <p>Связь с администрацией:</p>
+        <div>
+            <a id="bb-telegram" href="#" target="_blank"><i class="fab fa-telegram-plane"></i></a>
+            <a id="bb-whatsapp" href="#" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a id="bb-forum" href="#" target="_blank"><i class="fas fa-comments"></i></a>
+        </div>
+        <p style="margin-top: 15px;">&copy; 2024 СМЗ.РФ</p>
     </div>
 
     <script>
-        const API_URL = "/api";
-        let accessToken = null;
-        let selectedCityId = null;
-        let currentUser = null;
+        const API_URL = '/api';
+        let accessToken = localStorage.getItem('accessToken');
+        let currentCityId = localStorage.getItem('currentCityId') || 1; 
+        let currentCityName = localStorage.getItem('currentCityName') || 'Москва';
+        let userProfile = null;
+        let CITIES_LIST = [];
+        let SPECIALIZATIONS_LIST = [];
+        let MACHINERY_TYPES_LIST = [];
+        let MATERIAL_TYPES_LIST = [];
+        
+        // Настройки контактов
+        const CONTACTS = {
+            telegram: 'smzrf_admin',
+            whatsapp: '79001234567',
+            forumUrl: '#'
+        };
 
-        function showPage(pageId) {
-            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-            const page = document.getElementById(pageId);
-            if (page) page.classList.add('active');
-
-            if (pageId === 'workRequestsPage') fetchWorkRequests();
-            if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
-            if (pageId === 'toolRequestsPage') fetchToolRequests(); // ДОБАВЛЕНО
-            if (pageId === 'materialAdsPage') fetchMaterialAds();
-            if (pageId === 'myRequestsPage') fetchMyRequests();
-            if (pageId === 'profilePage') fetchProfile();
-        }
-
-        async function fetchProfile() {
-            try {
-                const response = await fetch(`${API_URL}/users/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                });
-                if (response.ok) {
-                    currentUser = await response.json();
-                    updateProfilePage(currentUser);
-                } else {
-                    localStorage.removeItem('accessToken');
-                    accessToken = null;
-                    showPage('loginPage');
-                }
-            } catch (error) {
-                console.error('Ошибка при получении профиля:', error);
+        // --- ГЛОБАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН ---
+        // ИСПРАВЛЕНИЕ: Добавлены функции showCityModal и hideCityModal, 
+        // чтобы избежать Uncaught ReferenceError
+        
+        /**
+         * Отображает модальное окно выбора города.
+         */
+        function showCityModal() {
+            const modal = document.getElementById('cityModal');
+            if (modal) {
+                modal.style.display = 'flex'; 
+                fetchCities(); // Загрузка городов при открытии
             }
         }
 
-        function updateProfilePage(profile) {
-            const profileInfo = document.getElementById('profileInfo');
-            const editSpecializationForm = document.getElementById('editSpecializationForm');
-            profileInfo.innerHTML = `
-                <p><strong>Имя пользователя:</strong> ${profile.username || profile.email}</p>
-                <p><strong>Ваш email:</strong> ${profile.email}</p>
-                <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
-                <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>
-                <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
-            `;
-            if (!profile.is_premium) {
-                const subscribeBtn = document.createElement('button');
-                subscribeBtn.id = 'subscribeBtn';
-                subscribeBtn.textContent = 'Активировать премиум-подписку';
-                subscribeBtn.className = 'btn-primary';
-                subscribeBtn.onclick = async () => {
-                    const response = await fetch(`${API_URL}/subscribe/`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`
-                        }
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                        alert(data.message);
-                        fetchProfile();
-                    } else {
-                        alert(data.detail || 'Не удалось активировать премиум.');
-                    }
-                };
-                profileInfo.appendChild(subscribeBtn);
+        /**
+         * Скрывает модальное окно выбора города.
+         */
+        function hideCityModal() {
+            const modal = document.getElementById('cityModal');
+            if (modal) {
+                modal.style.display = 'none';
             }
-
-            if (profile.user_type === "ИСПОЛНИТЕЛЬ") {
-                const updateSpecializationBtn = document.createElement('button');
-                updateSpecializationBtn.id = 'updateSpecializationBtn';
-                updateSpecializationBtn.textContent = 'Обновить специализацию';
-                updateSpecializationBtn.className = 'btn-secondary';
-                updateSpecializationBtn.onclick = () => {
-                    editSpecializationForm.style.display = 'block';
-                };
-                profileInfo.appendChild(updateSpecializationBtn);
+        }
+        
+        function showAuthModal(mode = 'login') {
+            document.getElementById('authModal').style.display = 'flex';
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const title = document.getElementById('authTitle');
+            
+            if (mode === 'register') {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                title.textContent = 'Регистрация';
+                fetchSpecializations(document.getElementById('registerSpecialization'));
+            } else {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                title.textContent = 'Вход';
             }
         }
 
-        function renderRequests(containerId, items, type) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            if (!items || items.length === 0) {
-                container.innerHTML = '<p>Ничего не найдено.</p>';
+        function hideAuthModal() {
+            document.getElementById('authModal').style.display = 'none';
+        }
+
+        function showPostModal() {
+            if (!accessToken) {
+                alert("Пожалуйста, войдите, чтобы создать заявку или объявление.");
+                showAuthModal();
                 return;
             }
-            items.forEach(req => {
-                const item = document.createElement('div');
-                item.className = 'request-item';
-                let title = '';
-                if (type === 'work') title = `Заявка #${req.id}`;
-                if (type === 'machinery') title = `${req.machinery_type} #${req.id}`;
-                if (type === 'tool') title = `${req.tool_name} #${req.id}`;
-                if (type === 'material') title = `${req.material_type || 'Материал'} — #${req.id}`;
+            document.getElementById('postModal').style.display = 'flex';
+        }
 
-                let content = `<h4>${title}</h4>`;
-                content += `<p>${req.description || ''}</p>`;
-                if (req.budget) content += `<p><strong>Бюджет:</strong> ${req.budget}</p>`;
-                if (req.price) content += `<p><strong>Цена:</strong> ${req.price}</p>`;
-                if (req.rental_price) content += `<p><strong>Цена аренды:</strong> ${req.rental_price}</p>`;
-                if (req.contact_info) content += `<p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
-                if (req.is_premium) content += `<p class="premium">Премиум-заявка</p>`;
-                if (req.status === 'В РАБОТЕ') content += `<p class="taken" style="color: green;">Заявка принята в работу</p>`;
-                if (type === 'work' && req.status === 'active') { // Проверяем статус 'active'
-                    content += `<button class="take-btn" onclick="takeOrder(${req.id})">Взять в работу</button>`;
+        function hidePostModal() {
+            document.getElementById('postModal').style.display = 'none';
+        }
+        
+        function toggleSpecializationField() {
+            const userType = document.getElementById('userType').value;
+            const field = document.getElementById('specializationField');
+            if (userType === 'ИСПОЛНИТЕЛЬ') {
+                field.style.display = 'block';
+                fetchSpecializations(document.getElementById('registerSpecialization'));
+            } else {
+                field.style.display = 'none';
+            }
+        }
+        
+        function changePostType() {
+            const type = document.getElementById('postTypeSelect').value;
+            document.getElementById('workRequestForm').style.display = type === 'work' ? 'block' : 'none';
+            document.getElementById('machineryRequestForm').style.display = type === 'machinery' ? 'block' : 'none';
+            document.getElementById('materialAdForm').style.display = type === 'material' ? 'block' : 'none';
+            document.getElementById('postTitle').textContent = 
+                type === 'work' ? 'Создать заявку на работу' : 
+                type === 'machinery' ? 'Создать заявку на спецтехнику' : 
+                'Создать объявление о материалах';
+        }
+
+        // --- FETCHING DATA ---
+        
+        async function fetchAPI(url, options = {}) {
+            try {
+                const res = await fetch(url, options);
+                return { res, data: res.ok ? await res.json() : await res.json().catch(() => ({ detail: res.statusText })) };
+            } catch (error) {
+                console.error("Fetch error:", error);
+                return { res: { ok: false, status: 500 }, data: { detail: 'Ошибка соединения с сервером.' } };
+            }
+        }
+        
+        async function fetchCities(selectElementId = 'citySelect') {
+            const selectEl = document.getElementById(selectElementId);
+            if (CITIES_LIST.length === 0) {
+                const { res, data } = await fetchAPI(`${API_URL}/cities/`);
+                if (res.ok) {
+                    CITIES_LIST = data;
+                } else {
+                    console.error("Ошибка загрузки городов:", data.detail);
                 }
-                item.innerHTML = content;
-                container.appendChild(item);
+            }
+
+            // Заполняем все <select> элементы с ID, начинающимся на 'city'
+            document.querySelectorAll('select[id*="City"]').forEach(select => {
+                select.innerHTML = '';
+                CITIES_LIST.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city.id;
+                    option.textContent = city.name;
+                    select.appendChild(option);
+                });
+                
+                // Установка текущего выбранного города
+                select.value = currentCityId;
+            });
+
+            // Обновляем кнопку в шапке
+            document.getElementById('currentCityName').textContent = currentCityName;
+        }
+        
+        async function fetchSpecializations(selectEl) {
+            if (SPECIALIZATIONS_LIST.length === 0) {
+                const { res, data } = await fetchAPI(`${API_URL}/specializations/`);
+                if (res.ok) {
+                    SPECIALIZATIONS_LIST = data;
+                } else {
+                    console.error("Ошибка загрузки специализаций:", data.detail);
+                }
+            }
+
+            if (selectEl) {
+                selectEl.innerHTML = '';
+                SPECIALIZATIONS_LIST.forEach(spec => {
+                    const option = document.createElement('option');
+                    option.value = spec;
+                    option.textContent = spec;
+                    selectEl.appendChild(option);
+                });
+            }
+        }
+
+        async function fetchMachineryTypes() {
+            if (MACHINERY_TYPES_LIST.length === 0) {
+                const { res, data } = await fetchAPI(`${API_URL}/machinery_types/`);
+                if (res.ok) {
+                    MACHINERY_TYPES_LIST = data;
+                } else {
+                    console.error("Ошибка загрузки типов техники:", data.detail);
+                }
+            }
+            const selectEl = document.getElementById('mrType');
+            selectEl.innerHTML = '';
+            MACHINERY_TYPES_LIST.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                selectEl.appendChild(option);
+            });
+        }
+        
+        async function fetchMaterialTypes() {
+             if (MATERIAL_TYPES_LIST.length === 0) {
+                const { res, data } = await fetchAPI(`${API_URL}/material_types/`);
+                if (res.ok) {
+                    MATERIAL_TYPES_LIST = data;
+                } else {
+                    console.error("Ошибка загрузки типов материалов:", data.detail);
+                }
+            }
+            const selectEl = document.getElementById('maType');
+            selectEl.innerHTML = '';
+            MATERIAL_TYPES_LIST.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                selectEl.appendChild(option);
+            });
+        }
+        
+        async function fetchAllInitialData() {
+            await fetchCities();
+            await fetchSpecializations(document.getElementById('wrSpecialization'));
+            await fetchMachineryTypes();
+            await fetchMaterialTypes();
+            
+            // Заполнение специализаций в форме регистрации и профиле
+            fetchSpecializations(document.getElementById('registerSpecialization'));
+            fetchSpecializations(document.getElementById('newSpecialization'));
+        }
+
+
+        // --- RENDERING LISTS ---
+        
+        function renderWorkRequests(requests) {
+            const container = document.getElementById('workRequestsList');
+            container.innerHTML = '';
+            if (requests.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">Заявок на работу в этом городе нет.</p>';
+                return;
+            }
+            requests.forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                const city = CITIES_LIST.find(c => c.id === req.city_id);
+                
+                card.innerHTML = `
+                    <h3>${req.specialization || 'Работа без специализации'} ${req.is_premium ? '<span class="badge">PREMIUM</span>' : ''}</h3>
+                    <p>${req.description}</p>
+                    <div class="details">
+                        <span>Бюджет: <strong>${req.budget.toFixed(2)} руб.</strong></span>
+                        <span>Город: ${city ? city.name : 'Неизвестно'}</span>
+                        <span>Статус: ${req.status}</span>
+                    </div>
+                    ${userProfile && userProfile.user_type === 'ИСПОЛНИТЕЛЬ' ? 
+                        `<button class="contact-button" onclick="takeWorkRequest(${req.id})">Взять в работу</button>` : 
+                        `<button class="contact-button" onclick="showContactInfo('${req.contact_info}')">Показать контакты</button>`
+                    }
+                `;
+                container.appendChild(card);
             });
         }
 
-        async function takeOrder(requestId) {
-            const takeOrderStatus = document.getElementById('takeOrderStatus');
-            try {
-                const response = await fetch(`${API_URL}/work_requests/${requestId}/take`, {
-                    method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    takeOrderStatus.textContent = 'Заявка успешно принята!';
-                    takeOrderStatus.className = 'message success';
-                    fetchWorkRequests();
-                } else {
-                    takeOrderStatus.textContent = data.detail || 'Не удалось принять заявку.';
-                    takeOrderStatus.className = 'message error';
+        function renderMachineryRequests(requests) {
+            const container = document.getElementById('machineryRequestsList');
+            container.innerHTML = '';
+            if (requests.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">Заявок на спецтехнику в этом городе нет.</p>';
+                return;
+            }
+            requests.forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                const city = CITIES_LIST.find(c => c.id === req.city_id);
+                
+                card.innerHTML = `
+                    <h3>${req.machinery_type} ${req.is_premium ? '<span class="badge">PREMIUM</span>' : ''}</h3>
+                    <p>${req.description || 'Нет описания'}</p>
+                    <div class="details">
+                        <span>Цена: <strong>${req.rental_price.toFixed(2)} руб./час</strong> (мин. ${req.min_rental_hours} ч.)</span>
+                        <span>Город: ${city ? city.name : 'Неизвестно'}</span>
+                        ${req.has_delivery ? '<span>С доставкой</span>' : '<span>Самовывоз</span>'}
+                        ${req.rental_date ? `<span>Дата: ${new Date(req.rental_date).toLocaleDateString()}</span>` : ''}
+                    </div>
+                    ${userProfile && userProfile.user_type === 'ИСПОЛНИТЕЛЬ' ? 
+                        `<button class="contact-button" onclick="alert('TODO: takeMachineryRequest')">Взять в работу</button>` : 
+                        `<button class="contact-button" onclick="showContactInfo('${req.contact_info}')">Показать контакты</button>`
+                    }
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderMaterialAds(ads) {
+            const container = document.getElementById('materialAdsList');
+            container.innerHTML = '';
+            if (ads.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">Объявлений о материалах в этом городе нет.</p>';
+                return;
+            }
+            ads.forEach(ad => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                const city = CITIES_LIST.find(c => c.id === ad.city_id);
+                
+                card.innerHTML = `
+                    <h3>${ad.material_type} ${ad.is_premium ? '<span class="badge">PREMIUM</span>' : ''}</h3>
+                    <p>${ad.description || 'Нет описания'}</p>
+                    <div class="details">
+                        <span>Цена: <strong>${ad.price.toFixed(2)} руб.</strong></span>
+                        <span>Город: ${city ? city.name : 'Неизвестно'}</span>
+                    </div>
+                    <button class="contact-button" onclick="showContactInfo('${ad.contact_info}')">Показать контакты</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- FETCHING LISTS ---
+
+        async function fetchWorkRequests() {
+            const { res, data } = await fetchAPI(`${API_URL}/work_requests/${currentCityId ? '?city_id=' + currentCityId : ''}`);
+            if (res.ok) {
+                renderWorkRequests(data);
+            } else {
+                renderWorkRequests([]);
+                console.error("Ошибка загрузки заявок на работу:", data.detail);
+            }
+        }
+
+        async function fetchMachineryRequests() {
+            const { res, data } = await fetchAPI(`${API_URL}/machinery_requests/${currentCityId ? '?city_id=' + currentCityId : ''}`);
+            if (res.ok) {
+                renderMachineryRequests(data);
+            } else {
+                renderMachineryRequests([]);
+                console.error("Ошибка загрузки заявок на технику:", data.detail);
+            }
+        }
+
+        async function fetchMaterialAds() {
+            const { res, data } = await fetchAPI(`${API_URL}/material_ads/${currentCityId ? '?city_id=' + currentCityId : ''}`);
+            if (res.ok) {
+                renderMaterialAds(data);
+            } else {
+                renderMaterialAds([]);
+                console.error("Ошибка загрузки объявлений о материалах:", data.detail);
+            }
+        }
+        
+        async function fetchMyRequests(endpoint, renderFn, listId) {
+            const container = document.getElementById(listId);
+            container.innerHTML = 'Загрузка...';
+            const { res, data } = await fetchAPI(`${API_URL}/my/${endpoint}`, { 
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            
+            if (res.ok) {
+                if (data.length === 0) {
+                    container.innerHTML = '<p>Объявлений/заявок пока нет.</p>';
+                    return;
                 }
-            } catch (error) {
-                takeOrderStatus.textContent = 'Ошибка соединения.';
-                takeOrderStatus.className = 'message error';
-            }
-        }
-
-        async function fetchAndRenderGeneric(endpoint, listId, type) {
-            const listContainer = document.getElementById(listId);
-            listContainer.innerHTML = '<p>Загрузка...</p>';
-            let url = `${API_URL}${endpoint}`;
-            if (selectedCityId) {
-                url += `?city_id=${selectedCityId}`;
-            }
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                renderRequests(listId, data, type);
-            } catch (error) {
-                listContainer.innerHTML = '<p>Не удалось загрузить данные.</p>';
-            }
-        }
-        
-        async function fetchWorkRequests() { await fetchAndRenderGeneric('/work_requests/', 'workRequestsList', 'work'); }
-        async function fetchMachineryRequests() { await fetchAndRenderGeneric('/machinery_requests/', 'machineryRequestsList', 'machinery'); }
-        async function fetchToolRequests() { await fetchAndRenderGeneric('/tool_requests/', 'toolRequestsList', 'tool'); } // ДОБАВЛЕНО
-        async function fetchMaterialAds() { await fetchAndRenderGeneric('/material_ads/', 'materialAdsList', 'material'); }
-
-        // ИСПРАВЛЕНИЕ: Добавлен запрос и рендеринг заявок на инструмент
-        async function fetchMyRequests() {
-            const headers = { 'Authorization': `Bearer ${accessToken}` };
-            const w = document.getElementById('myWorkRequestsList');
-            const m = document.getElementById('myMachineryRequestsList');
-            const t = document.getElementById('myToolRequestsList'); // ДОБАВЛЕНО
-            const a = document.getElementById('myMaterialAdsList');
-            w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Загрузка...</p>'; // ДОБАВЛЕНО
-            try {
-                const [rw, rm, rt, ra] = await Promise.all([ // ДОБАВЛЕНО
-                    fetch(`${API_URL}/my/work_requests`, { headers }).then(r => r.json()),
-                    fetch(`${API_URL}/my/machinery_requests`, { headers }).then(r => r.json()),
-                    fetch(`${API_URL}/my/tool_requests`, { headers }).then(r => r.json()), // ДОБАВЛЕНО
-                    fetch(`${API_URL}/my/material_ads`, { headers }).then(r => r.json()),
-                ]);
-                renderRequests('myWorkRequestsList', rw, 'work');
-                renderRequests('myMachineryRequestsList', rm, 'machinery');
-                renderRequests('myToolRequestsList', rt, 'tool'); // ДОБАВЛЕНО
-                renderRequests('myMaterialAdsList', ra, 'material');
-            } catch (e) {
-                w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Ошибка загрузки.</p>'; // ДОБАВЛЕНО
+                container.innerHTML = '';
+                // Повторно используем функции рендеринга, но без кнопок "Взять в работу"
+                data.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    const city = CITIES_LIST.find(c => c.id === item.city_id);
+                    
+                    let innerHTML = '';
+                    if (endpoint === 'work_requests') {
+                        innerHTML = `
+                            <h3>${item.specialization} ${item.is_premium ? '<span class="badge">PREMIUM</span>' : ''}</h3>
+                            <p>${item.description}</p>
+                            <div class="details">
+                                <span>Бюджет: <strong>${item.budget.toFixed(2)} руб.</strong></span>
+                                <span>Город: ${city ? city.name : 'Неизвестно'}</span>
+                                <span>Статус: <strong>${item.status}</strong></span>
+                                ${item.executor_id ? `<span>Исполнитель ID: ${item.executor_id}</span>` : ''}
+                            </div>
+                        `;
+                    } else if (endpoint === 'machinery_requests') {
+                        innerHTML = `
+                            <h3>${item.machinery_type} ${item.is_premium ? '<span class="badge">PREMIUM</span>' : ''}</h3>
+                            <p>${item.description || 'Нет описания'}</p>
+                            <div class="details">
+                                <span>Цена: <strong>${item.rental_price.toFixed(2)} руб./час</strong></span>
+                                <span>Город: ${city ? city.name : 'Неизвестно'}</span>
+                                <span>Статус: <strong>${item.status}</strong></span>
+                            </div>
+                        `;
+                    } else if (endpoint === 'material_ads') {
+                        innerHTML = `
+                            <h3>${item.material_type} ${item.is_premium ? '<span class="badge">PREMIUM</span>' : ''}</h3>
+                            <p>${item.description || 'Нет описания'}</p>
+                            <div class="details">
+                                <span>Цена: <strong>${item.price.toFixed(2)} руб.</strong></span>
+                                <span>Город: ${city ? city.name : 'Неизвестно'}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    card.innerHTML = innerHTML;
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = `<p>Ошибка загрузки: ${data.detail || 'Неизвестная ошибка'}</p>`;
             }
         }
         
-        document.getElementById('registerUserType').addEventListener('change', (e) => {
-            document.getElementById('specializationGroup').style.display = e.target.value === 'ИСПОЛНИТЕЛЬ' ? 'block' : 'none';
-        });
+        function showMyRequestsTab(tabId, button) {
+            document.querySelectorAll('.my-requests-tab-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            document.querySelectorAll('.my-requests-tab-content').forEach(content => content.style.display = 'none');
+            document.getElementById(tabId).style.display = 'block';
 
-        document.getElementById('hasDelivery').addEventListener('change', (e) => {
-            document.getElementById('deliveryAddressGroup').style.display = e.target.checked ? 'block' : 'none';
-        });
+            if (tabId === 'my-work-requests-tab') fetchMyRequests('work_requests', renderWorkRequests, 'myWorkRequestsList');
+            if (tabId === 'my-machinery-requests-tab') fetchMyRequests('machinery_requests', renderMachineryRequests, 'myMachineryRequestsList');
+            if (tabId === 'my-material-ads-tab') fetchMyRequests('material_ads', renderMaterialAds, 'myMaterialAdsList');
+        }
+
+
+        // --- ACTION HANDLERS ---
         
-        document.getElementById('machineryHasDelivery').addEventListener('change', (e) => {
-            document.getElementById('machineryDeliveryAddressGroup').style.display = e.target.checked ? 'block' : 'none';
-        });
+        async function handleRegister(event) {
+            event.preventDefault();
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const phone = document.getElementById('registerPhone').value;
+            const userType = document.getElementById('userType').value;
+            const specialization = userType === 'ИСПОЛНИТЕЛЬ' ? document.getElementById('registerSpecialization').value : null;
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+            if (userType === 'ИСПОЛНИТЕЛЬ' && !specialization) {
+                alert('Пожалуйста, выберите специализацию.');
+                return;
+            }
+            
+            const { res, data } = await fetchAPI(`${API_URL}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, phone_number: phone, user_type: userType, specialization })
+            });
+
+            if (res.ok) {
+                alert('Регистрация успешна. Теперь войдите в систему.');
+                showAuthModal('login');
+            } else {
+                alert(`Ошибка регистрации: ${data.detail || 'Неизвестная ошибка'}`);
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
-            const statusEl = document.getElementById('loginStatus');
-            const formData = new URLSearchParams();
-            formData.append('username', email);
-            formData.append('password', password);
 
-            try {
-                const response = await fetch(`${API_URL}/token`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formData.toString()
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    accessToken = data.access_token;
-                    localStorage.setItem('accessToken', accessToken);
-                    statusEl.textContent = 'Успешный вход!';
-                    statusEl.className = 'message success';
-                    setTimeout(() => showPage('buttonContainer'), 500);
-                } else {
-                    statusEl.textContent = data.detail || 'Неверные учетные данные.';
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Ошибка соединения.';
-                statusEl.className = 'message error';
-            }
-        });
+            const form = new URLSearchParams();
+            form.append('username', email); // FastAPI ожидает email в поле 'username'
+            form.append('password', password);
 
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            // ИСПРАВЛЕНИЕ: `registerPhone` изменен на `registerPhoneNumber`
-            const phone = document.getElementById('registerPhoneNumber').value; 
-            const payload = {
-                email: document.getElementById('registerEmail').value,
-                password: document.getElementById('registerPassword').value,
-                phone_number: phone,
-                user_type: document.getElementById('registerUserType').value,
-                specialization: document.getElementById('registerUserType').value === 'ИСПОЛНИТЕЛЬ' ? document.getElementById('registerSpecialization').value : null
-            };
-            const statusEl = document.getElementById('registerStatus');
-            try {
-                const response = await fetch(`${API_URL}/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Регистрация успешна! Теперь войдите.';
-                    statusEl.className = 'message success';
-                    setTimeout(() => showPage('loginPage'), 2000);
-                } else {
-                    statusEl.textContent = `Ошибка: ${data.detail}`;
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при регистрации.';
-                statusEl.className = 'message error';
-            }
-        });
+            const { res, data } = await fetchAPI(`${API_URL}/token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: form.toString()
+            });
 
-        document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('workRequestStatus');
-            const workRequestData = {
-                description: document.getElementById('workDescription').value,
-                specialization: document.getElementById('workSpecialization').value,
-                budget: parseFloat(document.getElementById('workBudget').value),
-                contact_info: document.getElementById('workContact').value,
-                city_id: selectedCityId,
-                is_premium: false, // ИСПРАВЛЕНИЕ: Убрано обращение к несуществующему элементу
-                is_master_visit_required: document.getElementById('isMasterVisitRequired').checked
-            };
-            try {
-                const response = await fetch(`${API_URL}/work_requests/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}`},
-                    body: JSON.stringify(workRequestData)
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Заявка успешно размещена!'; statusEl.className = 'message success'; e.target.reset();
-                } else {
-                    statusEl.textContent = data.detail || 'Ошибка размещения.'; statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.'; statusEl.className = 'message error';
+            if (res.ok) {
+                localStorage.setItem('accessToken', data.access_token);
+                accessToken = data.access_token;
+                hideAuthModal();
+                updateUI();
+                fetchProfile();
+            } else {
+                alert(`Ошибка входа: ${data.detail || 'Неверный email или пароль'}`);
             }
-        });
-
-        document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('machineryRequestStatus');
-            const hasDelivery = document.getElementById('machineryHasDelivery').checked;
-            const deliveryAddress = document.getElementById('machineryDeliveryAddress').value;
-            const machineryRequestData = {
-                machinery_type: document.getElementById('machineryType').value,
-                description: document.getElementById('machineryDescription').value,
-                rental_date: document.getElementById('machineryRentalDate').value || null,
-                min_rental_hours: parseInt(document.getElementById('machineryMinHours').value),
-                rental_price: parseFloat(document.getElementById('machineryRentalPrice').value),
-                contact_info: document.getElementById('machineryContact').value,
-                city_id: selectedCityId,
-                is_premium: false, // ИСПРАВЛЕНИЕ: Убрано обращение к несуществующему элементу
-                has_delivery: hasDelivery, 
-                delivery_address: hasDelivery ? deliveryAddress : null,
-            };
-            try {
-                const response = await fetch(`${API_URL}/machinery_requests/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                    body: JSON.stringify(machineryRequestData)
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Заявка на спецтехнику успешно размещена!'; statusEl.className = 'message success'; e.target.reset();
-                } else {
-                    statusEl.textContent = data.detail || 'Ошибка размещения.'; statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.'; statusEl.className = 'message error';
-            }
-        });
-
-        // ДОБАВЛЕН недостающий обработчик формы для инструментов
-        document.getElementById('toolRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('toolRequestStatus');
-            const hasDelivery = document.getElementById('hasDelivery').checked;
-            const deliveryAddress = document.getElementById('deliveryAddress').value;
-            const toolRequestData = {
-                tool_name: document.getElementById('toolName').value,
-                description: document.getElementById('toolDescription').value,
-                rental_price: parseFloat(document.getElementById('toolRentalPrice').value),
-                contact_info: document.getElementById('toolContact').value,
-                city_id: selectedCityId,
-                count: parseInt(document.getElementById('toolCount').value),
-                rental_start_date: document.getElementById('toolRentalStartDate').value || null,
-                rental_end_date: document.getElementById('toolRentalEndDate').value || null,
-                has_delivery: hasDelivery,
-                delivery_address: hasDelivery ? deliveryAddress : null
-            };
-            try {
-                const response = await fetch(`${API_URL}/tool_requests/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                    body: JSON.stringify(toolRequestData)
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Заявка на инструмент успешно размещена!';
-                    statusEl.className = 'message success';
-                    e.target.reset();
-                } else {
-                    statusEl.textContent = data.detail || 'Ошибка размещения.';
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
-                statusEl.className = 'message error';
-            }
-        });
-        
-        document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('materialAdStatus');
-            const materialAdData = {
-                material_type: document.getElementById('materialType').value,
-                description: document.getElementById('materialDescription').value,
-                price: parseFloat(document.getElementById('materialPrice').value),
-                contact_info: document.getElementById('materialContact').value,
-                city_id: selectedCityId,
-                is_premium: false // ИСПРАВЛЕНИЕ: Убрано обращение к несуществующему элементу
-            };
-            try {
-                const response = await fetch(`${API_URL}/material_ads/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                    body: JSON.stringify(materialAdData)
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Объявление успешно размещено!'; statusEl.className = 'message success'; e.target.reset();
-                } else {
-                    statusEl.textContent = data.detail || 'Ошибка размещения.'; statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.'; statusEl.className = 'message error';
-            }
-        });
-
-        // Загрузка справочников
-        async function loadDirectory(endpoint, selectors) {
-            try {
-                const response = await fetch(`${API_URL}${endpoint}/`);
-                const items = await response.json();
-                document.querySelectorAll(selectors).forEach(selectElement => {
-                    if (!selectElement) return;
-                    selectElement.innerHTML = '';
-                    items.forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = item; option.textContent = item;
-                        selectElement.appendChild(option);
-                    });
-                });
-            } catch (error) { console.error(`Ошибка при загрузке ${selectors}:`, error); }
         }
 
-        // Инициализация
-        window.addEventListener('DOMContentLoaded', async () => {
-            accessToken = localStorage.getItem('accessToken');
-            await Promise.all([
-                loadDirectory('/specializations', '#registerSpecialization, #workSpecialization, #newSpecialization'), 
-                loadDirectory('/machinery_types', '#machineryType'),
-                loadDirectory('/tools_list', '#toolName'), // ДОБАВЛЕНО
-                loadDirectory('/material_types', '#materialType') // ДОБАВЛЕНО
-            ]);
-            showPage(accessToken ? 'buttonContainer' : 'loginPage');
-        });
-
-        // --- Bottom bar links setup ---
-        (function() {
-          const CONTACTS = { telegram: "your_channel_or_username", whatsapp: "79990000000", forumUrl: "/forum" };
-          const tg = document.getElementById('bb-telegram');
-          const wa = document.getElementById('bb-whatsapp');
-          const fo = document.getElementById('bb-forum');
-          if (tg && CONTACTS.telegram) tg.href = `https://t.me/${CONTACTS.telegram}`;
-          if (wa && CONTACTS.whatsapp) wa.href = `https://wa.me/${CONTACTS.whatsapp}`;
-          if (fo && CONTACTS.forumUrl) fo.href = CONTACTS.forumUrl;
-        })();
-
-        // --- Save specialization handler ---
-        (function() {
-          const saveBtn = document.getElementById('saveSpecializationBtn');
-          if (saveBtn) {
-            saveBtn.addEventListener('click', async () => {
-              const sel = document.getElementById('newSpecialization');
-              if (!sel || !sel.value) return;
-              try {
-                const res = await fetch(`${API_URL}/update_specialization/?specialization=${encodeURIComponent(sel.value)}`, {
-                  method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await res.json();
-                if (res.ok) {
-                  alert('Специализация обновлена');
-                  document.getElementById('editSpecializationForm').style.display = 'none';
-                  fetchProfile && fetchProfile();
-                } else {
-                  alert(data.detail || 'Ошибка обновления');
-                }
-              } catch(e) { alert('Ошибка соединения'); }
+        function logout() {
+            localStorage.removeItem('accessToken');
+            accessToken = null;
+            userProfile = null;
+            updateUI();
+            changeTab('work-requests', document.querySelector('.tab-button.active') || document.querySelector('.tab-button'));
+        }
+        
+        async function fetchProfile() {
+            if (!accessToken) return;
+            
+            const { res, data } = await fetchAPI(`${API_URL}/users/me`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
             });
-          }
-        })();
+
+            if (res.ok) {
+                userProfile = data;
+                document.getElementById('profileEmail').textContent = userProfile.email;
+                document.getElementById('profilePhone').textContent = userProfile.phone_number;
+                document.getElementById('profileSpecialization').textContent = userProfile.specialization || 'Не указана';
+                document.getElementById('userTypeBadge').textContent = userProfile.user_type;
+                
+                const statusEl = document.getElementById('profileStatus');
+                statusEl.className = 'status-badge';
+                if (userProfile.is_premium) {
+                    statusEl.textContent = 'PREMIUM';
+                    statusEl.classList.add('premium');
+                } else if (userProfile.is_verified) {
+                     statusEl.textContent = 'Верифицирован';
+                     statusEl.classList.add('verified');
+                } else {
+                     statusEl.textContent = 'Обычный';
+                }
+            } else {
+                // Токен невалиден
+                logout();
+            }
+        }
+
+        function updateUI() {
+            const loggedIn = !!accessToken;
+            document.getElementById('authBtn').style.display = loggedIn ? 'none' : 'block';
+            document.getElementById('logoutBtn').style.display = loggedIn ? 'block' : 'none';
+            document.getElementById('profile-tab-btn').style.display = loggedIn ? 'block' : 'none';
+            document.getElementById('addPostBtn').style.display = loggedIn ? 'block' : 'none';
+            document.getElementById('loginMessage').style.display = loggedIn ? 'none' : 'block';
+            
+            if (loggedIn) {
+                fetchProfile();
+            }
+        }
+        
+        function selectCity() {
+            const select = document.getElementById('citySelect');
+            currentCityId = parseInt(select.value);
+            currentCityName = select.options[select.selectedIndex].textContent;
+            
+            localStorage.setItem('currentCityId', currentCityId);
+            localStorage.setItem('currentCityName', currentCityName);
+            
+            document.getElementById('currentCityName').textContent = currentCityName;
+            
+            hideCityModal();
+            // Перезагрузка текущего таба для обновления списка
+            const activeTabId = document.querySelector('.tab-content.active').id;
+            changeTab(activeTabId, document.querySelector('.tab-button.active'));
+        }
+
+        function changeTab(tabId, button) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Загрузка данных для выбранного таба
+            if (tabId === 'work-requests') fetchWorkRequests();
+            if (tabId === 'machinery-requests') fetchMachineryRequests();
+            if (tabId === 'material-ads') fetchMaterialAds();
+            if (tabId === 'profile' && accessToken) fetchProfile();
+        }
+
+        function showContactInfo(info) {
+            alert(`Контактная информация: ${info}`);
+        }
+        
+        // --- POSTING REQUESTS ---
+        
+        async function postWorkRequest(event) {
+            event.preventDefault();
+            
+            // ИСПРАВЛЕНИЕ 422: Убеждаемся, что все поля отправлены с правильным типом.
+            const data = {
+                description: document.getElementById('wrDescription').value,
+                specialization: document.getElementById('wrSpecialization').value,
+                budget: parseFloat(document.getElementById('wrBudget').value), // ПАРСИМ ЧИСЛО
+                contact_info: document.getElementById('wrContact').value,
+                city_id: parseInt(document.getElementById('wrCity').value),    // ПАРСИМ ЧИСЛО
+                is_premium: document.getElementById('wrPremium').checked,      // BOOLEAN
+                is_master_visit_required: document.getElementById('wrMasterVisit').checked // BOOLEAN
+            };
+            
+            // Проверка, что бюджет является числом
+            if (isNaN(data.budget)) {
+                alert("Пожалуйста, введите корректный бюджет.");
+                return;
+            }
+
+            const { res, result } = await fetchAPI(`${API_URL}/work_requests/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                alert("Заявка на работу успешно размещена!");
+                hidePostModal();
+                fetchWorkRequests(); // Обновление списка
+            } else {
+                alert(`Ошибка размещения заявки: ${result.detail || 'Неизвестная ошибка'}`);
+                console.error(result);
+            }
+        }
+        
+        async function postMachineryRequest(event) {
+            event.preventDefault();
+            
+            // ИСПРАВЛЕНИЕ: Убеждаемся, что все поля отправлены с правильным типом.
+            const data = {
+                machinery_type: document.getElementById('mrType').value,
+                description: document.getElementById('mrDescription').value,
+                rental_price: parseFloat(document.getElementById('mrPrice').value),
+                contact_info: document.getElementById('mrContact').value,
+                city_id: parseInt(document.getElementById('mrCity').value),
+                is_premium: document.getElementById('mrPremium').checked,
+                
+                // Новые поля
+                rental_date: document.getElementById('mrDate').value || null, // Отправляем строку или null
+                min_rental_hours: parseInt(document.getElementById('mrHours').value),
+                has_delivery: document.getElementById('mrDelivery').checked,
+                delivery_address: document.getElementById('mrDeliveryAddress').value || null
+            };
+            
+            if (isNaN(data.rental_price)) {
+                alert("Пожалуйста, введите корректную цену аренды.");
+                return;
+            }
+
+
+            const { res, result } = await fetchAPI(`${API_URL}/machinery_requests/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                alert("Заявка на спецтехнику успешно размещена!");
+                hidePostModal();
+                fetchMachineryRequests();
+            } else {
+                alert(`Ошибка размещения заявки: ${result.detail || 'Неизвестная ошибка'}`);
+                console.error(result);
+            }
+        }
+
+        async function postMaterialAd(event) {
+            event.preventDefault();
+            
+            const data = {
+                material_type: document.getElementById('maType').value,
+                description: document.getElementById('maDescription').value,
+                price: parseFloat(document.getElementById('maPrice').value),
+                contact_info: document.getElementById('maContact').value,
+                city_id: parseInt(document.getElementById('maCity').value),
+                is_premium: document.getElementById('maPremium').checked
+            };
+            
+            if (isNaN(data.price)) {
+                alert("Пожалуйста, введите корректную цену.");
+                return;
+            }
+
+            const { res, result } = await fetchAPI(`${API_URL}/material_ads/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                alert("Объявление о материалах успешно размещено!");
+                hidePostModal();
+                fetchMaterialAds();
+            } else {
+                alert(`Ошибка размещения объявления: ${result.detail || 'Неизвестная ошибка'}`);
+                console.error(result);
+            }
+        }
+
+        async function takeWorkRequest(requestId) {
+            if (!userProfile || userProfile.user_type !== 'ИСПОЛНИТЕЛЬ') {
+                alert("Взять заявку в работу может только пользователь с типом 'Исполнитель'.");
+                return;
+            }
+            if (!confirm(`Вы уверены, что хотите взять заявку #${requestId} в работу?`)) return;
+
+            const { res, data } = await fetchAPI(`${API_URL}/work_requests/${requestId}/take`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (res.ok) {
+                alert(data.message);
+                fetchWorkRequests(); // Обновляем список
+            } else {
+                alert(`Ошибка: ${data.detail || 'Неизвестная ошибка'}`);
+            }
+        }
+        
+        async function activatePremium() {
+             if (!confirm("Вы уверены, что хотите активировать Премиум?")) return;
+             
+             const { res, data } = await fetchAPI(`${API_URL}/subscribe/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (res.ok) {
+                alert(data.message);
+                document.getElementById('subscribeModal').style.display = 'none';
+                fetchProfile(); // Обновляем профиль
+            } else {
+                alert(`Ошибка: ${data.detail || 'Неизвестная ошибка'}`);
+            }
+        }
+
+        // --- INIT ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Инициализация данных при загрузке страницы
+            fetchAllInitialData();
+            
+            // Загрузка списка объявлений по умолчанию
+            changeTab('work-requests', document.querySelector('.tab-button.active')); 
+            
+            // Обновление UI для входа
+            updateUI();
+            
+            // Привязка кнопок контактов
+            (function() {
+                const tg = document.getElementById('bb-telegram');
+                const wa = document.getElementById('bb-whatsapp');
+                const fo = document.getElementById('bb-forum');
+                if (tg && CONTACTS.telegram) tg.href = `https://t.me/${CONTACTS.telegram}`;
+                if (wa && CONTACTS.whatsapp) wa.href = `https://wa.me/${CONTACTS.whatsapp}`;
+                if (fo && CONTACTS.forumUrl) fo.href = CONTACTS.forumUrl;
+            })();
+
+            // --- Save specialization handler ---
+            (function() {
+              const saveBtn = document.getElementById('saveSpecializationBtn');
+              if (saveBtn) {
+                saveBtn.addEventListener('click', async () => {
+                  const sel = document.getElementById('newSpecialization');
+                  if (!sel || !sel.value) return;
+                  try {
+                    const res = await fetch(`${API_URL}/update_specialization/?specialization=${encodeURIComponent(sel.value)}`, {
+                      method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      alert('Специализация обновлена');
+                      document.getElementById('editSpecializationForm').style.display = 'none';
+                      fetchProfile && fetchProfile();
+                    } else {
+                      alert(data.detail || 'Ошибка обновления');
+                    }
+                  } catch(e) { alert('Ошибка соединения'); }
+                });
+              }
+            })();
+        });
     </script>
 </body>
 </html>
