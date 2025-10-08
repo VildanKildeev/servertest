@@ -3,17 +3,16 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional, List
 
-import uvicorn
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field, EmailStr
-from fastapi.staticfiles import StaticFiles
 
 from database import (
-    database, create_all, metadata,
+    database, create_all,
     users, cities, specializations, machinery_types, tool_types, material_types,
     work_requests, work_request_ratings, machinery_requests, tool_requests, material_ads,
     INITIAL_CITIES, INITIAL_SPECIALIZATIONS, INITIAL_MACHINERY_TYPES, INITIAL_TOOL_TYPES, INITIAL_MATERIAL_TYPES
@@ -28,7 +27,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = int(os.environ.get("ACCESS_TOKEN_EXPIRE_DAYS", "7"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 app = FastAPI(title="SMZ API")
@@ -110,6 +108,10 @@ class MaterialAdIn(BaseModel):
     city_id: int
     is_premium: bool = False
 
+class RefOut(BaseModel):
+    id: int
+    name: str
+
 # ----------------------------------------------------------------------------
 # Auth helpers
 # ----------------------------------------------------------------------------
@@ -166,6 +168,10 @@ def to_user_out(row) -> UserOut:
         rating_count=int(d.get("rating_count") or 0),
     )
 
+def row_to_ref(row) -> RefOut:
+    d = dict(row)
+    return RefOut(id=d["id"], name=d["name"])
+
 # ----------------------------------------------------------------------------
 # Auth endpoints
 # ----------------------------------------------------------------------------
@@ -219,15 +225,8 @@ async def update_me(payload: dict, current_user: dict = Depends(get_current_user
     return to_user_out(row)
 
 # ----------------------------------------------------------------------------
-# Reference endpoints (from DB only)
+# Reference endpoints (DB-backed only)
 # ----------------------------------------------------------------------------
-
-class RefOut(BaseModel):
-    id: int
-    name: str
-
-def row_to_ref(row) -> RefOut:
-    d = dict(row); return RefOut(id=d["id"], name=d["name"])
 
 @api_router.get("/cities/", response_model=List[RefOut])
 async def get_cities():
@@ -262,7 +261,6 @@ async def get_material_types():
 async def create_work_request(payload: WorkRequestIn, current_user: dict = Depends(get_current_user)):
     if current_user["user_type"] != "ЗАКАЗЧИК":
         raise HTTPException(403, "Только ЗАКАЗЧИК может создавать заявки.")
-    # Жёсткая привязка телефона: телефон в заявке должен совпадать с телефоном профиля
     if current_user.get("phone_number") and payload.phone_number != current_user["phone_number"]:
         raise HTTPException(400, "Телефон в заявке должен совпадать с телефоном в профиле.")
     q = work_requests.insert().values(
@@ -295,7 +293,6 @@ async def my_work_requests(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/work_requests/{request_id}/rate")
 async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = Depends(get_current_user)):
-    # Найти заявку
     req = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
     if not req:
         raise HTTPException(404, "Заявка не найдена.")
@@ -303,7 +300,7 @@ async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = 
         raise HTTPException(403, "Вы не являетесь автором заявки.")
     if not req["executor_id"]:
         raise HTTPException(400, "Заявка ещё не принята исполнителем.")
-    # Проверка уникальности оценки
+
     already = await database.fetch_one(
         work_request_ratings.select().where(
             (work_request_ratings.c.work_request_id == request_id) &
@@ -313,7 +310,6 @@ async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = 
     if already:
         raise HTTPException(400, "Вы уже оценили эту заявку.")
 
-    # Записать оценку
     await database.execute(work_request_ratings.insert().values(
         work_request_id=request_id,
         rater_id=current_user["id"],
@@ -321,7 +317,6 @@ async def rate_executor(request_id: int, rating: RatingIn, current_user: dict = 
         rating_value=rating.rating_value
     ))
 
-    # Обновить рейтинг исполнителя
     executor = await database.fetch_one(users.select().where(users.c.id == req["executor_id"]))
     if not executor:
         raise HTTPException(404, "Исполнитель не найден.")
@@ -386,7 +381,6 @@ async def list_tools(city_id: int):
 
 @api_router.post("/material_ads")
 async def create_material(payload: MaterialAdIn, current_user: dict = Depends(get_current_user)):
-    # Жёсткая привязка телефона (если есть в профиле)
     if current_user.get("phone_number") and payload.contact_info != current_user["phone_number"]:
         raise HTTPException(400, "Контакт в объявлении должен совпадать с телефоном в профиле.")
     q = material_ads.insert().values(
@@ -404,7 +398,6 @@ async def create_material(payload: MaterialAdIn, current_user: dict = Depends(ge
 
 @api_router.get("/material_ads/by_city/{city_id}")
 async def list_materials(city_id: int):
-    # premium сверху
     q = material_ads.select().where(material_ads.c.city_id == city_id).order_by(
         material_ads.c.is_premium.desc(), material_ads.c.created_at.desc()
     )
@@ -419,7 +412,6 @@ async def my_ads(current_user: dict = Depends(get_current_user)):
         d = dict(row); d["type"] = "tool"; res.append(d)
     for row in await database.fetch_all(material_ads.select().where(material_ads.c.user_id == current_user["id"])):
         d = dict(row); d["type"] = "material"; res.append(d)
-    # newest first
     res.sort(key=lambda x: x.get("created_at") or datetime.min, reverse=True)
     return res
 
@@ -427,8 +419,7 @@ async def my_ads(current_user: dict = Depends(get_current_user)):
 # Startup / shutdown
 # ----------------------------------------------------------------------------
 
-async def populate_reference_table(table, names: list[str]):
-    # idempotent insert
+async def populate_reference_table(table, names: List[str]):
     existing = {r["name"] for r in await database.fetch_all(table.select())}
     to_insert = [ {"name": n} for n in names if n not in existing ]
     if to_insert:
@@ -438,7 +429,6 @@ async def populate_reference_table(table, names: list[str]):
 async def on_startup():
     create_all()
     await database.connect()
-    # populate references
     await populate_reference_table(cities, INITIAL_CITIES)
     await populate_reference_table(specializations, INITIAL_SPECIALIZATIONS)
     await populate_reference_table(machinery_types, INITIAL_MACHINERY_TYPES)
@@ -449,22 +439,11 @@ async def on_startup():
 async def on_shutdown():
     await database.disconnect()
 
+# Подключаем API-роутер
 app.include_router(api_router)
 
-# ----------------------------------------------------
-# --- Static Files Mounting ---
-# ----------------------------------------------------
-
-# Определяем путь к папке 'static'
-static_dir = Path(__file__).parent / "static"
-
-# Проверяем существование папки static
-if static_dir.is_dir():
-    # Монтируем папку 'static' К КОРНЕВОМУ URL ("/")
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static_spa")
-
-if __name__ == "__main__":
-    # Исправлена ошибка: uvicorn.run должен использовать app, а не "main:app" в этом блоке
-    # Но для использования "main:app" при запуске через консоль, оставим как было, 
-    # чтобы не нарушать стандартный способ запуска FastAPI.
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
+# Раздача статического фронта из папки "static" (рядом с main.py), если она есть
+from pathlib import Path as _P
+_static_dir = _P(__file__).parent / "static"
+if _static_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")
