@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>СМЗ.РФ - Рабочие и спецтехника</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
         /* =======================================
            ОБЩИЕ СТИЛИ И ФОН (БЕЖЕВЫЙ)
@@ -29,11 +30,11 @@
             -webkit-tap-highlight-color: transparent; 
             touch-action: manipulation; 
             
-            /* Важно: Отступ снизу для фиксированной нижней панели */
+            /* КРИТИЧЕСКИ ВАЖНО: Отступ снизу для фиксированной нижней панели */
             padding-bottom: 60px; 
         }
 
-        /* Скрываем фоновое видео, чтобы был виден бежевый фон */
+        /* Скрываем фоновое видео */
         .background-video { 
             display: none; 
             position: fixed; 
@@ -45,8 +46,9 @@
             z-index: -2; 
         }
 
-        /* Заголовки делаем темными для читаемости */
+        /* Заголовки делаем темными для читаемости на светлом фоне */
         h1 { font-size: 20px; text-align: center; color: #333; margin-bottom: 20px; }
+        .form-container h2, .button-container h2, .list-container h2 { color: #333; }
         
         /* =======================================
            ОРАНЖЕВЫЕ АКЦЕНТЫ И КНОПКИ
@@ -64,31 +66,42 @@
             flex-wrap: wrap; 
         }
         
-        /* Основные кнопки */
-        .btn-primary, .btn-secondary, .toggle-view button.active, .request-item h4, .my-requests-section h3 {
+        /* Основные кнопки, кнопки меню, активные тогглы */
+        .btn-primary, .btn-secondary, .toggle-view button.active, #subscribeBtn, .request-item .take-btn {
             background-color: #FF8C00 !important; /* Насыщенный Оранжевый */
             color: white !important;
             border: 1px solid #CC7000; /* Более темный оранжевый для рамки */
         }
+        .btn-primary:hover, .btn-secondary:hover, #subscribeBtn:hover, .request-item .take-btn:hover {
+             background-color: #CC7000 !important; 
+        }
         
-        /* Кнопки ссылок и наведения */
-        .btn-link, .request-item .premium { 
-            color: #FF8C00 !important; /* Оранжевый для ссылок и премиума */
+        /* Кнопки ссылок и премиум-статуса */
+        .btn-link, .request-item h4, .my-requests-section h3, .request-item .premium { 
+            color: #FF8C00 !important; /* Оранжевый для ссылок и заголовков */
         }
 
-        /* Изменение темного фона контейнеров на более светлый для бежевого фона */
+        /* =======================================
+           КОНТЕЙНЕРЫ, ФОРМЫ, СПИСКИ
+           ======================================= */
+        .main-container { width: 100%; max-width: 600px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
+        .logo { width: 80px; margin-bottom: 10px; }
+        .page { display: none; width: 100%; }
+        .page.active { display: block; }
+        
+        /* Светлый фон контейнеров для контраста с бежевым body */
         .form-container, .button-container, .list-container { 
-            background-color: rgba(255, 255, 255, 0.9); /* Светлый полупрозрачный фон */
+            background-color: rgba(255, 255, 255, 0.9); 
             padding: 20px; 
             border-radius: 10px; 
             width: 100%; 
             max-width: 400px; 
             margin-bottom: 10px;
-            color: #333; /* Темный текст */
+            color: #333; 
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
-        /* Входные поля (чтобы были видны на светлом фоне) */
+        /* Входные поля */
         .input-group input, .input-group select, .input-group textarea { 
             width: 100%; 
             padding: 10px; 
@@ -100,16 +113,25 @@
         }
         
         .request-item { 
-            background-color: #f7f7f7; /* Очень светлый фон для элемента списка */ 
+            background-color: #f7f7f7; 
             color: #333;
             padding: 15px; 
             margin-bottom: 10px; 
             border-radius: 5px; 
         }
-        
+
+        /* =======================================
+           СТИЛИ МОДАЛЬНЫХ ОКОН
+           ======================================= */
+        .city-modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+        .city-modal.active { display: flex; }
+        .city-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; color: #333; }
+        .city-button { width: 100%; padding: 10px; margin: 5px 0; background-color: #eee; color: #333; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        .city-button:hover { background-color: #ddd; }
+
+
         /* =======================================
            СТИЛИ НИЖНЕЙ ФИКСИРОВАННОЙ ПАНЕЛИ
-           (Вынесены для наглядности)
            ======================================= */
         .bottom-bar {
             position: fixed; 
@@ -132,7 +154,7 @@
             align-items: center;
             justify-content: center;
             text-decoration: none;
-            color: #333; /* Цвет текста по умолчанию */
+            color: #333; 
             font-size: 10px;
             flex-grow: 1; 
             height: 100%; 
@@ -146,14 +168,6 @@
         .bb-btn:hover, .bb-btn.active {
             color: #FF8C00; /* Оранжевый цвет */
         }
-        
-        /* ... (Прочие стили: city-modal, page.active, message и т.д.) ... */
-        .city-modal-content { background-color: #fff; color: #333; }
-        .city-button { background-color: #ddd; color: #333; }
-
-        /* Специальные кнопки с оранжевым фоном */
-        #subscribeBtn { background-color: #FF8C00 !important; color: white !important; }
-        #subscribeBtn:hover { background-color: #CC7000 !important; }
 
     </style>
 </head>
