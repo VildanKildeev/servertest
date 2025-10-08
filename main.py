@@ -19,6 +19,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from sqlalchemy import text
+from sqlalchemy.sql import select 
 
 
 # --- Database setup ---
@@ -26,6 +27,13 @@ from sqlalchemy import text
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database
 
 load_dotenv()
+
+# --- ИСПРАВЛЕНИЕ ПУТЕЙ ДЛЯ СТАТИЧЕСКИХ ФАЙЛОВ ---
+# Находим корневую папку проекта
+base_path = Path(__file__).parent
+# Определяем путь к папке static
+static_path = base_path / "static"
+# ------------------------------------------------
 
 # Настройки для токенов
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
@@ -46,6 +54,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- ИСПРАВЛЕНИЕ 2: Монтирование папки static ---
+# Монтируем папку static под префиксом /static
+app.mount("/static", StaticFiles(directory=static_path), name="static")
+# ------------------------------------------------
+
 @app.on_event("startup")
 async def startup():
     await database.connect()
@@ -55,12 +68,10 @@ async def startup():
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE"))
 
-    # --- НОВЫЙ КОД ДЛЯ ЗАПОЛНЕНИЯ ГОРОДОВ ---
-    # Проверяем, есть ли города в таблице
+    # --- КОД ДЛЯ ЗАПОЛНЕНИЯ ГОРОДОВ ---
     query = cities.select().limit(1)
     city_exists = await database.fetch_one(query)
 
-    # Если городов нет, добавляем их
     if not city_exists:
         print("Города не найдены, добавляю стандартный список...")
         default_cities = [
@@ -78,7 +89,7 @@ async def startup():
         insert_query = cities.insert().values(default_cities)
         await database.execute(insert_query)
         print("Города успешно добавлены.")
-    # --- КОНЕЦ НОВОГО КОДА ---
+    # --- КОНЕЦ КОДА ---
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -104,7 +115,7 @@ class UserInDB(BaseModel):
     is_active: bool = True
     user_type: str
     specialization: Optional[str] = None
-    is_premium: bool = False  # ← добавили
+    is_premium: bool = False
     class Config: from_attributes = True
 
 class UserOut(BaseModel):
@@ -113,7 +124,7 @@ class UserOut(BaseModel):
     phone_number: str
     user_type: str
     specialization: Optional[str] = None
-    is_premium: bool = False  # ← добавили
+    is_premium: bool = False
     class Config: from_attributes = True
         
 class UserUpdate(BaseModel):
@@ -131,7 +142,6 @@ class TokenData(BaseModel):
     username: str | None = None
 
 # Схемы для работы
-# ИСПРАВЛЕНИЕ: Поле is_master_visit_required было объявлено вне класса
 class WorkRequestIn(BaseModel):
     description: str
     specialization: str
@@ -139,7 +149,7 @@ class WorkRequestIn(BaseModel):
     contact_info: str
     city_id: int
     is_premium: bool = False
-    is_master_visit_required: bool = False # <-- ПЕРЕМЕЩЕНО ВНУТРЬ КЛАССА
+    is_master_visit_required: bool = False
 
 class WorkRequestUpdate(BaseModel):
     description: Optional[str] = None
@@ -152,7 +162,6 @@ class WorkRequestUpdate(BaseModel):
     status: Optional[str] = None
 
 # Схемы для спецтехники (ОБНОВЛЕНО)
-# ИСПРАВЛЕНИЕ: Поля has_delivery и delivery_address были объявлены вне класса
 class MachineryRequestIn(BaseModel):
     machinery_type: str
     description: Optional[str] = None
@@ -163,8 +172,8 @@ class MachineryRequestIn(BaseModel):
     # --- НОВЫЕ ПОЛЯ ---
     rental_date: Optional[date] = None
     min_rental_hours: int = 4
-    has_delivery: bool = False # <-- ПЕРЕМЕЩЕНО ВНУТРЬ КЛАССА
-    delivery_address: Optional[str] = None # <-- ПЕРЕМЕЩЕНО ВНУТРЬ КЛАССА
+    has_delivery: bool = False
+    delivery_address: Optional[str] = None
 
 # Схемы для инструмента
 class ToolRequestIn(BaseModel):
@@ -216,7 +225,7 @@ async def authenticate_user(username: str, password: str):
     return user_db
 
 # Проверка пользователя
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -224,18 +233,26 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        
+        # Токен должен содержать 'sub' (subject), который обычно является ID пользователя
+        user_id: str = payload.get("sub") 
+        if user_id is None:
             raise credentials_exception
-        token_data = TokenData(username=email)
+        
+        # --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: ЗАПРОС CITY_ID ИЗ БАЗЫ ---
+        # Получаем все данные пользователя (включая city_id) по ID
+        query = select(users).where(users.c.id == int(user_id))
+        user_data = await database.fetch_one(query)
+
+        if user_data is None:
+            raise credentials_exception
+            
+        # Возвращаем полные данные пользователя, включая city_id
+        return dict(user_data) 
+        # ----------------------------------------------------
+
     except JWTError:
         raise credentials_exception
-
-    query = users.select().where(users.c.email == token_data.username)
-    user_db = await database.fetch_one(query)
-    if user_db is None:
-        raise credentials_exception
-    return user_db
 
 # Создание токена
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -250,17 +267,12 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # --- Маршруты API ---
 
-# Определяем базовый путь
-base_path = Path(__file__).parent
-static_path = base_path / "static"
-# ИСПРАВЛЕНО: Предполагаем, что index.html находится в корне, а не в /static
-app.mount("/static", StaticFiles(directory=base_path), name="static")
-
-
+# --- ИСПРАВЛЕНИЕ 3: Корневой маршрут (Главная страница) ---
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def serve_index():
-    # Файл должен лежать рядом с main.py
+    # Файл index.html ищется в папке 'static'
     return FileResponse(static_path / "index.html")
+# -----------------------------------------------------------
 
 
 # НОВЫЙ МАРШРУТ для получения токена
@@ -340,17 +352,33 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
         contact_info=work_request.contact_info,
         city_id=work_request.city_id,
         is_premium=work_request.is_premium,
-        is_master_visit_required=work_request.is_master_visit_required # <-- ДОБАВЛЕНО
+        is_master_visit_required=work_request.is_master_visit_required
     )
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **work_request.dict()}
 
 # ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на работу
+Вы абсолютно правы! Менять нужно именно эту функцию.
+
+Вам необходимо изменить параметры функции, чтобы она принимала объект аутентифицированного пользователя (current_user) вместо опционального параметра city_id.
+
+Вот как должен выглядеть исправленный код для функции get_work_requests в файле main.py:
+Python
+
 @api_router.get("/work_requests/")
-async def get_work_requests(city_id: Optional[int] = None):
+async def get_work_requests(
+    # 1. Заменяем city_id на зависимость от текущего пользователя
+    current_user: dict = Depends(get_current_user) 
+):
+    # 2. Извлекаем city_id из данных пользователя
+    user_city_id = current_user.get('city_id') 
+
     query = work_requests.select()
-    if city_id:
-        query = query.where(work_requests.c.city_id == city_id)
+    
+    # 3. Применяем фильтр, если city_id пользователя существует
+    if user_city_id:
+        query = query.where(work_requests.c.city_id == user_city_id)
+        
     requests = await database.fetch_all(query)
     return requests
 
@@ -368,18 +396,24 @@ async def create_machinery_request(machinery_request: MachineryRequestIn, curren
         is_premium=machinery_request.is_premium,
         rental_date=machinery_request.rental_date,
         min_rental_hours=machinery_request.min_rental_hours,
-        has_delivery=machinery_request.has_delivery, # <-- ДОБАВЛЕНО
-        delivery_address=machinery_request.delivery_address # <-- ДОБАВЛЕНО
+        has_delivery=machinery_request.has_delivery,
+        delivery_address=machinery_request.delivery_address
     )
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **machinery_request.dict()}
 
 # ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на спецтехнику
 @api_router.get("/machinery_requests/")
-async def get_machinery_requests(city_id: Optional[int] = None):
+async def get_machinery_requests(
+    current_user: dict = Depends(get_current_user)
+):
+    user_city_id = current_user.get('city_id') 
+
     query = machinery_requests.select()
-    if city_id:
-        query = query.where(machinery_requests.c.city_id == city_id)
+    
+    if user_city_id:
+        query = query.where(machinery_requests.c.city_id == user_city_id)
+
     requests = await database.fetch_all(query)
     return requests
 
@@ -405,10 +439,18 @@ async def create_tool_request(tool_request: ToolRequestIn, current_user: dict = 
 
 # ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на инструмент
 @api_router.get("/tool_requests/")
-async def get_tool_requests(city_id: Optional[int] = None):
+async def get_tool_requests(
+    current_user: dict = Depends(get_current_user)
+):
+    # Извлекаем city_id из данных пользователя
+    user_city_id = current_user.get('city_id') 
+
     query = tool_requests.select()
-    if city_id:
-        query = query.where(tool_requests.c.city_id == city_id)
+    
+    # Применяем фильтр по city_id
+    if user_city_id:
+        query = query.where(tool_requests.c.city_id == user_city_id)
+        
     requests = await database.fetch_all(query)
     return requests
 
@@ -430,12 +472,20 @@ async def create_material_ad(material_ad: MaterialAdIn, current_user: dict = Dep
 
 # ОБНОВЛЕННЫЙ МАРШРУТ для получения всех объявлений о материалах
 @api_router.get("/material_ads/")
-async def get_material_ads(city_id: Optional[int] = None):
+async def get_material_ads(
+    current_user: dict = Depends(get_current_user)
+):
+    # Извлекаем city_id из данных пользователя
+    user_city_id = current_user.get('city_id') 
+
     query = material_ads.select()
-    if city_id:
-        query = query.where(material_ads.c.city_id == city_id)
-    ads = await database.fetch_all(query)
-    return ads
+    
+    # Применяем фильтр по city_id
+    if user_city_id:
+        query = query.where(material_ads.c.city_id == user_city_id)
+        
+    requests = await database.fetch_all(query)
+    return requests
 
 # --- Маршруты для получения данных из таблиц-справочников ---
 # Список специализаций
