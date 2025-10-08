@@ -6,112 +6,155 @@
     <title>СМЗ.РФ - Рабочие и спецтехника</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Ваши стили */
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; color: white; overflow-x: hidden; background: black; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        .background-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
-        .selected-city { margin-top: 12px; font-size: 16px; color: #fff; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap; }
-        .city-modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
-        .city-modal.active { display: flex; }
-        .city-modal-content { background-color: #2c2c2c; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
-        .city-modal-content h2 { margin-bottom: 20px; font-size: 20px; }
-        .city-list-container { max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 10px; }
-        .city-button { width: 100%; padding: 10px; margin: 5px 0; background-color: #444; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        .city-button:hover { background-color: #555; }
+        /* =======================================
+           ОБЩИЕ СТИЛИ И ФОН (БЕЖЕВЫЙ)
+           ======================================= */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: flex-start; 
+            align-items: center; 
+            /* Меняем цвет текста на темный для светлого фона */
+            color: #333; 
+            overflow-x: hidden; 
+            background-color: #FAF0E6; /* Бежевый фон (Linen) */
+            -webkit-tap-highlight-color: transparent; 
+            touch-action: manipulation; 
+            
+            /* Важно: Отступ снизу для фиксированной нижней панели */
+            padding-bottom: 60px; 
+        }
 
-        .main-container { width: 100%; max-width: 600px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
-        .logo { width: 80px; margin-bottom: 10px; }
-        h1 { font-size: 20px; text-align: center; color: #fff; margin-bottom: 20px; }
-        .page { display: none; width: 100%; }
-        .page.active { display: block; }
-        .form-container, .button-container, .list-container { background-color: rgba(44, 44, 44, 0.8); padding: 20px; border-radius: 10px; width: 100%; max-width: 400px; margin-bottom: 10px; }
-        .form-container h2, .button-container h2, .list-container h2 { text-align: center; margin-bottom: 15px; font-size: 18px; }
-        .input-group { margin-bottom: 15px; }
-        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; }
-        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #555; background-color: #333; color: white; font-size: 14px; }
-        .input-group input[type="checkbox"] { width: auto; margin-right: 10px; }
-        .input-group label.checkbox-label { display: flex; align-items: center; }
-        .btn { width: 100%; padding: 10px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
-        .btn-primary { background-color: #007bff; color: white; }
-        .btn-primary:hover { background-color: #0056b3; }
-        .btn-secondary { background-color: #6c757d; color: white; }
-        .btn-secondary:hover { background-color: #545b62; }
-        .btn-link { background: none; color: #007bff; text-decoration: none; border: none; padding: 0; margin-top: 10px; font-size: 14px; cursor: pointer; }
-        .btn-link:hover { text-decoration: underline; }
+        /* Скрываем фоновое видео, чтобы был виден бежевый фон */
+        .background-video { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            z-index: -2; 
+        }
 
-        .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .button-grid .btn { margin: 0; }
+        /* Заголовки делаем темными для читаемости */
+        h1 { font-size: 20px; text-align: center; color: #333; margin-bottom: 20px; }
+        
+        /* =======================================
+           ОРАНЖЕВЫЕ АКЦЕНТЫ И КНОПКИ
+           ======================================= */
+        /* Цвет акцента для выбранного города */
+        .selected-city { 
+            margin-top: 12px; 
+            font-size: 16px; 
+            color: #FF8C00; /* Оранжевый акцент */
+            text-align: center; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 5px; 
+            flex-wrap: wrap; 
+        }
+        
+        /* Основные кнопки */
+        .btn-primary, .btn-secondary, .toggle-view button.active, .request-item h4, .my-requests-section h3 {
+            background-color: #FF8C00 !important; /* Насыщенный Оранжевый */
+            color: white !important;
+            border: 1px solid #CC7000; /* Более темный оранжевый для рамки */
+        }
+        
+        /* Кнопки ссылок и наведения */
+        .btn-link, .request-item .premium { 
+            color: #FF8C00 !important; /* Оранжевый для ссылок и премиума */
+        }
 
-        .toggle-view { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
-        .toggle-view button { padding: 8px 15px; border-radius: 20px; border: 1px solid #555; background-color: #333; color: white; cursor: pointer; }
-        .toggle-view button.active { background-color: #007bff; border-color: #007bff; }
+        /* Изменение темного фона контейнеров на более светлый для бежевого фона */
+        .form-container, .button-container, .list-container { 
+            background-color: rgba(255, 255, 255, 0.9); /* Светлый полупрозрачный фон */
+            padding: 20px; 
+            border-radius: 10px; 
+            width: 100%; 
+            max-width: 400px; 
+            margin-bottom: 10px;
+            color: #333; /* Темный текст */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Входные поля (чтобы были видны на светлом фоне) */
+        .input-group input, .input-group select, .input-group textarea { 
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 5px; 
+            border: 1px solid #ccc; 
+            background-color: #fff; /* Белый фон */
+            color: #333; /* Темный текст */
+            font-size: 14px; 
+        }
+        
+        .request-item { 
+            background-color: #f7f7f7; /* Очень светлый фон для элемента списка */ 
+            color: #333;
+            padding: 15px; 
+            margin-bottom: 10px; 
+            border-radius: 5px; 
+        }
+        
+        /* =======================================
+           СТИЛИ НИЖНЕЙ ФИКСИРОВАННОЙ ПАНЕЛИ
+           (Вынесены для наглядности)
+           ======================================= */
+        .bottom-bar {
+            position: fixed; 
+            bottom: 0;       
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: #FFFFFF; /* Белый фон панели */
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15); 
+            display: flex;
+            justify-content: space-around; 
+            align-items: center;
+            z-index: 1000;   
+            padding-bottom: env(safe-area-inset-bottom); 
+        }
 
-        .request-item { background-color: #333; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
-        .request-item h4 { margin-bottom: 5px; color: #007bff; }
-        .request-item p { margin-bottom: 5px; font-size: 14px; line-height: 1.4; }
-        .request-item .contact { font-weight: bold; }
-        .request-item .premium { color: #ffd700; font-weight: bold; }
-        .request-item .taken { color: #28a745; font-weight: bold; }
-        .request-item .take-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
-        .request-item .take-btn:hover { background-color: #218838; }
+        .bb-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #333; /* Цвет текста по умолчанию */
+            font-size: 10px;
+            flex-grow: 1; 
+            height: 100%; 
+        }
 
-        .my-requests-section { border-bottom: 1px solid #555; padding-bottom: 15px; margin-bottom: 15px; }
-        .my-requests-section:last-of-type { border-bottom: none; }
-        .my-requests-section h3 { margin-bottom: 10px; color: #007bff; }
+        .bb-icon {
+            font-size: 20px; 
+            margin-bottom: 2px;
+        }
 
-        .message { padding: 10px; margin-top: 10px; border-radius: 5px; text-align: center; }
-        .message.success { background-color: #d4edda; color: #155724; }
-        .message.error { background-color: #f8d7da; color: #721c24; }
+        .bb-btn:hover, .bb-btn.active {
+            color: #FF8C00; /* Оранжевый цвет */
+        }
+        
+        /* ... (Прочие стили: city-modal, page.active, message и т.д.) ... */
+        .city-modal-content { background-color: #fff; color: #333; }
+        .city-button { background-color: #ddd; color: #333; }
 
-        #profileInfo p, #profileInfo button { margin-top: 10px; }
-        #subscribeBtn { background-color: #ffc107; color: black; border: none; }
-        #subscribeBtn:hover { background-color: #e0a800; }
-        #updateSpecializationBtn { background-color: #28a745; color: white; }
-        #updateSpecializationBtn:hover { background-color: #218838; }
-        #editSpecializationForm { display: none; }
-.bottom-bar {
-    position: fixed; /* 1. Фиксирует элемент относительно окна просмотра */
-    bottom: 0;       /* 2. Прижимает панель к нижнему краю */
-    left: 0;
-    width: 100%;     /* 3. Растягивает на всю ширину */
-    height: 60px;    /* Высота панели */
-    background-color: #FFFFFF; /* Белый фон панели для контраста */
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15); /* Небольшая тень сверху */
-    display: flex;
-    justify-content: space-around; /* Равное распределение элементов */
-    align-items: center;
-    z-index: 1000;   /* 4. Гарантирует, что панель будет поверх другого контента */
-    padding-bottom: env(safe-area-inset-bottom); /* Учет безопасной зоны на iPhone */
-}
+        /* Специальные кнопки с оранжевым фоном */
+        #subscribeBtn { background-color: #FF8C00 !important; color: white !important; }
+        #subscribeBtn:hover { background-color: #CC7000 !important; }
 
-.bb-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    color: #333; /* Цвет текста по умолчанию */
-    font-size: 10px;
-    flex-grow: 1; /* Растягивает кнопки на доступную ширину */
-    height: 100%; /* Занимает всю высоту панели */
-}
-
-.bb-icon {
-    font-size: 20px; /* Размер иконок-эмодзи */
-    margin-bottom: 2px;
-}
-
-/* Применение оранжевого цвета к активному/выделенному элементу */
-.bb-btn:hover, .bb-btn.active {
-    color: #FF8C00; /* Оранжевый цвет */
-}
-
-/* Стили для бежевого фона, если не добавили ранее */
-body {
-    /* ... другие стили body ... */
-    background-color: #FAF0E6; /* Бежевый фон */
-    padding-bottom: 60px; /* ДОБАВИТЬ: Отступ снизу, равный высоте панели, чтобы контент не скрывался за ней */
-}
     </style>
 </head>
 <body>
@@ -415,23 +458,20 @@ body {
                     <div id="myMaterialAdsList"></div>
                 </div>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-
-background-color: #FAF0E6; /* Бежевый фон (Linen) */
-    /* *** ДОБАВИТЬ ЭТУ СТРОКУ *** */
-    padding-bottom: 60px; /* Высота нижнего меню, чтобы контент был виден над ним */ 
-
-    <!-- Нижняя панель контактов -->
-<div class="bottom-bar">
-  <a id="bb-telegram" class="bb-btn" href="#" target="_blank" rel="noopener">
-    <span class="bb-icon" aria-hidden="true">✈️</span><span>Telegram</span>
-  </a>
-  <a id="bb-whatsapp" class="bb-btn" href="#" target="_blank" rel="noopener">
-    <span class="bb-icon" aria-hidden="true">💬</span><span>WhatsApp</span>
-  </a>
-  <a id="bb-forum" class="bb-btn" href="/forum" target="_blank" rel="noopener">
-    <span class="bb-icon" aria-hidden="true">🧰</span><span>Форум</span>
-  </a>
-</div>
+            </div>
+        </div>
+        
+    </div> <div class="bottom-bar">
+      <a id="bb-telegram" class="bb-btn" href="#" target="_blank" rel="noopener">
+        <span class="bb-icon" aria-hidden="true">✈️</span><span>Telegram</span>
+      </a>
+      <a id="bb-whatsapp" class="bb-btn" href="#" target="_blank" rel="noopener">
+        <span class="bb-icon" aria-hidden="true">💬</span><span>WhatsApp</span>
+      </a>
+      <a id="bb-forum" class="bb-btn" href="/forum" target="_blank" rel="noopener">
+        <span class="bb-icon" aria-hidden="true">🧰</span><span>Форум</span>
+      </a>
+    </div>
 
     <script>
         const API_URL = "/api";
