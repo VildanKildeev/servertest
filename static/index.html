@@ -8,31 +8,42 @@
     <style>
         /* Ваши стили */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; background-color: #1e1e1e; color: #e0e0e0; line-height: 1.5; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; -webkit-user-select: none; -ms-user-select: none; user-select: none; overscroll-behavior: none; -webkit-touch-callout: none; -webkit-user-drag: none; -ms-overflow-style: none; scrollbar-width: none; }
-        body::-webkit-scrollbar { display: none; }
-        a { color: inherit; text-decoration: none; }
-        .main-container { width: 100%; max-width: 600px; padding: 20px; margin: 0 auto 0; position: relative; }
-        .header { text-align: center; margin-bottom: 15px; }
-        .logo { font-size: 24px; font-weight: 800; letter-spacing: 0.5px; }
-        .subheader { font-size: 13px; color: #a0a0a0; }
-        .controls { display: flex; justify-content: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
-        .controls button { padding: 8px 12px; border-radius: 8px; border: 1px solid #444; background-color: #2a2a2a; color: #e0e0e0; cursor: pointer; }
-        .controls button.active { background-color: #3a3a3a; border-color: #666; }
-        .search-container { display: flex; gap: 8px; }
-        .search-input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #444; background-color: #2a2a2a; color: white; }
-        .btn { width: 100%; padding: 10px; border-radius: 5px; border: none; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; color: white; overflow-x: hidden; background: black; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .background-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+        .selected-city { margin-top: 12px; font-size: 16px; color: #fff; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap; }
+        .city-modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
+        .city-modal.active { display: flex; }
+        .city-modal-content { background-color: #2c2c2c; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
+        .city-modal-content h2 { margin-bottom: 20px; font-size: 20px; }
+        .city-list-container { max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 10px; }
+        .city-button { width: 100%; padding: 10px; margin: 5px 0; background-color: #444; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        .city-button:hover { background-color: #555; }
+
+        .main-container { width: 100%; max-width: 600px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
+        .logo { width: 80px; margin-bottom: 10px; }
+        h1 { font-size: 20px; text-align: center; color: #fff; margin-bottom: 20px; }
+        .page { display: none; width: 100%; }
+        .page.active { display: block; }
+        .form-container, .button-container, .list-container { background-color: rgba(44, 44, 44, 0.8); padding: 20px; border-radius: 10px; width: 100%; max-width: 400px; margin-bottom: 10px; }
+        .form-container h2, .button-container h2, .list-container h2 { text-align: center; margin-bottom: 15px; font-size: 18px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #555; background-color: #333; color: white; font-size: 14px; }
+        .input-group input[type="checkbox"] { width: auto; margin-right: 10px; }
+        .input-group label.checkbox-label { display: flex; align-items: center; }
+        .btn { width: 100%; padding: 10px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
         .btn-primary { background-color: #007bff; color: white; }
         .btn-primary:hover { background-color: #0056b3; }
         .btn-secondary { background-color: #6c757d; color: white; }
         .btn-secondary:hover { background-color: #545b62; }
-        .btn-link { background: none; color: #007bff; text-decoration: underline; padding: 0; margin-top: 10px; font-size: 14px; cursor: pointer; }
+        .btn-link { background: none; color: #007bff; text-decoration: none; border: none; padding: 0; margin-top: 10px; font-size: 14px; cursor: pointer; }
         .btn-link:hover { text-decoration: underline; }
 
         .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .button-grid .btn { margin: 0; }
 
         .toggle-view { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
-        .toggle-view button { padding: 8px 15px; border-radius: 8px; border: 1px solid #555; background-color: #333; color: white; cursor: pointer; }
+        .toggle-view button { padding: 8px 15px; border-radius: 20px; border: 1px solid #555; background-color: #333; color: white; cursor: pointer; }
         .toggle-view button.active { background-color: #007bff; border-color: #007bff; }
 
         .request-item { background-color: #333; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
@@ -41,151 +52,98 @@
         .request-item .contact { font-weight: bold; }
         .request-item .premium { color: #ffd700; font-weight: bold; }
         .request-item .taken { color: #28a745; font-weight: bold; }
-        .request-item .take-btn { background-color: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        .request-item .take-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+        .request-item .take-btn:hover { background-color: #218838; }
 
-        .message { padding: 10px; border-radius: 5px; margin-bottom: 10px; display: none; }
-        .message.success { display: block; background-color: #28a745; color: white; }
-        .message.error { display: block; background-color: #dc3545; color: white; }
-        .message.info { display: block; background-color: #17a2b8; color: white; }
+        .my-requests-section { border-bottom: 1px solid #555; padding-bottom: 15px; margin-bottom: 15px; }
+        .my-requests-section:last-of-type { border-bottom: none; }
+        .my-requests-section h3 { margin-bottom: 10px; color: #007bff; }
 
-        .filters { background-color: #2c2c2c; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .filters .input-group { margin-bottom: 10px; }
-        .filters label { display: block; margin-bottom: 5px; }
-        .filters input, .filters select { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #555; background-color: #333; color: white; font-size: 14px; }
-        .filters .search-input { width: calc(100% - 80px); }
+        .message { padding: 10px; margin-top: 10px; border-radius: 5px; text-align: center; }
+        .message.success { background-color: #d4edda; color: #155724; }
+        .message.error { background-color: #f8d7da; color: #721c24; }
 
-        .form-container { background-color: #2c2c2c; padding: 15px; border-radius: 10px; }
-        .form-container h2 { margin-bottom: 10px; }
-        .input-group { margin-bottom: 10px; }
-        .input-group label { display: block; margin-bottom: 5px; }
-        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #555; background-color: #333; color: white; font-size: 14px; }
-        .input-group textarea { min-height: 80px; resize: vertical; }
-        .input-group input[type="checkbox"] { width: auto; margin-right: 10px; }
-        .input-group label.checkbox-label { display: flex; align-items: center; }
-
-        /* Оранжевая тема и нижняя панель */
-:root {
-  --brand: #ff7a00;
-  --brand-600: #e56e00;
-  --brand-700: #cc6500;
-  --bottom-bar-h: 64px;
-}
-body { padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom)); }
-.btn-primary { background-color: var(--brand) !important; border-color: var(--brand) !important; }
-.btn-primary:hover { background-color: var(--brand-600) !important; }
-.btn-link { color: var(--brand) !important; }
-.toggle-view button.active { background-color: var(--brand) !important; border-color: var(--brand) !important; }
-.request-item h4 { color: var(--brand) !important; }
-
-/* Bottom bar */
-.bottom-bar{
-  position: fixed; left:0; right:0; bottom:0;
-  height: var(--bottom-bar-h);
-  background: rgba(24,24,24,.92);
-  backdrop-filter: blur(6px);
-  display:flex; align-items:center; justify-content:space-around;
-  padding: 8px calc(12px + env(safe-area-inset-left)) env(safe-area-inset-bottom) calc(12px + env(safe-area-inset-right));
-  z-index: 9999; border-top: 1px solid #333;
-}
-.bb-btn{
-  display:flex; gap:8px; align-items:center; justify-content:center;
-  padding:10px 14px; border-radius:12px; text-decoration:none;
-  background: var(--brand); color:#fff; font-weight:600;
-}
-.bb-btn:hover { background: var(--brand-600); }
-.bottom-bar .bb-icon{ width:18px; height:18px; display:inline-block; }
-
-        .city-selector { display: flex; gap: 10px; justify-content: center; align-items: center; }
-        .city-button { padding: 8px 12px; background-color: #444; border: none; border-radius: 5px; color: white; cursor: pointer; }
-        .city-button:hover { background-color: #555; }
-        .city-select { padding: 8px; border-radius: 5px; border: 1px solid #555; background-color: #333; color: white; }
-
-        .selected-city { margin-top: 12px; font-size: 16px; color: #ccc; display: flex; gap: 8px; justify-content: center; align-items: center; }
-        .selected-city .pill { padding: 4px 8px; background: #2f2f2f; border: 1px solid #444; border-radius: 999px; font-size: 12px; color: #ddd; }
-        .city-modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
-        .city-modal.active { display: flex; }
-        .city-modal-content { background-color: #2c2c2c; padding: 20px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
-        .city-modal-content h2 { margin-bottom: 20px; font-size: 20px; }
-        .city-list-container { max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 10px; }
-
-        .page { display: none; }
-        .page.active { display: block; }
-
-        .footer { text-align: center; color: #888; font-size: 12px; padding: 20px 0 80px; }
+        #profileInfo p, #profileInfo button { margin-top: 10px; }
+        #subscribeBtn { background-color: #ffc107; color: black; border: none; }
+        #subscribeBtn:hover { background-color: #e0a800; }
+        #updateSpecializationBtn { background-color: #28a745; color: white; }
+        #updateSpecializationBtn:hover { background-color: #218838; }
+        #editSpecializationForm { display: none; }
     </style>
 </head>
 <body>
+    <video autoplay muted loop class="background-video">
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-hand-holding-and-drilling-into-a-wooden-plank-25217-large.mp4" type="video/mp4">
+    </video>
+
+    <div class="selected-city" onclick="showCityModal()">
+        <i class="fas fa-map-marker-alt"></i>
+        <span id="cityName">Выберите город</span>
+    </div>
+
     <div class="main-container">
-        <div class="header">
-            <div class="logo">СМЗ.РФ</div>
-            <div class="subheader">Рабочие • Спецтехника • Материалы</div>
-            <div class="selected-city">
-                <span>Город:</span> <span id="selectedCityName" class="pill">Не выбран</span>
-                <button id="openCityModal" class="city-button">Выбрать</button>
+        <img src="https://smz.rf-dev.ru/img/logo_smz.png" alt="СМЗ.РФ Логотип" class="logo">
+        <h1>СМЗ.РФ - Заявки для Самозанятых и Мастеров</h1>
+        <div id="loadingMessage">Загрузка...</div>
+
+        <div id="cityModal" class="city-modal">
+            <div class="city-modal-content">
+                <h2>Выберите ваш город</h2>
+                <div id="cityList" class="city-list-container"></div>
             </div>
         </div>
 
-        <div class="controls">
-            <button class="control-btn" onclick="showPage('buttonContainer')" id="menuBtn">Меню</button>
-            <button class="control-btn" onclick="showPage('workRequestsPage')" id="findWorkBtn">Найти работу</button>
-            <button class="control-btn" onclick="showPage('machineryRequestsPage')" id="findMachineryBtn">Найти технику</button>
-            <button class="control-btn" onclick="showPage('materialAdsPage')" id="findMaterialsBtn">Материалы</button>
-            <button class="control-btn" onclick="showPage('profilePage')" id="profileBtn">Профиль</button>
+        <div id="loginPage" class="page active">
+            <div class="form-container">
+                <h2>Вход</h2>
+                <div id="loginStatus" class="message"></div>
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label for="loginEmail">Email:</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="loginPassword">Пароль:</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                    <button type="button" class="btn-link" onclick="showPage('registerPage')">Создать аккаунт</button>
+                </form>
+            </div>
         </div>
 
-        <div id="authContainer">
-            <div id="registerPage" class="page">
-                <div class="form-container">
-                    <h2>Регистрация</h2>
-                    <div id="registerStatus" class="message"></div>
-                    <form id="registerForm">
-                        <div class="input-group">
-                            <label for="registerEmail">Email:</label>
-                            <input type="email" id="registerEmail" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="registerPhone">Телефон:</label>
-                            <input type="tel" id="registerPhone" placeholder="+7xxxxxxxxxx" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="registerPassword">Пароль:</label>
-                            <input type="password" id="registerPassword" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="registerUserType">Тип аккаунта:</label>
-                            <select id="registerUserType" required>
-                                <option value="ЗАКАЗЧИК">Заказчик</option>
-                                <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
-                                <option value="ВЛАДЕЛЕЦ ТЕХНИКИ">Владелец спецтехники</option>
-                            </select>
-                        </div>
-                        <div class="input-group" id="specializationGroup" style="display: none;">
-                            <label for="registerSpecialization">Специализация (для исполнителей):</label>
-                            <select id="registerSpecialization"></select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
-                        <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
-                    </form>
-                </div>
-            </div>
-
-            <div id="loginPage" class="page active">
-                <div class="form-container">
-                    <h2>Вход</h2>
-                    <div id="loginStatus" class="message"></div>
-                    <form id="loginForm">
-                        <div class="input-group">
-                            <label for="loginEmail">Email:</label>
-                            <input type="email" id="loginEmail" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="loginPassword">Пароль:</label>
-                            <input type="password" id="loginPassword" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Войти</button>
-                        <button type="button" class="btn-link" onclick="showPage('registerPage'); return false;">Нет аккаунта? Регистрация</button>
-                    </form>
-                </div>
+        <div id="registerPage" class="page">
+            <div class="form-container">
+                <h2>Регистрация</h2>
+                <div id="registerStatus" class="message"></div>
+                <form id="registerForm">
+                    <div class="input-group">
+                        <label for="registerEmail">Email:</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerPassword">Пароль:</label>
+                        <input type="password" id="registerPassword" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerPhoneNumber">Номер телефона:</label>
+                        <input type="text" id="registerPhoneNumber" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="registerUserType">Тип аккаунта:</label>
+                        <select id="registerUserType" required>
+                            <option value="">Выберите тип</option>
+                            <option value="ЗАКАЗЧИК">Заказчик</option>
+                            <option value="ИСПОЛНИТЕЛЬ">Исполнитель</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="specializationGroup" style="display: none;">
+                        <label for="registerSpecialization">Специализация:</label>
+                        <select id="registerSpecialization" required></select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                    <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
+                </form>
             </div>
         </div>
 
@@ -197,75 +155,14 @@ body { padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom)); 
                     <button class="btn btn-primary" onclick="showPage('workRequestsPage')">Найти работу</button>
                     <button class="btn btn-primary" onclick="showPage('createMachineryRequestPage')">Создать заявку на технику</button>
                     <button class="btn btn-primary" onclick="showPage('machineryRequestsPage')">Найти технику</button>
-                    <button class="btn btn-primary" onclick="showPage('materialAdsPage')">Материалы</button>
-                    <button class="btn btn-primary" onclick="showPage('myRequestsPage')">Мои публикации</button>
-                    <button class="btn btn-primary" onclick="showPage('profilePage')">Профиль</button>
+                    <button class="btn btn-primary" onclick="showPage('createToolRequestPage')">Создать заявку на инструмент</button>
+                    <button class="btn btn-primary" onclick="showPage('toolRequestsPage')">Найти инструмент</button>
+                    <button class="btn btn-primary" onclick="showPage('createMaterialAdPage')">Разместить объявление</button>
+                    <button class="btn btn-primary" onclick="showPage('materialAdsPage')">Найти материалы</button>
                 </div>
-            </div>
-        </div>
-
-        <div id="workRequestsPage" class="page">
-            <h2>Поиск работы</h2>
-            <div class="filters">
-                <div class="input-group">
-                    <label for="searchQuery">Поиск по описанию:</label>
-                    <input type="text" id="searchQuery" class="search-input" placeholder="Например: кладка кирпича">
-                </div>
-                <div class="input-group">
-                    <label for="filterSpecialization">Специализация:</label>
-                    <select id="filterSpecialization"><option value="">Все</option></select>
-                </div>
-            </div>
-
-            <div class="toggle-view">
-                <button id="viewAllBtn" class="active">Все</button>
-                <button id="viewPremiumBtn">Премиум</button>
-            </div>
-
-            <div id="workRequestsList"></div>
-            <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-        </div>
-
-        <div id="machineryRequestsPage" class="page">
-            <h2>Поиск техники</h2>
-            <div class="filters">
-                <div class="input-group">
-                    <label for="machineryFilterType">Тип техники:</label>
-                    <select id="machineryFilterType"><option value="">Все</option></select>
-                </div>
-            </div>
-            <div id="machineryRequestsList"></div>
-            <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-        </div>
-
-        <div id="materialAdsPage" class="page">
-            <h2>Материалы</h2>
-            <div class="filters">
-                <div class="input-group">
-                    <label for="materialFilterType">Тип материалов:</label>
-                    <select id="materialFilterType"><option value="">Все</option></select>
-                </div>
-            </div>
-            <div id="materialAdsList"></div>
-            <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
-        </div>
-
-        <div id="myRequestsPage" class="page">
-            <div class="form-container">
-                <h2>Мои публикации</h2>
-                <div id="myWorkRequests" class="my-requests-section">
-                    <h3>Мои заявки на работу</h3>
-                    <div id="myWorkRequestsList"></div>
-                </div>
-                <div id="myMachineryRequests" class="my-requests-section">
-                    <h3>Заявки на технику</h3>
-                    <div id="myMachineryRequestsList"></div>
-                </div>
-                <div id="myMaterialAds" class="my-requests-section">
-                    <h3>Объявления о материалах</h3>
-                    <div id="myMaterialAdsList"></div>
-                </div>
-                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <button class="btn btn-secondary" onclick="showPage('myRequestsPage')">Мои заявки</button>
+                <button class="btn btn-secondary" onclick="showPage('profilePage')">Профиль</button>
+                <button class="btn btn-link" onclick="logout()">Выйти</button>
             </div>
         </div>
 
@@ -305,11 +202,16 @@ body { padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom)); 
                         <label for="workContact">Контакт:</label>
                         <input type="text" id="workContact" required>
                     </div>
-                    <div class="input-group">
-                        <label class="checkbox-label"><input type="checkbox" id="workIsPremium"> Премиум-заявка</label>
-                    </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="workRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на работу</h2>
+                <div id="workRequestsList"></div>
                 <div id="takeOrderStatus" class="message"></div>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
@@ -325,27 +227,24 @@ body { padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom)); 
                         <select id="machineryType"></select>
                     </div>
                     <div class="input-group">
-                        <label for="machineryDescription">Описание:</label>
+                        <label for="machineryDescription">Описание задачи:</label>
                         <textarea id="machineryDescription" required></textarea>
                     </div>
                     <div class="input-group">
-                        <label for="machineryRentalDate">Дата аренды (необязательно):</label>
+                        <label for="machineryRentalDate">Дата (необязательно):</label>
                         <input type="date" id="machineryRentalDate">
                     </div>
                     <div class="input-group">
-                        <label for="machineryMinHours">Мин. кол-во часов (необязательно):</label>
-                        <input type="number" id="machineryMinHours" placeholder="Например, 4">
+                        <label for="machineryMinHours">Минимальное кол-во часов:</label>
+                        <input type="number" id="machineryMinHours" value="4" min="1" required>
                     </div>
                     <div class="input-group">
-                        <label for="machineryRentalPrice">Цена аренды:</label>
+                        <label for="machineryRentalPrice">Цена аренды (за час):</label>
                         <input type="number" id="machineryRentalPrice" required>
                     </div>
                     <div class="input-group">
                         <label for="machineryContact">Контакт:</label>
                         <input type="text" id="machineryContact" required>
-                    </div>
-                    <div class="input-group">
-                        <label class="checkbox-label"><input type="checkbox" id="machineryIsPremium"> Премиум-заявка</label>
                     </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
@@ -353,14 +252,79 @@ body { padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom)); 
             </div>
         </div>
 
+        <div id="machineryRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на спецтехнику</h2>
+                <div id="machineryRequestsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="createToolRequestPage" class="page">
+            <div class="form-container">
+                <h2>Заявка на инструмент</h2>
+                <div id="toolRequestStatus" class="message"></div>
+                <form id="toolRequestForm">
+                    <div class="input-group">
+                        <label for="toolName">Название инструмента:</label>
+                        <select id="toolName"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolDescription">Описание:</label>
+                        <textarea id="toolDescription" required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalPrice">Цена аренды:</label>
+                        <input type="number" id="toolRentalPrice" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolCount">Количество:</label>
+                        <input type="number" id="toolCount" value="1" min="1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalStartDate">Срок аренды (Начало):</label>
+                        <input type="date" id="toolRentalStartDate" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolRentalEndDate">Срок аренды (Окончание):</label>
+                        <input type="date" id="toolRentalEndDate" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="toolContact">Контакт:</label>
+                        <input type="text" id="toolContact" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="hasDelivery" class="checkbox-label">
+                            <input type="checkbox" id="hasDelivery">
+                            Нужна доставка?
+                        </label>
+                    </div>
+                    <div class="input-group" id="deliveryAddressGroup" style="display: none;">
+                        <label for="deliveryAddress">Адрес доставки:</label>
+                        <input type="text" id="deliveryAddress">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Разместить</button>
+                </form>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="toolRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Заявки на инструмент</h2>
+                <div id="toolRequestsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
         <div id="createMaterialAdPage" class="page">
             <div class="form-container">
-                <h2>Объявление о материалах</h2>
+                <h2>Объявление на материалы</h2>
                 <div id="materialAdStatus" class="message"></div>
                 <form id="materialAdForm">
                     <div class="input-group">
-                        <label for="materialType">Тип материалов:</label>
-                        <select id="materialType"></select>
+                        <label for="materialType">Тип материала:</label>
+                        <input type="text" id="materialType" required>
                     </div>
                     <div class="input-group">
                         <label for="materialDescription">Описание:</label>
@@ -374,26 +338,40 @@ body { padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom)); 
                         <label for="materialContact">Контакт:</label>
                         <input type="text" id="materialContact" required>
                     </div>
-                    <div class="input-group">
-                        <label class="checkbox-label"><input type="checkbox" id="materialIsPremium"> Премиум-объявление</label>
-                    </div>
-                    <div class="input-group">
-                        <label class="checkbox-label"><input type="checkbox" id="hasDelivery"> Нужна доставка</label>
-                    </div>
-                    <div id="deliveryAddressGroup" class="input-group" style="display:none;">
-                        <label for="deliveryAddress">Адрес доставки:</label>
-                        <input type="text" id="deliveryAddress" placeholder="Город, улица, дом">
-                    </div>
                     <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
-        <div class="footer">
-            © СМЗ.РФ
+        <div id="materialAdsPage" class="page">
+            <div class="list-container">
+                <h2>Объявления на материалы</h2>
+                <div id="materialAdsList"></div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
         </div>
-    </div>
+
+        <div id="myRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Мои заявки</h2>
+                <div id="myWorkRequests" class="my-requests-section">
+                    <h3>Заявки на работу</h3>
+                    <div id="myWorkRequestsList"></div>
+                </div>
+                <div id="myMachineryRequests" class="my-requests-section">
+                    <h3>Заявки на спецтехнику</h3>
+                    <div id="myMachineryRequestsList"></div>
+                </div>
+                <div id="myToolRequests" class="my-requests-section">
+                    <h3>Заявки на инструмент</h3>
+                    <div id="myToolRequestsList"></div>
+                </div>
+                <div id="myMaterialAds" class="my-requests-section">
+                    <h3>Объявления о материалах</h3>
+                    <div id="myMaterialAdsList"></div>
+                </div>
+                <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
 
     <!-- Нижняя панель контактов -->
 <div class="bottom-bar">
