@@ -58,7 +58,9 @@ work_requests = sqlalchemy.Table(
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
     sqlalchemy.Column("status", sqlalchemy.String, default="active"),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now())
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    # НОВОЕ ПОЛЕ: нужен ли выезд мастера
+    sqlalchemy.Column("is_master_visit_required", sqlalchemy.Boolean, default=False, nullable=False), # <-- ДОБАВЛЕНО
 )
 
 # Таблица городов
@@ -76,15 +78,18 @@ machinery_requests = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
     sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True), # Теперь это описание задачи
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("min_rental_hours", sqlalchemy.Integer, default=4),
     sqlalchemy.Column("rental_price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("status", sqlalchemy.String, default="active"),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
-    # --- НОВЫЕ СТОЛБЦЫ ---
-    sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
-    sqlalchemy.Column("min_rental_hours", sqlalchemy.Integer, default=4),
+    # НОВЫЕ ПОЛЯ: для доставки
+    sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False, nullable=False), # <-- ДОБАВЛЕНО
+    sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True), # <-- ДОБАВЛЕНО
 )
 
 

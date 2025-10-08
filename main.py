@@ -18,6 +18,7 @@ from sqlalchemy.sql import select
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from sqlalchemy import text
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
@@ -49,6 +50,8 @@ async def startup():
     await database.connect()
     metadata.create_all(engine)
     print("Database connected and tables checked/created.")
+with engine.begin() as conn:
+    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE"))
 
     # --- НОВЫЙ КОД ДЛЯ ЗАПОЛНЕНИЯ ГОРОДОВ ---
     # Проверяем, есть ли города в таблице
@@ -99,20 +102,17 @@ class UserInDB(BaseModel):
     is_active: bool = True
     user_type: str
     specialization: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
+    is_premium: bool = False  # ← добавили
+    class Config: from_attributes = True
 
-# Модель для отображения пользователя (обновлена)
 class UserOut(BaseModel):
     id: int
     email: str
     phone_number: str
     user_type: str
     specialization: Optional[str] = None
-
-    class Config:
-        from_attributes = True
+    is_premium: bool = False  # ← добавили
+    class Config: from_attributes = True
         
 class UserUpdate(BaseModel):
     user_name: Optional[str] = None
@@ -136,6 +136,7 @@ class WorkRequestIn(BaseModel):
     contact_info: str
     city_id: int
     is_premium: bool = False
+is_master_visit_required: bool = False # <-- ДОБАВЛЕНО
 
 class WorkRequestUpdate(BaseModel):
     description: Optional[str] = None
@@ -158,6 +159,8 @@ class MachineryRequestIn(BaseModel):
     # --- НОВЫЕ ПОЛЯ ---
     rental_date: Optional[date] = None
     min_rental_hours: int = 4
+has_delivery: bool = False # <-- ДОБАВЛЕНО
+    delivery_address: Optional[str] = None # <-- ДОБАВЛЕНО
 
 # Схемы для инструмента
 class ToolRequestIn(BaseModel):
@@ -333,7 +336,8 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
         budget=work_request.budget,
         contact_info=work_request.contact_info,
         city_id=work_request.city_id,
-        is_premium=work_request.is_premium
+        is_premium=work_request.is_premium,
+        is_master_visit_required=work_request.is_master_visit_required # <-- ДОБАВЛЕНО
     )
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **work_request.dict()}
@@ -360,7 +364,9 @@ async def create_machinery_request(machinery_request: MachineryRequestIn, curren
         city_id=machinery_request.city_id,
         is_premium=machinery_request.is_premium,
         rental_date=machinery_request.rental_date,
-        min_rental_hours=machinery_request.min_rental_hours
+        min_rental_hours=machinery_request.min_rental_hours,
+        has_delivery=machinery_request.has_delivery, # <-- ДОБАВЛЕНО
+        delivery_address=machinery_request.delivery_address # <-- ДОБАВЛЕНО
     )
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **machinery_request.dict()}
