@@ -10,6 +10,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field, EmailStr
+from fastapi.staticfiles import StaticFiles
 
 from database import (
     database, create_all, metadata,
@@ -450,5 +451,20 @@ async def on_shutdown():
 
 app.include_router(api_router)
 
+# ----------------------------------------------------
+# --- Static Files Mounting ---
+# ----------------------------------------------------
+
+# Определяем путь к папке 'static'
+static_dir = Path(__file__).parent / "static"
+
+# Проверяем существование папки static
+if static_dir.is_dir():
+    # Монтируем папку 'static' К КОРНЕВОМУ URL ("/")
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static_spa")
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", "8000")), reload=True)
+    # Исправлена ошибка: uvicorn.run должен использовать app, а не "main:app" в этом блоке
+    # Но для использования "main:app" при запуске через консоль, оставим как было, 
+    # чтобы не нарушать стандартный способ запуска FastAPI.
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
