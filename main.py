@@ -50,8 +50,9 @@ async def startup():
     await database.connect()
     metadata.create_all(engine)
     print("Database connected and tables checked/created.")
-with engine.begin() as conn:
-    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE"))
+    # ИСПРАВЛЕНИЕ: Разделяем синхронный и асинхронный код
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE"))
 
     # --- НОВЫЙ КОД ДЛЯ ЗАПОЛНЕНИЯ ГОРОДОВ ---
     # Проверяем, есть ли города в таблице
@@ -129,6 +130,7 @@ class TokenData(BaseModel):
     username: str | None = None
 
 # Схемы для работы
+# ИСПРАВЛЕНИЕ: Поле is_master_visit_required было объявлено вне класса
 class WorkRequestIn(BaseModel):
     description: str
     specialization: str
@@ -136,7 +138,7 @@ class WorkRequestIn(BaseModel):
     contact_info: str
     city_id: int
     is_premium: bool = False
-is_master_visit_required: bool = False # <-- ДОБАВЛЕНО
+    is_master_visit_required: bool = False # <-- ПЕРЕМЕЩЕНО ВНУТРЬ КЛАССА
 
 class WorkRequestUpdate(BaseModel):
     description: Optional[str] = None
@@ -149,6 +151,7 @@ class WorkRequestUpdate(BaseModel):
     status: Optional[str] = None
 
 # Схемы для спецтехники (ОБНОВЛЕНО)
+# ИСПРАВЛЕНИЕ: Поля has_delivery и delivery_address были объявлены вне класса
 class MachineryRequestIn(BaseModel):
     machinery_type: str
     description: Optional[str] = None
@@ -159,8 +162,8 @@ class MachineryRequestIn(BaseModel):
     # --- НОВЫЕ ПОЛЯ ---
     rental_date: Optional[date] = None
     min_rental_hours: int = 4
-has_delivery: bool = False # <-- ДОБАВЛЕНО
-    delivery_address: Optional[str] = None # <-- ДОБАВЛЕНО
+    has_delivery: bool = False # <-- ПЕРЕМЕЩЕНО ВНУТРЬ КЛАССА
+    delivery_address: Optional[str] = None # <-- ПЕРЕМЕЩЕНО ВНУТРЬ КЛАССА
 
 # Схемы для инструмента
 class ToolRequestIn(BaseModel):
@@ -248,14 +251,15 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # Определяем базовый путь
 base_path = Path(__file__).parent
-static_path = base_path / "static"
+# ИСПРАВЛЕНО: Предполагаем, что index.html находится в корне, а не в /static
+app.mount("/static", StaticFiles(directory=base_path), name="static")
 
-# Указываем FastAPI, где искать статические файлы
-app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-@app.get("/", response_class=FileResponse)
+@app.get("/", response_class=FileResponse, include_in_schema=False)
 async def serve_index():
-    return FileResponse(static_path / "index.html")
+    # Файл должен лежать рядом с main.py
+    return FileResponse(Path(base_path, "index.html"))
+
 
 # НОВЫЙ МАРШРУТ для получения токена
 @api_router.post("/token", response_model=Token)
@@ -284,7 +288,8 @@ async def is_email_taken(email: str):
     existing_user = await database.fetch_one(query)
     return existing_user is not None
 
-@api_router.post("/users/", status_code=status.HTTP_201_CREATED, response_model=UserOut)
+# ИСПРАВЛЕНИЕ: Путь изменен на /register для соответствия фронтенду
+@api_router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserOut)
 async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
     try:
         if await is_email_taken(user.email):
@@ -297,7 +302,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
             )
-        hashed_password = pwd_context.hash(user.password)
+        hashed_password = get_password_hash(user.password)
         query = users.insert().values(
             email=user.email,
             hashed_password=hashed_password,
@@ -306,13 +311,9 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
             specialization=user.specialization
         )
         last_record_id = await database.execute(query)
-        user_in_db = await database.fetch_one(users.select().where(users.c.id == last_record_id))
-        # Создание токена
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        token_data = {"sub": user_in_db["email"], "id": user_in_db["id"]}
-        access_token = create_access_token(data=token_data, expires_delta=access_token_expires)
-        # Вы можете добавить здесь фоновое задание для отправки email, если функция `send_welcome_email` определена
-        # background_tasks.add_task(send_welcome_email, user.email)
+        user_in_db_query = users.select().where(users.c.id == last_record_id)
+        user_in_db = await database.fetch_one(user_in_db_query)
+        
         return user_in_db
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(
@@ -435,93 +436,6 @@ async def get_material_ads(city_id: Optional[int] = None):
     return ads
 
 # --- Маршруты для получения данных из таблиц-справочников ---
-
-@api_router.get("/specializations/")
-def get_specializations():
-    return SPECIALIZATIONS
-
-@api_router.get("/machinery_types/")
-def get_machinery_types():
-    return MACHINERY_TYPES
-
-@api_router.get("/cities/")
-async def get_cities():
-    query = cities.select().order_by(cities.c.name)
-    all_cities = await database.fetch_all(query)
-    return all_cities
-
-# ОБНОВЛЕННЫЙ МАРШРУТ
-@api_router.get("/my_requests/")
-async def get_my_requests(current_user: dict = Depends(get_current_user)):
-    user_id = current_user['id']
-    
-    # Заявки на работу
-    work_query = work_requests.select().where(work_requests.c.user_id == user_id)
-    my_work_requests = await database.fetch_all(work_query)
-
-    # Заявки на спецтехнику
-    machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == user_id)
-    my_machinery_requests = await database.fetch_all(machinery_query)
-
-    # Заявки на инструмент
-    tool_query = tool_requests.select().where(tool_requests.c.user_id == user_id)
-    my_tool_requests = await database.fetch_all(tool_query)
-
-    # Объявления о материалах
-    material_query = material_ads.select().where(material_ads.c.user_id == user_id)
-    my_material_ads = await database.fetch_all(material_query)
-
-    return {
-        "work_requests": my_work_requests,
-        "machinery_requests": my_machinery_requests,
-        "tool_requests": my_tool_requests,
-        "material_ads": my_material_ads
-    }
-
-# Новый маршрут для принятия заявки
-@api_router.patch("/work_requests/{request_id}/take")
-async def take_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
-    user_id = current_user['id']
-    
-    # Проверяем, что заявка существует
-    query_check = select(work_requests).where(work_requests.c.id == request_id)
-    request_data = await database.fetch_one(query_check)
-    if not request_data:
-        raise HTTPException(status_code=404, detail="Заявка не найдена.")
-
-    # Проверяем, что заявка не уже взята
-    if request_data['status'] == 'В РАБОТЕ':
-        raise HTTPException(status_code=400, detail="Эта заявка уже принята другим исполнителем.")
-
-    # Обновляем статус и исполнителя
-    query_update = work_requests.update().where(work_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
-    await database.execute(query_update)
-    
-    return {"message": "Заявка успешно принята.", "request_id": request_id}
-
-@api_router.patch("/machinery_requests/{request_id}/take")
-async def take_machinery_request(request_id: int, current_user: dict = Depends(get_current_user)):
-    user_id = current_user['id']
-    query_update = machinery_requests.update().where(machinery_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
-    await database.execute(query_update)
-    return {"message": "Заявка успешно принята.", "request_id": request_id}
-
-# Новый маршрут для подписки на премиум
-@api_router.post("/subscribe/")
-async def activate_premium_subscription(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["id"]
-    query = users.update().where(users.c.id == user_id).values(is_premium=True)
-    await database.execute(query)
-    return {"message": "Премиум-подписка активирована. Вы можете разместить до 5 премиум-заявок."}
-
-# Новый маршрут для обновления специализации
-@api_router.post("/update_specialization/")
-async def update_user_specialization(specialization: str, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["id"]
-    query = users.update().where(users.c.id == user_id).values(specialization=specialization)
-    await database.execute(query)
-    return {"message": "Специализация успешно обновлена."}
-
 # Список специализаций
 SPECIALIZATIONS = [
     "Электрик", "Сантехник", "Сварщик", "Плиточник", "Маляр", "Штукатур",
@@ -558,7 +472,7 @@ MACHINERY_TYPES = [
 @api_router.get("/machinery_types/")
 def get_machinery_types():
     return MACHINERY_TYPES
-
+    
 # Список инструментов
 TOOLS_LIST = [
     "Бетономешалка", "Виброплита", "Генератор", "Компрессор", "Отбойный молоток",
@@ -583,5 +497,100 @@ MATERIAL_TYPES = [
 @api_router.get("/material_types/")
 def get_material_types():
     return MATERIAL_TYPES
+    
+@api_router.get("/cities/")
+async def get_cities():
+    query = cities.select().order_by(cities.c.name)
+    all_cities = await database.fetch_all(query)
+    return all_cities
+
+# ИСПРАВЛЕНИЕ: Заменяем один маршрут на несколько для соответствия фронтенду
+@api_router.get("/my/work_requests")
+async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    work_query = work_requests.select().where(work_requests.c.user_id == user_id)
+    return await database.fetch_all(work_query)
+
+@api_router.get("/my/machinery_requests")
+async def get_my_machinery_requests(current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    machinery_query = machinery_requests.select().where(machinery_requests.c.user_id == user_id)
+    return await database.fetch_all(machinery_query)
+
+@api_router.get("/my/tool_requests")
+async def get_my_tool_requests(current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    tool_query = tool_requests.select().where(tool_requests.c.user_id == user_id)
+    return await database.fetch_all(tool_query)
+
+@api_router.get("/my/material_ads")
+async def get_my_material_ads(current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    material_query = material_ads.select().where(material_ads.c.user_id == user_id)
+    return await database.fetch_all(material_query)
+
+
+# Новый маршрут для принятия заявки
+@api_router.patch("/work_requests/{request_id}/take")
+async def take_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    
+    # Проверяем, что заявка существует
+    query_check = select(work_requests).where(work_requests.c.id == request_id)
+    request_data = await database.fetch_one(query_check)
+    if not request_data:
+        raise HTTPException(status_code=404, detail="Заявка не найдена.")
+
+    # Проверяем, что заявка не уже взята
+    if request_data['status'] != 'active': # Используем 'active' как в таблице
+        raise HTTPException(status_code=400, detail="Эта заявка уже принята или закрыта.")
+
+    # Обновляем статус и исполнителя
+    query_update = work_requests.update().where(work_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
+    await database.execute(query_update)
+    
+    return {"message": "Заявка успешно принята.", "request_id": request_id}
+
+@api_router.patch("/machinery_requests/{request_id}/take")
+async def take_machinery_request(request_id: int, current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    query_update = machinery_requests.update().where(machinery_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
+    await database.execute(query_update)
+    return {"message": "Заявка успешно принята.", "request_id": request_id}
+
+# Новый маршрут для подписки на премиум
+@api_router.post("/subscribe/")
+async def activate_premium_subscription(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    query = users.update().where(users.c.id == user_id).values(is_premium=True)
+    await database.execute(query)
+    return {"message": "Премиум-подписка активирована. Вы можете разместить до 5 премиум-заявок."}
+
+# Новый маршрут для обновления специализации
+@api_router.post("/update_specialization/")
+async def update_user_specialization(specialization: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    query = users.update().where(users.c.id == user_id).values(specialization=specialization)
+    await database.execute(query)
+    return {"message": "Специализация успешно обновлена."}
+
 
 app.include_router(api_router)
+
+# ----------------------------------------------------
+# --- Static Files Mounting ---
+# ----------------------------------------------------
+
+# Определяем путь к папке 'static'
+static_dir = Path(__file__).parent / "static"
+
+# Проверяем существование папки static
+if static_dir.is_dir():
+    # Монтируем папку 'static' К КОРНЕВОМУ URL ("/")
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static_spa")
+
+if __name__ == "__main__":
+    # Исправлена ошибка: uvicorn.run должен использовать app, а не "main:app" в этом блоке
+    # Но для использования "main:app" при запуске через консоль, оставим как было, 
+    # чтобы не нарушать стандартный способ запуска FastAPI.
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
