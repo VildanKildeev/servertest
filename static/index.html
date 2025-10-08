@@ -31,12 +31,16 @@
         .btn-secondary:hover { background-color: #F5F2EA; transform: translateY(-1px); }
 
         form { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); display: flex; flex-direction: column; gap: 15px; }
-        input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], select, textarea { 
+        input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], input[type="date"], select, textarea { 
             padding: 12px; border: 1px solid #E0DBCF; border-radius: 6px; font-size: 16px; width: 100%; 
         }
         input:focus, select:focus, textarea:focus { border-color: #E76F51; outline: none; box-shadow: 0 0 0 2px rgba(231, 111, 81, 0.2); }
         label { font-weight: 500; color: #4A4A4A; }
         .form-group { width: 100%; }
+        
+        /* Чекбокс стили */
+        .form-group input[type="checkbox"] { width: auto; margin-right: 10px; }
+        .form-group.checkbox-group { display: flex; align-items: center; }
 
         /* Сообщения о статусе */
         .status-message { padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: 600; text-align: center; display: none; }
@@ -64,46 +68,6 @@
 
         /* Футер */
         footer { width: 100%; background: #F5F2EA; border-top: 1px solid #E0DBCF; margin-top: auto; }
-.bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #ffffff; /* Белый фон для контраста */
-    display: flex;
-    justify-content: space-around; /* Равномерно распределить элементы */
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.08); /* Легкая тень сверху */
-    z-index: 100;
-    border-top: 1px solid #E0DBCF;
-    padding: 5px 0;
-}
-.bottom-nav a {
-    color: #4A4A4A;
-    padding: 8px 12px;
-    font-size: 12px;
-    text-decoration: none; /* Убрать подчеркивание у ссылок */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px; /* Расстояние между иконкой и текстом */
-    flex-grow: 1;
-    transition: background-color 0.2s;
-}
-.bottom-nav a:hover {
-    background-color: #F5F2EA; /* Легкий фон при наведении */
-}
-.bottom-nav a i {
-    font-size: 22px;
-    /* Используем другой цвет из палитры для контактов */
-    color: #2A9D8F; 
-}
-
-/* ВАЖНО: Добавьте этот отступ для тега body, 
-чтобы нижнее меню не перекрывало контент страницы.
-*/
-body {
-    padding-bottom: 75px; /* Высота меню + небольшой запас */
-}
 
     </style>
 </head>
@@ -294,59 +258,47 @@ body {
             </div>
         </div>
 
-        <div 
-<div id="machineryPage" class="page">
-    <button class="btn-secondary" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад</button>
-    <h2>Аренда спецтехники в <span id="machineryCityName"></span></h2>
-    <button class="btn-primary" style="margin-bottom: 20px;" onclick="showPage('createMachineryAdPage')">Разместить объявление</button>
-    <div class="card-list" id="machineryList">
-        <p>Загрузка объявлений...</p>
-    </div>
-</div>
-id="createMachineryAdPage" class="page">
-    <button class="btn-secondary" onclick="showPage('machineryPage')"><i class="fas fa-arrow-left"></i> Назад</button>
-    <h2>Объявление о спецтехнике</h2>
-    <form id="machineryAdForm">
-        <div class="form-group">
-            <label for="machineryType">Тип техники:</label>
-            <select id="machineryType" required></select>
-        </div>
-        <div class="form-group">
-            <label for="machineryDescription">Описание:</label>
-            <textarea id="machineryDescription" rows="3"></textarea>
-        </div>
-        <div class="form-group">
-            <label for="machineryPrice">Цена аренды (в сутки):</label>
-            <input type="number" id="machineryPrice" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="machineryRentalDate">Дата начала аренды:</label>
-            <input type="date" id="machineryRentalDate" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="machineryHoursCount">Количество часов аренды:</label>
-            <input type="number" id="machineryHoursCount" min="1" required>
+        <div id="machineryPage" class="page">
+            <button class="btn-secondary" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад</button>
+            <h2>Аренда спецтехники в <span id="machineryCityName"></span></h2>
+            <button class="btn-primary" style="margin-bottom: 20px;" onclick="showPage('createMachineryAdPage')">Разместить объявление</button>
+            <div class="card-list" id="machineryList">
+                <p>Загрузка объявлений...</p>
+            </div>
         </div>
 
-        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
-            <input type="checkbox" id="machineryMinHours" style="width: auto; margin: 0; transform: scale(1.4);">
-            <label for="machineryMinHours" style="margin: 0; font-weight: normal;">Опционально: Минимальный заказ - 4 часа</label>
+        <div id="createMachineryAdPage" class="page">
+            <button class="btn-secondary" onclick="showPage('machineryPage')"><i class="fas fa-arrow-left"></i> Назад</button>
+            <h2>Объявление о спецтехнике</h2>
+            <form id="machineryAdForm">
+                <div class="form-group">
+                    <label for="machineryType">Тип техники:</label>
+                    <select id="machineryType" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="machineryDescription">Описание:</label>
+                    <textarea id="machineryDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="machineryPrice">Цена аренды (за час/смену) [rental_price]:</label>
+                    <input type="number" id="machineryPrice" required>
+                </div>
+                <div class="form-group">
+                    <label for="machineryMinHours">Минимальный заказ (часов) [min_hours]:</label>
+                    <input type="number" id="machineryMinHours" value="4" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="machineryRentalDate">Дата начала аренды (Необязательно) [rental_date]:</label>
+                    <input type="date" id="machineryRentalDate">
+                </div>
+                <div class="form-group">
+                    <label for="machineryContact">Контакт:</label>
+                    <input type="text" id="machineryContact" required>
+                </div>
+                <button type="submit" class="btn-primary">Разместить объявление</button>
+                <div id="machineryAdStatus" class="status-message status-error"></div>
+            </form>
         </div>
-
-        <div class="form-group">
-            <label for="machineryDeliveryDate">Желаемая дата доставки (необязательно):</label>
-            <input type="date" id="machineryDeliveryDate">
-        </div>
-        <div class="form-group">
-            <label for="machineryContact">Контакт:</label>
-            <input type="text" id="machineryContact" required>
-        </div>
-        <button type="submit" class="btn-primary">Разместить объявление</button>
-        <div id="machineryAdStatus" class="status-message status-error"></div>
-    </form>
-</div>
 
         <div id="toolsPage" class="page">
             <button class="btn-secondary" onclick="showPage('buttonContainer')"><i class="fas fa-arrow-left"></i> Назад</button>
@@ -376,6 +328,22 @@ id="createMachineryAdPage" class="page">
                 <div class="form-group">
                     <label for="toolPrice">Цена аренды (в сутки):</label>
                     <input type="number" id="toolPrice" required>
+                </div>
+                <div class="form-group">
+                    <label for="toolStartDate">Срок аренды: Начальная дата [rental_start_date]:</label>
+                    <input type="date" id="toolStartDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="toolEndDate">Срок аренды: Конечная дата [rental_end_date]:</label>
+                    <input type="date" id="toolEndDate" required>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="toolHasDelivery">
+                    <label for="toolHasDelivery" style="margin-bottom: 0;">Возможна доставка [has_delivery]</label>
+                </div>
+                <div class="form-group" id="deliveryAddressGroup" style="display: none;">
+                    <label for="toolDeliveryAddress">Адрес доставки [delivery_address]:</label>
+                    <input type="text" id="toolDeliveryAddress">
                 </div>
                 <div class="form-group">
                     <label for="toolContact">Контакт:</label>
@@ -452,20 +420,14 @@ id="createMachineryAdPage" class="page">
     </div>
     
     <footer>
-        <div class="bottom-nav">
-    <a href="https://t.me/your_telegram_contact" target="_blank">
-        <i class="fab fa-telegram-plane"></i>
-        <span>Telegram</span>
-    </a>
-    <a href="https://wa.me/your_whatsapp_number" target="_blank">
-        <i class="fab fa-whatsapp"></i>
-        <span>WhatsApp</span>
-    </a>
-    <a href="http://your-forum-url.com" target="_blank">
-        <i class="fas fa-comments"></i>
-        <span>Форум</span>
-    </a>
-</div>
+        <div style="width: 100%; max-width: 600px; padding: 15px 20px; text-align: center; color: #4A4A4A;">
+            <p style="font-size: 14px; font-weight: 600;">Свяжитесь с нами:</p>
+            <p style="font-size: 14px; margin-top: 5px;">
+                <i class="fas fa-envelope"></i> email@smz.rf | 
+                <i class="fas fa-phone"></i> +7 (900) 123-45-67
+            </p>
+            <p style="font-size: 12px; color: #999; margin-top: 10px;">&copy; 2024 СМЗ.РФ. Все права защищены.</p>
+        </div>
     </footer>
 
     <script>
@@ -509,7 +471,7 @@ id="createMachineryAdPage" class="page">
         
         async function fetchCities() {
             try {
-                const response = await fetch(`${API_URL}/cities/`);
+                const response = await fetch(`${API_URL}/cities`);
                 const cities = await response.json();
                 citySelect.innerHTML = '<option value="">Выберите город</option>';
                 cities.forEach(city => {
@@ -525,14 +487,13 @@ id="createMachineryAdPage" class="page">
                 }
 
                 // Добавляем города в формы регистрации/объявлений
-                const citySelects = document.querySelectorAll('select[id$="City"]');
-                citySelects.forEach(selectEl => {
-                    selectEl.innerHTML = citySelect.innerHTML;
+                const regCitySelect = document.getElementById('regCity');
+                if (regCitySelect) {
+                    regCitySelect.innerHTML = citySelect.innerHTML;
                     if (selectedCity) {
-                        selectEl.value = selectedCity.id;
+                        regCitySelect.value = selectedCity.id;
                     }
-                });
-
+                }
 
             } catch (error) {
                 console.error("Ошибка загрузки городов:", error);
@@ -571,7 +532,7 @@ id="createMachineryAdPage" class="page">
 
         async function fetchAndPopulateSelect(endpoint, selectId) {
             try {
-                const response = await fetch(`${API_URL}/${endpoint}/`);
+                const response = await fetch(`${API_URL}/${endpoint}`);
                 const data = await response.json();
                 const selectEl = document.getElementById(selectId);
                 selectEl.innerHTML = '<option value="">Выберите...</option>';
@@ -813,9 +774,10 @@ id="createMachineryAdPage" class="page">
                     const statusText = req.is_taken ? 
                         (req.executor_id === currentUser.id ? 'В работе (Вы Исполнитель)' : 'Взята в работу') : 
                         'Открыта';
-                    const isCompleted = req.status === 'completed'; // Предполагаем, что бэкенд может вернуть статус 'completed'
                     const isOwner = req.user_id === currentUser.id;
-                    const canRate = isOwner && req.is_taken && !req.is_rated; // Логика кнопки рейтинга
+                    // Временно убираем canRate, пока не убедимся в правильности структуры данных
+                    // const canRate = isOwner && req.is_taken && !req.is_rated; 
+                    const canRate = isOwner && req.is_taken; // Упрощенная логика
 
                     const card = document.createElement('div');
                     card.className = 'card';
@@ -955,43 +917,58 @@ id="createMachineryAdPage" class="page">
                 rental_price: parseFloat(document.getElementById('machineryPrice').value),
                 contact_info: document.getElementById('machineryContact').value,
                 city_id: selectedCityId,
-                // Новые поля
-                rental_date: document.getElementById('machineryRentalDate').value,
-                min_hours_4: document.getElementById('machineryMinHours').checked,
-                hours_count: parseInt(document.getElementById('machineryHoursCount').value)
+                // НОВЫЕ ПОЛЯ ДЛЯ СПЕЦТЕХНИКИ
+                min_hours: parseInt(document.getElementById('machineryMinHours').value) || 4, 
+                rental_date: document.getElementById('machineryRentalDate').value || null 
             };
-            await handleFormSubmit('machineryAdForm', `${API_URL}/machinery_requests/`, payload, 'machineryAdStatus', () => {
+            
+            if (!payload.rental_price || payload.rental_price <= 0) {
+                 displayStatus('machineryAdStatus', 'Пожалуйста, укажите цену.');
+                 return;
+            }
+            
+            await handleFormSubmit('machineryAdForm', `${API_URL}/machinery_requests`, payload, 'machineryAdStatus', () => {
                 showPage('machineryPage');
             });
         });
         
+        // Условное отображение адреса доставки
+        document.getElementById('toolHasDelivery').addEventListener('change', (e) => {
+            document.getElementById('deliveryAddressGroup').style.display = e.target.checked ? 'block' : 'none';
+            if (!e.target.checked) {
+                document.getElementById('toolDeliveryAddress').value = '';
+            }
+        });
+        
         document.getElementById('toolAdForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            const hasDelivery = document.getElementById('toolHasDelivery').checked;
+            
             const payload = {
                 tool_name: document.getElementById('toolName').value,
                 description: document.getElementById('toolDescription').value,
+                tool_count: parseInt(document.getElementById('toolCount').value),
                 rental_price: parseFloat(document.getElementById('toolPrice').value),
                 contact_info: document.getElementById('toolContact').value,
                 city_id: selectedCityId,
-                // Новые поля
-                rental_start_date: document.getElementById('toolRentalStartDate').value,
-                rental_end_date: document.getElementById('toolRentalEndDate').value,
-                has_delivery: document.getElementById('toolHasDelivery').checked,
-                delivery_address: document.getElementById('toolDeliveryAddress').value || null
+                // НОВЫЕ ПОЛЯ ДЛЯ ИНСТРУМЕНТА
+                rental_start_date: document.getElementById('toolStartDate').value,
+                rental_end_date: document.getElementById('toolEndDate').value,
+                has_delivery: hasDelivery,
+                delivery_address: hasDelivery ? document.getElementById('toolDeliveryAddress').value : null,
             };
-            await handleFormSubmit('toolAdForm', `${API_URL}/tool_requests/`, payload, 'toolAdStatus', () => {
+            
+            if (!payload.rental_start_date || !payload.rental_end_date) {
+                 displayStatus('toolAdStatus', 'Пожалуйста, укажите срок аренды.');
+                 return;
+            }
+
+            await handleFormSubmit('toolAdForm', `${API_URL}/tool_requests`, payload, 'toolAdStatus', () => {
                 showPage('toolsPage');
             });
         });
         
-document.getElementById('toolHasDelivery').addEventListener('change', function() {
-            const addressGroup = document.getElementById('toolDeliveryAddressGroup');
-            if (this.checked) {
-                addressGroup.style.display = 'block';
-            } else {
-                addressGroup.style.display = 'none';
-            }
-        });
         document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const payload = {
@@ -1015,7 +992,7 @@ document.getElementById('toolHasDelivery').addEventListener('change', function()
             fetchAndPopulateSelect('specializations', 'regSpecialization');
             fetchAndPopulateSelect('specializations', 'requestSpecialization');
             fetchAndPopulateSelect('machinery_types', 'machineryType');
-            fetchAndPopulateSelect('tool_types', 'toolName'); // tool_types вместо tools_list
+            fetchAndPopulateSelect('tool_types', 'toolName'); 
             fetchAndPopulateSelect('material_types', 'materialType');
             
             const selectedCity = getSelectedCity();
