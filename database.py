@@ -1,154 +1,123 @@
-
-import os
-from datetime import datetime
 import sqlalchemy
-from sqlalchemy import Table, Column, Integer, String, Float, Boolean, Text, DateTime, ForeignKey, MetaData, create_engine, UniqueConstraint
+from sqlalchemy.schema import MetaData
+from sqlalchemy.engine import create_engine
+import os
 import databases
+from sqlalchemy.types import JSON
 
-# ----------------------------------------------------------------------------
-# Database configuration
-# ----------------------------------------------------------------------------
+# Получаем DATABASE_URL из переменных окружения.
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-DATABASE_URL = os.environ.get("DATABASE_URL") or "sqlite:///./app.db"
+# Проверяем, что переменная установлена, иначе приложение не запустится
+if not DATABASE_URL:
+    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
 
-# Async database for FastAPI
-database = databases.Database(DATABASE_URL)
+# --- ВАЖНЫЕ ИЗМЕНЕНИЯ ЗДЕСЬ ---
+# Добавляем параметр SSL для Render.com, если его нет.
+if "?" in DATABASE_URL:
+    DATABASE_URL += "&sslmode=require"
+else:
+    DATABASE_URL += "?sslmode=require"
 
-# SQLAlchemy metadata/engine
-metadata = MetaData()
+# ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
+# но SQLAlchemy требует для asyncpg/databases формат postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 engine = create_engine(DATABASE_URL)
+database = databases.Database(DATABASE_URL)
+metadata = MetaData()
+# --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
-# ----------------------------------------------------------------------------
-# Reference tables
-# ----------------------------------------------------------------------------
-
-cities = Table(
-    "cities", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String, unique=True, nullable=False)
+# Таблица для пользователей (добавлена)
+users = sqlalchemy.Table(
+    "users",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("email", sqlalchemy.String, unique=True, index=True),
+    sqlalchemy.Column("hashed_password", sqlalchemy.String),
+    sqlalchemy.Column("phone_number", sqlalchemy.String),
+    sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True),
+    sqlalchemy.Column("user_type", sqlalchemy.String, nullable=False), # НОВЫЙ СТОЛБЕЦ
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # НОВЫЙ СТОЛБЕЦ
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
 )
 
-specializations = Table(
-    "specializations", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String, unique=True, nullable=False)
+# Таблица запросов на работу
+work_requests = sqlalchemy.Table(
+    "work_requests",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("budget", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True),
+    sqlalchemy.Column("status", sqlalchemy.String, default="active"),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now())
 )
 
-machinery_types = Table(
-    "machinery_types", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String, unique=True, nullable=False)
+# Таблица городов
+cities = sqlalchemy.Table(
+    "cities",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("name", sqlalchemy.String, unique=True, index=True)
 )
 
-tool_types = Table(
-    "tool_types", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String, unique=True, nullable=False)
+# Таблица запросов на спецтехнику (ОБНОВЛЕНО)
+machinery_requests = sqlalchemy.Table(
+    "machinery_requests",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True), # Теперь это описание задачи
+    sqlalchemy.Column("rental_price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    # --- НОВЫЕ СТОЛБЦЫ ---
+    sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("min_rental_hours", sqlalchemy.Integer, default=4),
 )
 
-material_types = Table(
-    "material_types", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String, unique=True, nullable=False)
+
+# Таблица запросов на инструмент
+tool_requests = sqlalchemy.Table(
+    "tool_requests",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("tool_name", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("rental_price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    # ОБНОВЛЕННЫЕ СТОЛБЦЫ:
+    sqlalchemy.Column("count", sqlalchemy.Integer, default=1),
+    sqlalchemy.Column("rental_start_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False, nullable=False),
+    sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
 )
 
-# ----------------------------------------------------------------------------
-# Core tables
-# ----------------------------------------------------------------------------
-
-users = Table(
-    "users", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("email", String, unique=True, nullable=False),
-    Column("hashed_password", String, nullable=False),
-    Column("first_name", String, nullable=False),
-    Column("user_type", String, nullable=False),  # 'ЗАКАЗЧИК' | 'ИСПОЛНИТЕЛЬ' | 'ВЛАДЕЛЕЦ СПЕЦТЕХНИКИ'
-    Column("phone_number", String, nullable=True),
-    Column("city_id", Integer, ForeignKey("cities.id"), nullable=True),
-    Column("specialization", String, nullable=True),
-    Column("rating", Float, nullable=False, server_default="0"),
-    Column("rating_count", Integer, nullable=False, server_default="0"),
-    Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
+# Таблица объявлений о материалах
+material_ads = sqlalchemy.Table(
+    "material_ads",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
+    sqlalchemy.Column("material_type", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("price", sqlalchemy.Float),
+    sqlalchemy.Column("contact_info", sqlalchemy.String),
+    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=sqlalchemy.func.now()),
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False)
 )
-
-work_requests = Table(
-    "work_requests", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
-    Column("executor_id", Integer, ForeignKey("users.id"), nullable=True),  # кто взял в работу
-    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
-    Column("name", String, nullable=False),
-    Column("specialization", String, nullable=False),
-    Column("description", Text, nullable=False),
-    Column("budget", Float, nullable=True),
-    Column("phone_number", String, nullable=False),
-    Column("address", String, nullable=True),
-    Column("visit_date", DateTime, nullable=True),
-    Column("status", String, nullable=False, server_default="open"),
-    Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
-)
-
-work_request_ratings = Table(
-    "work_request_ratings", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("work_request_id", Integer, ForeignKey("work_requests.id"), nullable=False),
-    Column("rater_id", Integer, ForeignKey("users.id"), nullable=False),
-    Column("executor_id", Integer, ForeignKey("users.id"), nullable=False),
-    Column("rating_value", Integer, nullable=False),
-    UniqueConstraint("work_request_id", "rater_id", name="uq_single_rating_per_request")
-)
-
-machinery_requests = Table(
-    "machinery_requests", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
-    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
-    Column("machinery_type", String, nullable=False),
-    Column("description", Text, nullable=True),
-    Column("rental_price", Float, nullable=True),
-    Column("contact_info", String, nullable=False),
-    Column("delivery_date", DateTime, nullable=True),
-    Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
-)
-
-tool_requests = Table(
-    "tool_requests", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
-    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
-    Column("tool_name", String, nullable=False),
-    Column("description", Text, nullable=True),
-    Column("rental_price", Float, nullable=True),
-    Column("contact_info", String, nullable=False),
-    Column("has_delivery", Boolean, nullable=False, server_default="0"),
-    Column("delivery_address", String, nullable=True),
-    Column("rental_start_date", DateTime, nullable=True),
-    Column("rental_end_date", DateTime, nullable=True),
-    Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
-)
-
-material_ads = Table(
-    "material_ads", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
-    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
-    Column("material_type", String, nullable=False),   # строковое имя типа (под фронт)
-    Column("description", Text, nullable=True),
-    Column("price", Float, nullable=False),
-    Column("contact_info", String, nullable=False),
-    Column("is_premium", Boolean, nullable=False, server_default="0"),
-    Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
-)
-
-# ----------------------------------------------------------------------------
-# Initial reference data (small safe defaults)
-# ----------------------------------------------------------------------------
-
-INITIAL_CITIES = ["Казань", "Москва", "Санкт-Петербург", "Нижний Новгород"]
-INITIAL_SPECIALIZATIONS = ["Сантехник", "Электрик", "Строитель", "Отделочник", "Грузчик"]
-INITIAL_MACHINERY_TYPES = ["Экскаватор", "Погрузчик", "Кран", "Бульдозер"]
-INITIAL_TOOL_TYPES = ["Перфоратор", "Дрель", "Бетономешалка", "Лестница"]
-INITIAL_MATERIAL_TYPES = ["Песок", "Щебень", "Цемент", "Кирпич"]
-
-def create_all():
-    metadata.create_all(engine)
