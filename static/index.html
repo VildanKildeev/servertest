@@ -299,10 +299,16 @@
                         <input type="number" id="workBudget" required>
                     </div>
                     <div class="input-group">
-                        <label for="workContact">Контакт:</label>
-                        <input type="text" id="workContact" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Разместить</button>
+        <label for="workContact">Контакт:</label>
+        <input type="text" id="workContact" required>
+    </div>
+    <div class="input-group">
+        <label for="isMasterVisitRequired" class="checkbox-label">
+            <input type="checkbox" id="isMasterVisitRequired">
+            Нужен выезд мастера?
+        </label>
+    </div>
+    <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
@@ -343,10 +349,20 @@
                         <input type="number" id="machineryRentalPrice" required>
                     </div>
                     <div class="input-group">
-                        <label for="machineryContact">Контакт:</label>
-                        <input type="text" id="machineryContact" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Разместить</button>
+        <label for="machineryContact">Контакт:</label>
+        <input type="text" id="machineryContact" required>
+    </div>
+    <div class="input-group">
+        <label for="machineryHasDelivery" class="checkbox-label">
+            <input type="checkbox" id="machineryHasDelivery">
+            Нужна доставка?
+        </label>
+    </div>
+    <div class="input-group" id="machineryDeliveryAddressGroup" style="display: none;">
+        <label for="machineryDeliveryAddress">Адрес доставки:</label>
+        <input type="text" id="machineryDeliveryAddress">
+    </div>
+    <button type="submit" class="btn btn-primary">Разместить</button>
                 </form>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
@@ -691,6 +707,20 @@
             }
         }
 
+/ --- Master Visit Checkbox Logic (для спецтехники) ---
+// Элементы для Заявки на спецтехнику (логика скрытия/показа адреса доставки)
+const machineryHasDeliveryCheckbox = document.getElementById('machineryHasDelivery');
+const machineryDeliveryAddressGroup = document.getElementById('machineryDeliveryAddressGroup');
+
+if (machineryHasDeliveryCheckbox && machineryDeliveryAddressGroup) {
+    machineryHasDeliveryCheckbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            machineryDeliveryAddressGroup.style.display = 'block';
+        } else {
+            machineryDeliveryAddressGroup.style.display = 'none';
+        }
+    });
+}
         document.getElementById('registerUserType').addEventListener('change', (e) => {
             const specializationGroup = document.getElementById('specializationGroup');
             if (e.target.value === 'ИСПОЛНИТЕЛЬ') {
@@ -782,92 +812,104 @@
         });
 
         document.getElementById('workRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('workRequestStatus');
-            const workDescription = document.getElementById('workDescription').value;
-            const workSpecialization = document.getElementById('workSpecialization').value;
-            const workBudget = parseFloat(document.getElementById('workBudget').value);
-            const workContact = document.getElementById('workContact').value;
-            const isPremium = document.getElementById('workIsPremium').checked;
+    e.preventDefault();
+    const statusEl = document.getElementById('workRequestStatus');
 
-            const workRequestData = {
-                description: workDescription,
-                specialization: workSpecialization,
-                budget: workBudget,
-                contact_info: workContact,
-                city_id: selectedCityId,
-                is_premium: isPremium
-            };
+    // НОВОЕ ПОЛЕ: считываем состояние чекбокса "Нужен выезд мастера"
+    const isMasterVisitRequired = document.getElementById('isMasterVisitRequired').checked;
 
-            try {
-                const response = await fetch(`${API_URL}/work_requests/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify(workRequestData)
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Заявка успешно размещена!';
-                    statusEl.className = 'message success';
-                    e.target.reset();
-                } else {
-                    statusEl.textContent = data.detail || 'Ошибка размещения.';
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
-                statusEl.className = 'message error';
-            }
+    const workDescription = document.getElementById('workDescription').value;
+    const workSpecialization = document.getElementById('workSpecialization').value;
+    const workBudget = parseFloat(document.getElementById('workBudget').value);
+    const workContact = document.getElementById('workContact').value;
+    const isPremium = document.getElementById('workIsPremium').checked;
+
+    const workRequestData = {
+        description: workDescription,
+        specialization: workSpecialization,
+        budget: workBudget,
+        contact_info: workContact,
+        city_id: selectedCityId,
+        is_premium: isPremium,
+        is_master_visit_required: isMasterVisitRequired // <-- ДОБАВЛЕНО
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/work_requests/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify(workRequestData)
         });
+        const data = await response.json();
+        if (response.ok) {
+            statusEl.textContent = 'Заявка успешно размещена!';
+            statusEl.className = 'message success';
+            e.target.reset();
+        } else {
+            statusEl.textContent = data.detail || 'Ошибка размещения.';
+            statusEl.className = 'message error';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Произошла ошибка при размещении заявки.';
+        statusEl.className = 'message error';
+    }
+});
 
         document.getElementById('machineryRequestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusEl = document.getElementById('machineryRequestStatus');
-            const machineryType = document.getElementById('machineryType').value;
-            const machineryDescription = document.getElementById('machineryDescription').value;
-            const machineryRentalDate = document.getElementById('machineryRentalDate').value;
-            const machineryMinHours = parseInt(document.getElementById('machineryMinHours').value);
-            const machineryRentalPrice = parseFloat(document.getElementById('machineryRentalPrice').value);
-            const machineryContact = document.getElementById('machineryContact').value;
-            const isPremium = document.getElementById('machineryIsPremium').checked;
+    e.preventDefault();
+    const statusEl = document.getElementById('machineryRequestStatus');
 
-            const machineryRequestData = {
-                machinery_type: machineryType,
-                description: machineryDescription,
-                rental_price: machineryRentalPrice,
-                contact_info: machineryContact,
-                city_id: selectedCityId,
-                rental_date: machineryRentalDate || null,
-                min_rental_hours: machineryMinHours,
-                is_premium: isPremium
-            };
+    // НОВЫЕ ПОЛЯ: считываем состояние чекбокса "Нужна доставка?" и адрес
+    const hasDelivery = document.getElementById('machineryHasDelivery').checked;
+    const deliveryAddress = document.getElementById('machineryDeliveryAddress').value;
 
-            try {
-                const response = await fetch(`${API_URL}/machinery_requests/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify(machineryRequestData)
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    statusEl.textContent = 'Заявка успешно размещена!';
-                    statusEl.className = 'message success';
-                    e.target.reset();
-                } else {
-                    statusEl.textContent = data.detail || 'Ошибка размещения.';
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Произошла ошибка при размещении заявки.';
-                statusEl.className = 'message error';
-            }
+    const machineryType = document.getElementById('machineryType').value;
+    const machineryDescription = document.getElementById('machineryDescription').value;
+    const rentalDateInput = document.getElementById('machineryRentalDate').value;
+    const minRentalHours = parseInt(document.getElementById('machineryMinHours').value);
+    const rentalPrice = parseFloat(document.getElementById('machineryRentalPrice').value);
+    const machineryContact = document.getElementById('machineryContact').value;
+    const isPremium = document.getElementById('machineryIsPremium').checked;
+
+    const machineryRequestData = {
+        machinery_type: machineryType,
+        description: machineryDescription,
+        rental_date: rentalDateInput || null,
+        min_rental_hours: minRentalHours,
+        rental_price: rentalPrice,
+        contact_info: machineryContact,
+        city_id: selectedCityId,
+        is_premium: isPremium,
+        has_delivery: hasDelivery, // <-- ДОБАВЛЕНО
+        delivery_address: hasDelivery ? deliveryAddress : null, // <-- ДОБАВЛЕНО
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/machinery_requests/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify(machineryRequestData)
         });
+        const data = await response.json();
+        if (response.ok) {
+            statusEl.textContent = 'Заявка на спецтехнику успешно размещена!';
+            statusEl.className = 'message success';
+            e.target.reset();
+        } else {
+            statusEl.textContent = data.detail || 'Ошибка размещения.';
+            statusEl.className = 'message error';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Произошла ошибка при размещении заявки.';
+        statusEl.className = 'message error';
+    }
+});
 
         document.getElementById('materialAdForm').addEventListener('submit', async (e) => {
             e.preventDefault();
