@@ -69,6 +69,49 @@
         #updateSpecializationBtn { background-color: #28a745; color: white; }
         #updateSpecializationBtn:hover { background-color: #218838; }
         #editSpecializationForm { display: none; }
+.bottom-bar {
+    position: fixed; /* 1. Фиксирует элемент относительно окна просмотра */
+    bottom: 0;       /* 2. Прижимает панель к нижнему краю */
+    left: 0;
+    width: 100%;     /* 3. Растягивает на всю ширину */
+    height: 60px;    /* Высота панели */
+    background-color: #FFFFFF; /* Белый фон панели для контраста */
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15); /* Небольшая тень сверху */
+    display: flex;
+    justify-content: space-around; /* Равное распределение элементов */
+    align-items: center;
+    z-index: 1000;   /* 4. Гарантирует, что панель будет поверх другого контента */
+    padding-bottom: env(safe-area-inset-bottom); /* Учет безопасной зоны на iPhone */
+}
+
+.bb-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #333; /* Цвет текста по умолчанию */
+    font-size: 10px;
+    flex-grow: 1; /* Растягивает кнопки на доступную ширину */
+    height: 100%; /* Занимает всю высоту панели */
+}
+
+.bb-icon {
+    font-size: 20px; /* Размер иконок-эмодзи */
+    margin-bottom: 2px;
+}
+
+/* Применение оранжевого цвета к активному/выделенному элементу */
+.bb-btn:hover, .bb-btn.active {
+    color: #FF8C00; /* Оранжевый цвет */
+}
+
+/* Стили для бежевого фона, если не добавили ранее */
+body {
+    /* ... другие стили body ... */
+    background-color: #FAF0E6; /* Бежевый фон */
+    padding-bottom: 60px; /* ДОБАВИТЬ: Отступ снизу, равный высоте панели, чтобы контент не скрывался за ней */
+}
     </style>
 </head>
 <body>
@@ -372,6 +415,10 @@
                     <div id="myMaterialAdsList"></div>
                 </div>
                 <button class="btn btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+
+background-color: #FAF0E6; /* Бежевый фон (Linen) */
+    /* *** ДОБАВИТЬ ЭТУ СТРОКУ *** */
+    padding-bottom: 60px; /* Высота нижнего меню, чтобы контент был виден над ним */ 
 
     <!-- Нижняя панель контактов -->
 <div class="bottom-bar">
