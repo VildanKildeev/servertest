@@ -56,6 +56,8 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # Используется для ИСПОЛНИТЕЛЯ
     sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
+sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=True), 
+    
     extend_existing=True,
 )
 
