@@ -300,21 +300,20 @@ async def serve_index():
 # НОВЫЙ МАРШРУТ для получения токена
 @api_router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    # 1. Аутентификация пользователя
     user_db = await authenticate_user(form_data.username, form_data.password)
     
     if not user_db:
-        # 2. Ошибка при неудачной аутентификации
+        # Аутентификация не удалась
         raise HTTPException( 
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 3. Создание и возврат токена (выполняется только при успешной аутентификации)
+    # 🌟 ИСПРАВЛЕНИЕ: Этот блок должен быть без отступа (на уровне if)
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user_db["email"])}, # Используем email, так как по нему ищем пользователя
+        data={"sub": str(user_db["email"])}, # Используем email для поиска пользователя
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
@@ -680,10 +679,16 @@ async def activate_premium_subscription(current_user: dict = Depends(get_current
 # Новый маршрут для обновления специализации
 @api_router.post("/update_specialization/")
 async def update_user_specialization(specialization: str, current_user: dict = Depends(get_current_user)):
+    """Обновляет поле 'specialization' для текущего пользователя."""
     user_id = current_user["id"]
+    
+    # Проверка, что пользователь - ИСПОЛНИТЕЛЬ
+    if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Только ИСПОЛНИТЕЛИ могут менять специализацию.")
+    
     query = users.update().where(users.c.id == user_id).values(specialization=specialization)
     await database.execute(query)
-    return {"message": "Специализация успешно обновлена."}
-
+    
+    return {"message": "Специализация обновлена."}
 
 app.include_router(api_router)
