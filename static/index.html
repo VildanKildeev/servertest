@@ -557,7 +557,17 @@
             if (pageId === 'profilePage') fetchProfile();
         }
 
-        async function fetchProfile() {
+async function fetchProfile() {
+    // ВАЖНО: Убедитесь, что глобальная переменная accessToken загружена в начале скрипта
+    // let accessToken = localStorage.getItem('access_token');
+    
+    // Если токена нет, немедленно выходим
+    if (!accessToken) {
+        // Предполагается, что у вас есть функция logout(), которая очищает токен и показывает loginPage
+        logout(); 
+        return;
+    }
+    
     try {
         const response = await fetch(`${API_URL}/users/me`, {
             headers: {
@@ -565,25 +575,33 @@
             }
         });
         
-        // --- ПРАВИЛЬНАЯ ЛОГИКА ---
         if (response.ok) {
             const data = await response.json();
-            currentUser = data; // Сохраняем данные профиля в глобальной переменной currentUser
-            updateProfilePage(currentUser); // Вызываем функцию для отображения данных
             
-            // Здесь НЕ нужно сохранять токен, так как /users/me его не возвращает.
-            // Также НЕ нужно вызывать showPage, fetchProfile или fetchMyRequests.
+            // !!! УДАЛЕНО: ЛОГИКА СОХРАНЕНИЯ ТОКЕНА И БЕСКОНЕЧНОГО ВЫЗОВА !!!
+            // accessToken = data.access_token; // ЭТОГО БОЛЬШЕ НЕТ
+            // localStorage.setItem('access_token', data.access_token); // ЭТОГО БОЛЬШЕ НЕТ
+            // fetchProfile(); // ЭТОГО БОЛЬШЕ НЕТ
+            
+            // Логика успеха:
+            currentUser = data; // Сохраняем данные профиля для отображения
+            // updateProfilePage(currentUser); // Вызываем функцию для отображения данных
+            
+            // document.getElementById('loginForm').reset(); // Не нужно здесь
+            // showPage('profilePage'); // Не нужно, так как мы уже на ней
+            fetchMyRequests(); // Вызываем остальные функции
             
         } else if (response.status === 401) {
-            // Если сервер отвечает 401 (Unauthorized), токен недействителен.
-            logout(); // Выходим из системы
+            // Токен недействителен (401 Unauthorized)
+            logout(); 
         } else {
+            // Другие ошибки сервера
             console.error('Ошибка при получении профиля:', response.status);
         }
-        // -------------------------
-
     } catch (error) {
         console.error('Ошибка при получении профиля:', error);
+        // При сетевой ошибке лучше также выйти, чтобы пользователь мог перелогиниться
+        // logout(); 
     }
 }
 
@@ -949,40 +967,47 @@ async function fetchMaterialAds() {
         });
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const statusEl = document.getElementById('loginStatus');
-            const formData = new URLSearchParams();
-            formData.append('username', email);
-            formData.append('password', password);
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const statusEl = document.getElementById('loginStatus');
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', password);
 
-            try {
-                const response = await fetch(`${API_URL}/token`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formData.toString()
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    accessToken = data.access_token;
-                    localStorage.setItem('accessToken', accessToken);
-                    statusEl.textContent = 'Успешный вход!';
-                    statusEl.className = 'message success';
-                    setTimeout(() => {
-                        // Переходим на страницу профиля.
-                        // Это автоматически вызовет fetchProfile() через showPage('profilePage')
-                        showPage('profilePage'); 
-                    }, 500);
-                } else {
-                    statusEl.textContent = data.detail || 'Неверные учетные данные.';
-                    statusEl.className = 'message error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Ошибка соединения.';
-                statusEl.className = 'message error';
-            }
+    try {
+        const response = await fetch(`${API_URL}/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
         });
+        const data = await response.json();
+        
+        if (response.ok) {
+            // ✅ ИСПРАВЛЕНИЕ 1: Сохраняем токен в глобальную переменную
+            accessToken = data.access_token; 
+            
+            // ✅ ИСПРАВЛЕНИЕ 2: Используем унифицированный ключ 'access_token'
+            localStorage.setItem('access_token', accessToken); 
+            
+            statusEl.textContent = 'Успешный вход!';
+            statusEl.className = 'message success';
+            
+            setTimeout(() => {
+                // Переходим на страницу профиля, которая запустит fetchProfile с НОВЫМ токеном
+                showPage('profilePage'); 
+            }, 500);
+            
+        } else {
+            // ... (логика обработки ошибки)
+            statusEl.textContent = data.detail || 'Неверные учетные данные.';
+            statusEl.className = 'message error';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Ошибка соединения.';
+        statusEl.className = 'message error';
+    }
+});
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
