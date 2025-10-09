@@ -19,12 +19,13 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from sqlalchemy import text
-from sqlalchemy.sql import select 
+from sqlalchemy.sql import select
+from sqlalchemy.sql import select, func # func необходим для avg и count
 
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
-from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database
+from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, ratings, database
 
 load_dotenv()
 
@@ -141,6 +142,12 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+
+class RatingIn(BaseModel):
+    request_id: int = Field(..., description="ID заявки, за которую ставится рейтинг.")
+    request_type: str = Field(..., description="Тип заявки: 'WORK' (Работа) или 'MACHINERY' (Спецтехника).")
+    score: int = Field(..., ge=1, le=5, description="Оценка от 1 до 5.")
+    comment: Optional[str] = Field(None, description="Необязательный комментарий.")
 
 # Схемы для работы
 class WorkRequestIn(BaseModel):
@@ -287,6 +294,41 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+async def calculate_executor_rating(executor_id: int):
+    """Вычисляет средний рейтинг и количество отзывов для исполнителя."""
+    
+    # 1. Запрос на вычисление среднего рейтинга (AVG) и общего количества (COUNT)
+    query_rating = select([
+        func.avg(ratings.c.score).label('average_rating'),
+        func.count(ratings.c.id).label('total_ratings')
+    ]).where(ratings.c.executor_id == executor_id)
+    
+    result = await database.fetch_one(query_rating)
+
+    # 2. Обработка результата
+    if result and result["average_rating"] is not None:
+        return {
+            "average_rating": round(result["average_rating"], 2),
+            "total_ratings": result["total_ratings"]
+        }
+    else:
+        # Возвращаем 0, если рейтингов нет
+        return {
+            "average_rating": 0.0,
+            "total_ratings": 0
+        }
+
+async def check_if_request_rated(request_id: int, request_type: str) -> bool:
+    """Проверяет, был ли уже выставлен рейтинг для данной заявки."""
+    # Используем func.count() для проверки наличия записи
+    query = select([func.count(ratings.c.id)]).where(
+        (ratings.c.request_id == request_id) & 
+        (ratings.c.request_type == request_type.upper())
+    )
+    # fetch_val() возвращает одно значение (количество)
+    rating_count = await database.fetch_val(query)
+    return rating_count > 0
+
 # --- Маршруты API ---
 
 # --- ИСПРАВЛЕНИЕ 3: Корневой маршрут (Главная страница) ---
@@ -294,6 +336,37 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 async def serve_index():
     # Файл index.html ищется в папке 'static'
     return FileResponse(static_path / "index.html")
+
+async function fetchMyRequests() {
+    if (!access_token) return;
+    const headers = { 'Authorization': `Bearer ${access_token}` };
+    const w = document.getElementById('myWorkRequestsList');
+    const m = document.getElementById('myMachineryRequestsList');
+    const t = document.getElementById('myToolRequestsList'); 
+    const a = document.getElementById('myMaterialAdsList');
+    w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Загрузка...</p>'; 
+    try {
+        // Мы предполагаем, что эти маршруты теперь возвращают поле 'is_rated' (Шаг 2)
+        const [rw, rm, rt, ra] = await Promise.all([ 
+            fetch(`${API_URL}/my/work_requests`, { headers }).then(r => r.json()),
+            fetch(`${API_URL}/my/machinery_requests`, { headers }).then(r => r.json()),
+            fetch(`${API_URL}/my/tool_requests`, { headers }).then(r => r.json()), 
+            fetch(`${API_URL}/my/material_ads`, { headers }).then(r => r.json()),
+        ]);
+
+        // Используем новую функцию для work и machinery
+        renderMyCustomerRequests(rw, 'WORK', 'myWorkRequestsList');
+        renderMyCustomerRequests(rm, 'MACHINERY', 'myMachineryRequestsList');
+        
+        // Для инструмента и материалов пока оставляем общую функцию (без рейтинга)
+        renderRequests('myToolRequestsList', rt, 'tool'); 
+        renderRequests('myMaterialAdsList', ra, 'material');
+
+    } catch (e) {
+        console.error("Ошибка загрузки моих заявок:", e);
+        w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Ошибка загрузки.</p>'; 
+    }
+}
 # -----------------------------------------------------------
 
 
@@ -412,6 +485,120 @@ async def get_work_requests(
     return requests
 # -----------------------------------------------------------------
 
+@api_router.post("/rate_executor/", status_code=status.HTTP_201_CREATED)
+async def submit_rating(rating_data: RatingIn, current_user: dict = Depends(get_current_user)):
+    """Позволяет заказчику выставить рейтинг исполнителю за завершенную заявку."""
+    customer_id = current_user["id"]
+    
+    if current_user["user_type"] != "ЗАКАЗЧИК":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Только Заказчик может оставлять рейтинг."
+        )
+
+    request_type_upper = rating_data.request_type.upper()
+    
+    # 1. Определяем таблицу
+    if request_type_upper == 'WORK':
+        request_table = work_requests
+    elif request_type_upper == 'MACHINERY':
+        request_table = machinery_requests
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Неверный тип заявки. Допустимо: 'WORK' или 'MACHINERY'."
+        )
+
+    # 2. Получаем данные заявки
+    query_request = request_table.select().where(request_table.c.id == rating_data.request_id)
+    request = await database.fetch_one(query_request)
+
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Заявка не найдена."
+        )
+
+    # 3. Валидация: Текущий пользователь должен быть создателем заявки
+    if request["user_id"] != customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Вы не являетесь создателем этой заявки и не можете ее оценить."
+        )
+
+    # 4. Валидация: Заявка должна быть завершена (статус "ЗАВЕРШЕНА")
+    if request.get("status") != "ЗАВЕРШЕНА": 
+        # Используйте тот статус, который вы используете для завершенных заявок.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Оценка может быть выставлена только для завершенной заявки. Текущий статус: {request.get('status', 'активна')}"
+        )
+
+    # 5. Валидация: Должен быть назначен исполнитель
+    executor_id = request.get("executor_id")
+    if not executor_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Исполнитель по этой заявке не назначен."
+        )
+
+    # 6. Валидация: Проверка на существующий рейтинг (1 рейтинг за 1 заявку)
+    query_check_rating = ratings.select().where(
+        (ratings.c.request_id == rating_data.request_id) &
+        (ratings.c.request_type == request_type_upper)
+    )
+    existing_rating = await database.fetch_one(query_check_rating)
+
+    if existing_rating:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Рейтинг для этой заявки уже был выставлен."
+        )
+
+    # 7. Вставляем новый рейтинг
+    query_insert = ratings.insert().values(
+        customer_id=customer_id,
+        executor_id=executor_id,
+        request_id=rating_data.request_id,
+        request_type=request_type_upper,
+        score=rating_data.score,
+        comment=rating_data.comment
+    )
+    await database.execute(query_insert)
+    
+    return {"message": f"Рейтинг {rating_data.score}/5 успешно выставлен исполнителю ID: {executor_id}"}
+
+
+@api_router.get("/executor_rating/{user_id}", response_model=dict)
+async def get_executor_rating(user_id: int):
+    """Возвращает средний рейтинг и количество отзывов для исполнителя."""
+    # Проверяем, что пользователь существует
+    query_user = users.select().where(users.c.id == user_id)
+    executor = await database.fetch_one(query_user)
+    
+    if not executor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден.")
+    
+    if executor["user_type"] != "ИСПОЛНИТЕЛЬ":
+        return {"message": "Пользователь не является исполнителем. Рейтинг не применим."}
+
+    # Вычисляем средний рейтинг и количество отзывов
+    query_rating = select([
+        func.avg(ratings.c.score).label('average_score'),
+        func.count(ratings.c.id).label('total_ratings')
+    ]).where(ratings.c.executor_id == user_id)
+    
+    result = await database.fetch_one(query_rating)
+
+    # Обработка случая, когда рейтингов еще нет
+    average_score = round(result["average_score"], 2) if result["average_score"] is not None else 0.0
+    total_ratings = result["total_ratings"]
+
+    return {
+        "user_id": user_id,
+        "average_rating": average_score,
+        "total_ratings": total_ratings
+    }
 
 # Создание заявки на спецтехнику (ОБНОВЛЕНО)
 @api_router.post("/machinery_requests/", status_code=status.HTTP_201_CREATED)
@@ -542,6 +729,62 @@ async def get_material_ads(
         
     requests = await database.fetch_all(query)
     return requests
+
+@api_router.get("/api/requests/{request_type}/{request_id}/offers")
+async def get_request_offers_with_rating(
+    request_type: str, 
+    request_id: int, 
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Возвращает список предложений от исполнителей для конкретной заявки, 
+    включая их средний рейтинг.
+    """
+    customer_id = current_user["id"]
+    request_type_upper = request_type.upper()
+
+    # 1. Проверки
+    request_table = work_requests if request_type_upper == 'WORK' else machinery_requests
+    query_request = request_table.select().where(request_table.c.id == request_id)
+    request = await database.fetch_one(query_request)
+
+    if not request or request["user_id"] != customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Доступ запрещен или заявка не найдена."
+        )
+
+    # 2. Получение исходных данных предложений
+    # --- НАЧАЛО: ЗАМЕНИТЕ ЭТО СВОЕЙ РЕАЛЬНОЙ ЛОГИКОЙ ЗАПРОСА К ТАБЛИЦЕ OFFERS ---
+    # ВАШ КОД ДОЛЖЕН ЗАПОЛНИТЬ offers_data списком словарей,
+    # где каждый словарь содержит 'offer_id' и 'executor_id'.
+    
+    # ПРИМЕР "моковых" данных, которые должны приходить из вашей БД:
+    offers_data = [
+        {"offer_id": 101, "executor_id": 2, "executor_username": "Иван-мастер", "offer_details": "Готов начать завтра."},
+        {"offer_id": 102, "executor_id": 3, "executor_username": "ООО Спецтехника", "offer_details": "Цена включает доставку."}
+    ]
+    # --- КОНЕЦ: ЗАМЕНА ЛОГИКИ ---
+
+    response_offers = []
+    for offer in offers_data:
+        executor_id = offer["executor_id"]
+        
+        # 3. Вызов вспомогательной функции для получения рейтинга
+        rating_data = await calculate_executor_rating(executor_id)
+
+        # 4. Собираем финальные данные
+        response_offers.append({
+            "offer_id": offer["offer_id"],
+            "executor_id": executor_id,
+            "executor_username": offer["executor_username"],
+            "offer_details": offer["offer_details"],
+            # !!! ДОБАВЛЕННЫЕ ПОЛЯ !!!
+            "average_rating": rating_data["average_rating"],
+            "total_ratings": rating_data["total_ratings"]
+        })
+
+    return response_offers
 # -----------------------------------------------------------------
 
 

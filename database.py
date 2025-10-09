@@ -150,3 +150,23 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
     extend_existing=True,
 )
+
+ratings = sqlalchemy.Table(
+    "ratings",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    # Заказчик, который ставит рейтинг
+    sqlalchemy.Column("customer_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")), 
+    # Исполнитель, которому ставится рейтинг
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")), 
+    # ID заявки (для work_requests или machinery_requests)
+    sqlalchemy.Column("request_id", sqlalchemy.Integer, nullable=False), 
+    # Тип заявки для однозначной идентификации (например, 'WORK' или 'MACHINERY')
+    sqlalchemy.Column("request_type", sqlalchemy.String, nullable=False), 
+    # Оценка (от 1 до 5)
+    sqlalchemy.Column("score", sqlalchemy.Integer, nullable=False), 
+    sqlalchemy.Column("comment", sqlalchemy.String, nullable=True), 
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
+    # Уникальный индекс: гарантирует, что одна заявка (по ее ID и типу) может быть оценена только один раз.
+    sqlalchemy.UniqueConstraint('request_id', 'request_type', name='uq_request_rating') 
+)
