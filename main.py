@@ -115,7 +115,7 @@ class UserInDB(BaseModel):
     is_active: bool = True
     user_type: str
     specialization: Optional[str] = None
-    is_premium: bool = False
+    is_premium: Optional[bool] = False  # ✅ ИСПРАВЛЕНО: Теперь разрешен None из БД
     class Config: from_attributes = True
 
 class UserOut(BaseModel):
@@ -124,8 +124,8 @@ class UserOut(BaseModel):
     phone_number: str
     user_type: str
     specialization: Optional[str] = None
-    is_premium: bool = False
-    city_id: Optional[int] = None # ДОБАВЛЕНО: city_id для корректного отображения
+    is_premium: Optional[bool] = False  # ✅ ИСПРАВЛЕНО: Теперь разрешен None из БД
+    city_id: Optional[int] = None
     class Config: from_attributes = True
         
 class UserUpdate(BaseModel):
