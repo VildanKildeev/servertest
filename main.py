@@ -357,14 +357,6 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **work_request.dict()}
 
-# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на работу
-Вы абсолютно правы! Менять нужно именно эту функцию.
-
-Вам необходимо изменить параметры функции, чтобы она принимала объект аутентифицированного пользователя (current_user) вместо опционального параметра city_id.
-
-Вот как должен выглядеть исправленный код для функции get_work_requests в файле main.py:
-Python
-
 @api_router.get("/work_requests/")
 async def get_work_requests(
     # 1. Заменяем city_id на зависимость от текущего пользователя
