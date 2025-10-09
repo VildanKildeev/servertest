@@ -560,53 +560,31 @@
         }
 
 async function fetchProfile() {
-    // ВАЖНО: Убедитесь, что глобальная переменная accessToken загружена в начале скрипта
-    // let accessToken = localStorage.getItem('access_token');
-    
-    // Если токена нет, немедленно выходим
     if (!accessToken) {
-        // Предполагается, что у вас есть функция logout(), которая очищает токен и показывает loginPage
         logout(); 
         return;
     }
     
     try {
         const response = await fetch(`${API_URL}/users/me`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
+            headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         
         if (response.ok) {
             const data = await response.json();
-            
-            // !!! УДАЛЕНО: ЛОГИКА СОХРАНЕНИЯ ТОКЕНА И БЕСКОНЕЧНОГО ВЫЗОВА !!!
-            // accessToken = data.access_token; // ЭТОГО БОЛЬШЕ НЕТ
-            // localStorage.setItem('access_token', data.access_token); // ЭТОГО БОЛЬШЕ НЕТ
-            // fetchProfile(); // ЭТОГО БОЛЬШЕ НЕТ
-            
-            // Логика успеха:
-            currentUser = data; // Сохраняем данные профиля для отображения
-            // updateProfilePage(currentUser); // Вызываем функцию для отображения данных
-            
-            // document.getElementById('loginForm').reset(); // Не нужно здесь
-            // showPage('profilePage'); // Не нужно, так как мы уже на ней
-            fetchMyRequests(); // Вызываем остальные функции
+            currentUser = data; // 1. Сохраняем данные пользователя
+            updateProfilePage(data); // 2. ✅ ДОБАВЛЕНО: Вызываем функцию для отрисовки профиля
+            fetchMyRequests();
             
         } else if (response.status === 401) {
-            // Токен недействителен (401 Unauthorized)
             logout(); 
         } else {
-            // Другие ошибки сервера
             console.error('Ошибка при получении профиля:', response.status);
         }
     } catch (error) {
-        console.error('Ошибка при получении профиля:', error);
-        // При сетевой ошибке лучше также выйти, чтобы пользователь мог перелогиниться
-        // logout(); 
+        console.error('Сетевая ошибка при получении профиля:', error);
     }
 }
-
         function updateProfilePage(profile) {
             const profileInfo = document.getElementById('profileInfo');
             const editSpecializationForm = document.getElementById('editSpecializationForm');
@@ -626,7 +604,7 @@ async function fetchProfile() {
                     const response = await fetch(`${API_URL}/subscribe/`, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${accessToken}`
+                            'Authorization': `Bearer ${access_token}`
                         }
                     });
                     const data = await response.json();
@@ -730,8 +708,8 @@ function selectCity() {
 // Функция для генерации заголовков с токеном
 function getAuthHeaders() {
     const headers = {};
-    if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+    if (access_token) {
+        headers['Authorization'] = `Bearer ${access_token}`;
     }
     return headers;
 }
@@ -878,7 +856,7 @@ async function fetchMaterialAds() {
             try {
                 const response = await fetch(`${API_URL}/work_requests/${requestId}/take`, {
                     method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                    headers: { 'Authorization': `Bearer ${access_token}` }
                 });
                 const data = await response.json();
                 if (response.ok) {
@@ -934,7 +912,7 @@ async function fetchMaterialAds() {
 
         // ИСПРАВЛЕНИЕ: Добавлен запрос и рендеринг заявок на инструмент
         async function fetchMyRequests() {
-            const headers = { 'Authorization': `Bearer ${accessToken}` };
+            const headers = { 'Authorization': `Bearer ${access_token}` };
             const w = document.getElementById('myWorkRequestsList');
             const m = document.getElementById('myMachineryRequestsList');
             const t = document.getElementById('myToolRequestsList'); 
@@ -986,22 +964,14 @@ async function fetchMaterialAds() {
         const data = await response.json();
         
         if (response.ok) {
-            // ✅ ИСПРАВЛЕНИЕ 1: Сохраняем токен в глобальную переменную
             accessToken = data.access_token; 
-            
-            // ✅ ИСПРАВЛЕНИЕ 2: Используем унифицированный ключ 'access_token'
             localStorage.setItem('access_token', accessToken); 
             
-            statusEl.textContent = 'Успешный вход!';
-            statusEl.className = 'message success';
-            
-            setTimeout(() => {
-                // Переходим на страницу профиля, которая запустит fetchProfile с НОВЫМ токеном
-                showPage('profilePage'); 
-            }, 500);
+            // ✅ Сначала загружаем профиль, потом показываем меню
+            await fetchProfile(); // Ждем загрузки данных пользователя
+            showPage('buttonContainer'); // Показываем главное меню
             
         } else {
-            // ... (логика обработки ошибки)
             statusEl.textContent = data.detail || 'Неверные учетные данные.';
             statusEl.className = 'message error';
         }
@@ -1059,7 +1029,7 @@ async function fetchMaterialAds() {
             try {
                 const response = await fetch(`${API_URL}/work_requests/`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}`},
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${access_token}`},
                     body: JSON.stringify(workRequestData)
                 });
                 const data = await response.json();
@@ -1093,7 +1063,7 @@ async function fetchMaterialAds() {
             try {
                 const response = await fetch(`${API_URL}/machinery_requests/`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${access_token}` },
                     body: JSON.stringify(machineryRequestData)
                 });
                 const data = await response.json();
@@ -1128,7 +1098,7 @@ async function fetchMaterialAds() {
             try {
                 const response = await fetch(`${API_URL}/tool_requests/`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${access_token}` },
                     body: JSON.stringify(toolRequestData)
                 });
                 const data = await response.json();
@@ -1160,7 +1130,7 @@ async function fetchMaterialAds() {
             try {
                 const response = await fetch(`${API_URL}/material_ads/`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${access_token}` },
                     body: JSON.stringify(materialAdData)
                 });
                 const data = await response.json();
@@ -1193,7 +1163,7 @@ async function fetchMaterialAds() {
 
         // ИСПРАВЛЕНИЕ 4: Добавлена функция logout, которая использовалась в HTML
         function logout() {
-            localStorage.removeItem('accessToken');
+            localStorage.removeItem('access_token');
             accessToken = null;
             currentUser = null;
             selectedCityId = localStorage.getItem('selectedCityId') || 1; 
@@ -1204,7 +1174,7 @@ async function fetchMaterialAds() {
 
         // Инициализация
         window.addEventListener('DOMContentLoaded', async () => {
-            accessToken = localStorage.getItem('accessToken');
+            accessToken = localStorage.getItem('access_token');
             document.getElementById('cityName').textContent = selectedCityName;
             await Promise.all([
                 loadDirectory('/specializations', '#registerSpecialization, #workSpecialization, #newSpecialization'), 
