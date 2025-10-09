@@ -125,6 +125,7 @@ class UserOut(BaseModel):
     user_type: str
     specialization: Optional[str] = None
     is_premium: bool = False
+    city_id: Optional[int] = None # ДОБАВЛЕНО: city_id для корректного отображения
     class Config: from_attributes = True
         
 class UserUpdate(BaseModel):
@@ -224,35 +225,56 @@ async def authenticate_user(username: str, password: str):
         return False
     return user_db
 
-# Проверка пользователя
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+# --- ИСПРАВЛЕНИЕ: Новые вспомогательные функции для авторизации и опциональной зависимости ---
+
+# Helper to parse token and fetch user data
+async def get_user_from_token(token: str) -> Optional[dict]:
+    """Извлекает данные пользователя из JWT-токена, ищет в БД по email."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # Токен содержит email в поле "sub"
+        email: str = payload.get("sub") 
+        if email is None:
+            return None
         
-        # Токен должен содержать 'sub' (subject), который обычно является ID пользователя
-        user_id: str = payload.get("sub") 
-        if user_id is None:
-            raise credentials_exception
-        
-        # --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: ЗАПРОС CITY_ID ИЗ БАЗЫ ---
-        # Получаем все данные пользователя (включая city_id) по ID
-        query = select(users).where(users.c.id == int(user_id))
+        # --- ИСПРАВЛЕНИЕ: Ищем пользователя по EMAIL ---
+        query = select(users).where(users.c.email == email)
         user_data = await database.fetch_one(query)
-
-        if user_data is None:
-            raise credentials_exception
-            
-        # Возвращаем полные данные пользователя, включая city_id
-        return dict(user_data) 
-        # ----------------------------------------------------
-
+        
+        return dict(user_data) if user_data else None
     except JWTError:
-        raise credentials_exception
+        return None
+    except Exception:
+        return None
+
+# 1. Защищенная зависимость (вызывает 401, если нет токена/невалиден)
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+    user = await get_user_from_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+# Вспомогательная функция для получения токена из заголовка без авто-ошибки 401
+async def get_optional_token(request: Request) -> Optional[str]:
+    """Извлекает токен 'Bearer' из заголовка Authorization."""
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split(" ")[1]
+    return None
+
+# 2. Публичная зависимость с опциональным пользователем (возвращает None, если нет токена/невалиден)
+async def get_optional_user(token: Optional[str] = Depends(get_optional_token)) -> Optional[dict]:
+    """Возвращает данные пользователя, если токен предоставлен и валиден, иначе возвращает None."""
+    if not token:
+        return None
+    return await get_user_from_token(token)
+
+# --- КОНЕЦ ИСПРАВЛЕНИЯ ЗАВИСИМОСТЕЙ ---
+
 
 # Создание токена
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -280,14 +302,9 @@ async def serve_index():
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user_db = await authenticate_user(form_data.username, form_data.password)
     if not user_db:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        # ... HTTPException
     access_token = create_access_token(
-        data={"sub": user_db["email"]}, expires_delta=access_token_expires
+        data={"sub": str(user_db["id"])}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -357,22 +374,33 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **work_request.dict()}
 
+# --- ИСПРАВЛЕННЫЙ МАРШРУТ для получения всех заявок на работу ---
 @api_router.get("/work_requests/")
 async def get_work_requests(
-    # 1. Заменяем city_id на зависимость от текущего пользователя
-    current_user: dict = Depends(get_current_user) 
+    # Позволяем ручную фильтрацию по city_id
+    city_id: Optional[int] = None, 
+    # Используем опциональную зависимость
+    current_user: Optional[dict] = Depends(get_optional_user) 
 ):
-    # 2. Извлекаем city_id из данных пользователя
-    user_city_id = current_user.get('city_id') 
-
     query = work_requests.select()
+    filter_city_id = None
     
-    # 3. Применяем фильтр, если city_id пользователя существует
-    if user_city_id:
-        query = query.where(work_requests.c.city_id == user_city_id)
+    # 1. Приоритет: Город авторизованного пользователя
+    if current_user and current_user.get('city_id') is not None:
+        filter_city_id = current_user.get('city_id')
+        
+    # 2. Иначе: Город из параметра запроса (для неавторизованных или ручного поиска)
+    elif city_id is not None:
+        filter_city_id = city_id
+
+    # Применяем фильтр
+    if filter_city_id is not None:
+        query = query.where(work_requests.c.city_id == filter_city_id)
         
     requests = await database.fetch_all(query)
     return requests
+# -----------------------------------------------------------------
+
 
 # Создание заявки на спецтехнику (ОБНОВЛЕНО)
 @api_router.post("/machinery_requests/", status_code=status.HTTP_201_CREATED)
@@ -394,20 +422,30 @@ async def create_machinery_request(machinery_request: MachineryRequestIn, curren
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **machinery_request.dict()}
 
-# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на спецтехнику
+# --- ИСПРАВЛЕННЫЙ МАРШРУТ для получения всех заявок на спецтехнику ---
 @api_router.get("/machinery_requests/")
 async def get_machinery_requests(
-    current_user: dict = Depends(get_current_user)
+    city_id: Optional[int] = None, 
+    current_user: Optional[dict] = Depends(get_optional_user) 
 ):
-    user_city_id = current_user.get('city_id') 
-
     query = machinery_requests.select()
+    filter_city_id = None
     
-    if user_city_id:
-        query = query.where(machinery_requests.c.city_id == user_city_id)
+    # 1. Приоритет: Город авторизованного пользователя
+    if current_user and current_user.get('city_id') is not None:
+        filter_city_id = current_user.get('city_id')
+        
+    # 2. Иначе: Город из параметра запроса
+    elif city_id is not None:
+        filter_city_id = city_id
+
+    # Применяем фильтр
+    if filter_city_id is not None:
+        query = query.where(machinery_requests.c.city_id == filter_city_id)
 
     requests = await database.fetch_all(query)
     return requests
+# -----------------------------------------------------------------
 
 # Создание заявки на инструмент
 @api_router.post("/tool_requests/", status_code=status.HTTP_201_CREATED)
@@ -429,22 +467,30 @@ async def create_tool_request(tool_request: ToolRequestIn, current_user: dict = 
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **tool_request.dict()}
 
-# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех заявок на инструмент
+# --- ИСПРАВЛЕННЫЙ МАРШРУТ для получения всех заявок на инструмент ---
 @api_router.get("/tool_requests/")
 async def get_tool_requests(
-    current_user: dict = Depends(get_current_user)
+    city_id: Optional[int] = None,
+    current_user: Optional[dict] = Depends(get_optional_user)
 ):
-    # Извлекаем city_id из данных пользователя
-    user_city_id = current_user.get('city_id') 
-
     query = tool_requests.select()
+    filter_city_id = None
     
-    # Применяем фильтр по city_id
-    if user_city_id:
-        query = query.where(tool_requests.c.city_id == user_city_id)
+    # 1. Приоритет: Город авторизованного пользователя
+    if current_user and current_user.get('city_id') is not None:
+        filter_city_id = current_user.get('city_id')
+        
+    # 2. Иначе: Город из параметра запроса
+    elif city_id is not None:
+        filter_city_id = city_id
+
+    # Применяем фильтр
+    if filter_city_id is not None:
+        query = query.where(tool_requests.c.city_id == filter_city_id)
         
     requests = await database.fetch_all(query)
     return requests
+# -----------------------------------------------------------------
 
 # Создание объявления о материалах
 @api_router.post("/material_ads/", status_code=status.HTTP_201_CREATED)
@@ -462,22 +508,31 @@ async def create_material_ad(material_ad: MaterialAdIn, current_user: dict = Dep
     last_record_id = await database.execute(query)
     return {"id": last_record_id, **material_ad.dict()}
 
-# ОБНОВЛЕННЫЙ МАРШРУТ для получения всех объявлений о материалах
+# --- ИСПРАВЛЕННЫЙ МАРШРУТ для получения всех объявлений о материалах ---
 @api_router.get("/material_ads/")
 async def get_material_ads(
-    current_user: dict = Depends(get_current_user)
+    city_id: Optional[int] = None,
+    current_user: Optional[dict] = Depends(get_optional_user)
 ):
-    # Извлекаем city_id из данных пользователя
-    user_city_id = current_user.get('city_id') 
-
     query = material_ads.select()
+    filter_city_id = None
     
-    # Применяем фильтр по city_id
-    if user_city_id:
-        query = query.where(material_ads.c.city_id == user_city_id)
+    # 1. Приоритет: Город авторизованного пользователя
+    if current_user and current_user.get('city_id') is not None:
+        filter_city_id = current_user.get('city_id')
+        
+    # 2. Иначе: Город из параметра запроса
+    elif city_id is not None:
+        filter_city_id = city_id
+
+    # Применяем фильтр
+    if filter_city_id is not None:
+        query = query.where(material_ads.c.city_id == filter_city_id)
         
     requests = await database.fetch_all(query)
     return requests
+# -----------------------------------------------------------------
+
 
 # --- Маршруты для получения данных из таблиц-справочников ---
 # Список специализаций
@@ -548,7 +603,7 @@ async def get_cities():
     all_cities = await database.fetch_all(query)
     return all_cities
 
-# ИСПРАВЛЕНИЕ: Заменяем один маршрут на несколько для соответствия фронтенду
+# ИСПРАВЛЕНИЕ: Маршруты "Мои заявки" остаются защищенными
 @api_router.get("/my/work_requests")
 async def get_my_work_requests(current_user: dict = Depends(get_current_user)):
     user_id = current_user['id']
