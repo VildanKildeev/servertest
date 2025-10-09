@@ -551,12 +551,13 @@
 
             if (pageId === 'workRequestsPage') fetchWorkRequests();
             if (pageId === 'machineryRequestsPage') fetchMachineryRequests();
-            if (pageId === 'toolRequestsPage') fetchToolRequests(); 
+            if (pageId === 'toolRequestsPage') fetchToolRequests();
             if (pageId === 'materialAdsPage') fetchMaterialAds();
             if (pageId === 'myRequestsPage') fetchMyRequests();
-           if (pageId === 'profilePage' && typeof fetchProfile === 'function') {
-    fetchProfile();
-}
+            if (pageId === 'profilePage' && typeof fetchProfile === 'function') {
+                fetchProfile();
+            }
+        }
 
 async function fetchProfile() {
     // ВАЖНО: Убедитесь, что глобальная переменная accessToken загружена в начале скрипта
@@ -610,7 +611,7 @@ async function fetchProfile() {
             const profileInfo = document.getElementById('profileInfo');
             const editSpecializationForm = document.getElementById('editSpecializationForm');
             profileInfo.innerHTML = `
-                <p><strong>Имя пользователя:</strong> ${profile.username || profile.email}</p>
+    <p><strong>Ваш email:</strong> ${profile.email}</p>
                 <p><strong>Ваш email:</strong> ${profile.email}</p>
                 <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
                 <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>
