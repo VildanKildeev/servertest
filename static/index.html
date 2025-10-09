@@ -557,8 +557,6 @@
             if (pageId === 'profilePage') fetchProfile();
         }
 
-const API_URL = "https://servertest2-0.onrender.com/api"; //
-
         async function fetchProfile() {
             try {
                 const response = await fetch(`${API_URL}/users/me`, {
