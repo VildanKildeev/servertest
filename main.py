@@ -664,9 +664,22 @@ async def take_work_request(request_id: int, current_user: dict = Depends(get_cu
 @api_router.patch("/machinery_requests/{request_id}/take")
 async def take_machinery_request(request_id: int, current_user: dict = Depends(get_current_user)):
     user_id = current_user['id']
+    
+    # 1. Проверяем, что заявка существует
+    query_check = select(machinery_requests).where(machinery_requests.c.id == request_id)
+    request_data = await database.fetch_one(query_check)
+    if not request_data:
+        raise HTTPException(status_code=404, detail="Заявка на технику не найдена.")
+
+    # 2. Проверяем, что заявка не уже взята
+    if request_data['status'] != 'active':
+        raise HTTPException(status_code=400, detail="Эта заявка уже принята или закрыта.")
+
+    # 3. Обновляем статус и исполнителя
     query_update = machinery_requests.update().where(machinery_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
     await database.execute(query_update)
-    return {"message": "Заявка успешно принята.", "request_id": request_id}
+    
+    return {"message": "Заявка на технику успешно принята.", "request_id": request_id}
 
 # Новый маршрут для подписки на премиум
 @api_router.post("/subscribe/")
