@@ -558,35 +558,34 @@
         }
 
         async function fetchProfile() {
-            try {
-                const response = await fetch(`${API_URL}/users/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                });
-                if (response.ok) {
-        const data = await response.json();
-        
-        // ===============================================
-        // !!! КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: СОХРАНЕНИЕ ТОКЕНА !!!
-        accessToken = data.access_token; // Обновляем глобальную переменную
-        localStorage.setItem('access_token', data.access_token); // Сохраняем в браузере
-        // ===============================================
-
-        document.getElementById('loginForm').reset();
-        showPage('profilePage');
-        fetchProfile();
-        fetchMyRequests(); 
-
-    } else {
-                    localStorage.removeItem('accessToken');
-                    accessToken = null;
-                    showPage('loginPage');
-                }
-            } catch (error) {
-                console.error('Ошибка при получении профиля:', error);
+    try {
+        const response = await fetch(`${API_URL}/users/me`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
             }
+        });
+        
+        // --- ПРАВИЛЬНАЯ ЛОГИКА ---
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data; // Сохраняем данные профиля в глобальной переменной currentUser
+            updateProfilePage(currentUser); // Вызываем функцию для отображения данных
+            
+            // Здесь НЕ нужно сохранять токен, так как /users/me его не возвращает.
+            // Также НЕ нужно вызывать showPage, fetchProfile или fetchMyRequests.
+            
+        } else if (response.status === 401) {
+            // Если сервер отвечает 401 (Unauthorized), токен недействителен.
+            logout(); // Выходим из системы
+        } else {
+            console.error('Ошибка при получении профиля:', response.status);
         }
+        // -------------------------
+
+    } catch (error) {
+        console.error('Ошибка при получении профиля:', error);
+    }
+}
 
         function updateProfilePage(profile) {
             const profileInfo = document.getElementById('profileInfo');
@@ -970,7 +969,11 @@ async function fetchMaterialAds() {
                     localStorage.setItem('accessToken', accessToken);
                     statusEl.textContent = 'Успешный вход!';
                     statusEl.className = 'message success';
-                    setTimeout(() => showPage('buttonContainer'), 500);
+                    setTimeout(() => {
+                        // Переходим на страницу профиля.
+                        // Это автоматически вызовет fetchProfile() через showPage('profilePage')
+                        showPage('profilePage'); 
+                    }, 500);
                 } else {
                     statusEl.textContent = data.detail || 'Неверные учетные данные.';
                     statusEl.className = 'message error';
