@@ -697,6 +697,120 @@ function selectCity() {
     }
 }
 
+// Функция для генерации заголовков с токеном
+function getAuthHeaders() {
+    const headers = {};
+    if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    return headers;
+}
+
+// Вспомогательная функция для рендеринга (предположим, что она у вас уже есть)
+function renderRequests(listId, requests) {
+    const listElement = document.getElementById(listId);
+    listElement.innerHTML = '';
+    if (requests.length === 0) {
+        listElement.innerHTML = '<p>Заявок в вашем городе пока нет.</p>';
+        return;
+    }
+    requests.forEach(req => {
+        // Здесь должна быть ваша логика отображения заявки
+        listElement.innerHTML += `<div class="request-item"><h4>${req.description || req.material_type || req.type}</h4><p>Бюджет/Цена: ${req.budget || req.price || req.rental_price} ₽</p><p>Контакт: ${req.contact_info}</p></div>`;
+    });
+}
+
+
+// ===========================================
+// 1. ЗАЯВКИ НА РАБОТУ
+// ===========================================
+async function fetchWorkRequests() {
+    try {
+        const response = await fetch(`${API_URL}/work_requests/`, {
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const requests = await response.json();
+            renderRequests('workRequestsList', requests);
+        } else if (response.status === 401) {
+            // Если 401, это означает, что пользователь не авторизован (или токен устарел)
+            // В этом случае мы просто показываем пустой список или сообщение.
+            document.getElementById('workRequestsList').innerHTML = '<p>Для просмотра заявок из вашего города необходимо войти в систему.</p>';
+        } else {
+            console.error('Ошибка при получении заявок на работу:', response.status);
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+    }
+}
+
+// ===========================================
+// 2. ЗАЯВКИ НА СПЕЦТЕХНИКУ
+// ===========================================
+async function fetchMachineryRequests() {
+    try {
+        const response = await fetch(`${API_URL}/machinery_requests/`, {
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const requests = await response.json();
+            renderRequests('machineryRequestsList', requests);
+        } else if (response.status === 401) {
+            document.getElementById('machineryRequestsList').innerHTML = '<p>Для просмотра заявок из вашего города необходимо войти в систему.</p>';
+        } else {
+            console.error('Ошибка при получении заявок на технику:', response.status);
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+    }
+}
+
+// ===========================================
+// 3. ЗАЯВКИ НА ИНСТРУМЕНТ
+// ===========================================
+async function fetchToolRequests() {
+    try {
+        const response = await fetch(`${API_URL}/tool_requests/`, {
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const requests = await response.json();
+            renderRequests('toolRequestsList', requests);
+        } else if (response.status === 401) {
+            document.getElementById('toolRequestsList').innerHTML = '<p>Для просмотра заявок из вашего города необходимо войти в систему.</p>';
+        } else {
+            console.error('Ошибка при получении заявок на инструмент:', response.status);
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+    }
+}
+
+// ===========================================
+// 4. ОБЪЯВЛЕНИЯ О МАТЕРИАЛАХ
+// ===========================================
+async function fetchMaterialAds() {
+    try {
+        const response = await fetch(`${API_URL}/material_ads/`, {
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const requests = await response.json();
+            renderRequests('materialAdsList', requests);
+        } else if (response.status === 401) {
+            document.getElementById('materialAdsList').innerHTML = '<p>Для просмотра объявлений из вашего города необходимо войти в систему.</p>';
+        } else {
+            console.error('Ошибка при получении объявлений о материалах:', response.status);
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+    }
+}
+
         function renderRequests(containerId, items, type) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
