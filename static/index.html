@@ -557,6 +557,10 @@
             if (pageId === 'profilePage') fetchProfile();
         }
 
+const API_URL = "https://servertest2-0.onrender.com/api"; // Убедитесь, что URL правильный
+// Инициализация токена: пробуем загрузить из локального хранилища
+let accessToken = localStorage.getItem('access_token');  
+
         async function fetchProfile() {
             try {
                 const response = await fetch(`${API_URL}/users/me`, {
@@ -565,9 +569,20 @@
                     }
                 });
                 if (response.ok) {
-                    currentUser = await response.json();
-                    updateProfilePage(currentUser);
-                } else {
+        const data = await response.json();
+        
+        // ===============================================
+        // !!! КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: СОХРАНЕНИЕ ТОКЕНА !!!
+        accessToken = data.access_token; // Обновляем глобальную переменную
+        localStorage.setItem('access_token', data.access_token); // Сохраняем в браузере
+        // ===============================================
+
+        document.getElementById('loginForm').reset();
+        showPage('profilePage');
+        fetchProfile();
+        fetchMyRequests(); 
+
+    } else {
                     localStorage.removeItem('accessToken');
                     accessToken = null;
                     showPage('loginPage');
