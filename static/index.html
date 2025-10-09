@@ -199,6 +199,43 @@
             color: #FF8C00; /* Оранжевый цвет */
         }
 
+/* =======================================
+   НОВЫЕ СТИЛИ ДЛЯ РЕЙТИНГА И МОДАЛЬНОГО ОКНА
+   ======================================= */
+.stars-interactive {
+    margin-top: 5px;
+    font-size: 0; /* Убираем пробелы между элементами */
+}
+.stars-interactive .star {
+    font-size: 24px;
+    color: #ccc; /* Цвет невыбранной звезды */
+    cursor: pointer;
+    transition: color 0.2s;
+    display: inline-block;
+    line-height: 1;
+}
+.stars-interactive .star:hover,
+.stars-interactive .star.selected {
+    color: #FFD700; /* Золотой цвет для выбранной звезды */
+}
+.rating-form textarea {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    resize: vertical;
+}
+.offer-item {
+    border: 1px solid #eee;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+
     </style>
 </head>
 <body>
@@ -310,6 +347,14 @@
                     </div>
                     <button id="saveSpecializationBtn" class="btn-primary">Сохранить</button>
                 </div>
+<div id="userProfileContent">
+    <div id="executorRatingDisplay" style="margin-top: 15px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; border-radius: 8px; display: none;">
+        <p style="font-weight: bold;">Ваш средний рейтинг:</p>
+        <div style="font-size: 1.2em;">
+            <span id="userAvgRating" style="margin-right: 5px;">-</span> 
+            (<span id="userTotalRatings">0</span> отзыва)
+        </div>
+    </div>
                 <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
@@ -524,6 +569,27 @@
             </div>
         </div>
         
+<template id="ratingFormTemplate">
+        <div class="rating-form" style="padding: 15px; border: 1px solid #FF8C00; margin-top: 10px; background-color: #fff; border-radius: 8px;">
+            <h4 style="color: #333; margin-bottom: 10px;">Оцените исполнителя</h4>
+            <div class="stars-interactive" data-score="0">
+                <span class="star" data-value="1">☆</span><span class="star" data-value="2">☆</span><span class="star" data-value="3">☆</span><span class="star" data-value="4">☆</span><span class="star" data-value="5">☆</span>
+            </div>
+            <textarea placeholder="Комментарий (необязательно)" class="rating-comment" rows="2"></textarea>
+            <button class="submit-rating-btn btn-primary" style="margin-top: 10px; width: auto; padding: 8px 15px; font-size: 14px;">Отправить оценку</button>
+        </div>
+    </template>
+
+    <div id="offersModal" class="city-modal">
+        <div class="city-modal-content" style="max-width: 500px; text-align: left;">
+            <span style="float: right; font-size: 28px; font-weight: bold; cursor: pointer; color: #333;" onclick="document.getElementById('offersModal').classList.remove('active')">&times;</span>
+            <h2>Предложения по заявке <span id="offersRequestId"></span></h2>
+            <div id="offersListContainer" style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+                </div>
+            <p id="offersError" class="message error" style="display: none;"></p>
+        </div>
+    </div>
+
     </div> <div class="bottom-bar">
       <a id="bb-telegram" class="bb-btn" href="#" target="_blank" rel="noopener">
         <span class="bb-icon" aria-hidden="true">✈️</span><span>Telegram</span>
@@ -585,6 +651,45 @@ async function fetchProfile() {
         console.error('Сетевая ошибка при получении профиля:', error);
     }
 }
+
+// =======================================================
+        // НОВАЯ ЛОГИКА: ЗАГРУЗКА РЕЙТИНГА ДЛЯ ИСПОЛНИТЕЛЯ
+        // =======================================================
+        const ratingDisplay = document.getElementById('executorRatingDisplay');
+        
+        // Скрываем элемент по умолчанию
+        if (ratingDisplay) ratingDisplay.style.display = 'none';
+
+        if (userData.user_type === 'ИСПОЛНИТЕЛЬ' && ratingDisplay) {
+            
+            const ratingRes = await fetch(`${API_URL}/executor_rating/${userData.id}`, { 
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${accessToken}` } 
+            });
+            const ratingData = await ratingRes.json();
+            
+            if (ratingRes.ok) {
+                const avgSpan = document.getElementById('userAvgRating');
+                const totalSpan = document.getElementById('userTotalRatings');
+                
+                // Проверяем, что это ИСПОЛНИТЕЛЬ и данные корректны
+                if (ratingData.average_rating !== undefined && ratingData.total_ratings !== undefined) {
+                    
+                    const starsHTML = renderStars(ratingData.average_rating);
+                    
+                    avgSpan.innerHTML = `
+                        ${starsHTML}
+                        <span style="font-size: 0.8em; color: #555;">(${ratingData.average_rating.toFixed(2)} / 5.0)</span>
+                    `;
+                    totalSpan.textContent = ratingData.total_ratings;
+                    
+                    ratingDisplay.style.display = 'block'; // Показываем блок с рейтингом
+                }
+            } else {
+                console.warn("Не удалось загрузить рейтинг исполнителя:", ratingData.detail);
+            }
+        }
+
         function updateProfilePage(profile) {
             const profileInfo = document.getElementById('profileInfo');
             const editSpecializationForm = document.getElementById('editSpecializationForm');
@@ -715,19 +820,103 @@ function getAuthHeaders() {
 }
 
 // Вспомогательная функция для рендеринга (предположим, что она у вас уже есть)
-function renderRequests(listId, requests) {
-    const listElement = document.getElementById(listId);
-    listElement.innerHTML = '';
-    if (requests.length === 0) {
-        listElement.innerHTML = '<p>Заявок в вашем городе пока нет.</p>';
+function renderRequests(containerId, items, type) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+        container.innerHTML = '<p>Ничего не найдено.</p>';
         return;
     }
-    requests.forEach(req => {
-        // Здесь должна быть ваша логика отображения заявки
-        listElement.innerHTML += `<div class="request-item"><h4>${req.description || req.material_type || req.type}</h4><p>Бюджет/Цена: ${req.budget || req.price || req.rental_price} ₽</p><p>Контакт: ${req.contact_info}</p></div>`;
+    items.forEach(req => {
+        const item = document.createElement('div');
+        item.className = 'request-item';
+        let title = '';
+        if (type === 'work') title = `Заявка #${req.id}`;
+        if (type === 'machinery') title = `${req.machinery_type} #${req.id}`;
+        if (type === 'tool') title = `${req.tool_name} #${req.id}`;
+        if (type === 'material') title = `${req.material_type || 'Материал'} — #${req.id}`;
+
+        let content = `<h4>${title}</h4>`;
+        content += `<p>${req.description || ''}</p>`;
+        if (req.budget) content += `<p><strong>Бюджет:</strong> ${req.budget}</p>`;
+        if (req.price) content += `<p><strong>Цена:</strong> ${req.price}</p>`;
+        if (req.rental_price) content += `<p><strong>Цена аренды:</strong> ${req.rental_price}</p>`;
+        if (req.contact_info) content += `<p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>`;
+        if (req.is_premium) content += `<p class="premium">Премиум-заявка</p>`;
+        if (req.status === 'В РАБОТЕ') content += `<p class="taken" style="color: green;">Заявка принята в работу</p>`;
+        
+        // Кнопка "Взять в работу" только для публичных списков
+        if (type === 'work' && req.status === 'active' && currentUser && currentUser.user_type === 'ИСПОЛНИТЕЛЬ') {
+            content += `<button class="take-btn" onclick="takeOrder(${req.id})">Взять в работу</button>`;
+        }
+        item.innerHTML = content;
+        container.appendChild(item);
     });
 }
 
+@param {Array} requests Список заявок с полями status и is_rated
+ * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
+ * @param {string} containerId ID контейнера, куда рендерить
+ */
+function renderMyCustomerRequests(requests, type, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    const typeUpper = type.toUpperCase();
+
+    if (!requests || requests.length === 0) {
+        container.innerHTML = `<p>У вас нет заявок ${type}.</p>`;
+        return;
+    }
+    
+    requests.forEach(req => {
+        const item = document.createElement('div');
+        item.className = 'request-item';
+        
+        let title = `Заявка #${req.id}`;
+        if (typeUpper === 'MACHINERY') title = `Техника: ${req.machinery_type} #${req.id}`;
+        
+        let content = `<h4>${title}</h4>`;
+        content += `<p><strong>Статус:</strong> ${req.status}</p>`;
+        content += `<p><strong>Описание:</strong> ${req.description || req.material_type || ''}</p>`;
+        content += `<p><strong>Бюджет:</strong> ${req.budget || req.rental_price} ₽</p>`;
+        
+        // --- ЛОГИКА ВЫБОРА И ОЦЕНКИ ---
+        if (req.status === 'АКТИВНА') {
+            // Заявка активна, показываем кнопку просмотра предложений (п. 3)
+            content += `<button class="btn-primary" style="margin-top: 10px;" onclick="showOffersModal(${req.id}, '${typeUpper}')">
+                            Смотреть предложения
+                        </button>`;
+        } else if (req.status === 'В РАБОТЕ' && req.executor_id) {
+             // Кнопка для перевода в завершено (если есть)
+             content += `<p style="color: green; font-weight: bold;">Исполнитель ID ${req.executor_id} работает.</p>`;
+             content += `<button class="btn-secondary" style="margin-top: 10px; background-color: #38c172!important;" onclick="alert('TODO: API для завершения заявки ${req.id}')">Завершить заявку</button>`;
+        } else if (req.status === 'ЗАВЕРШЕНА') {
+            if (req.is_rated === false && req.executor_id) {
+                // Заявка завершена, но НЕ оценена: показываем форму рейтинга (п. 3)
+                const template = document.getElementById('ratingFormTemplate');
+                const formClone = template.content.cloneNode(true);
+                
+                const formContainer = document.createElement('div');
+                formContainer.appendChild(formClone);
+                
+                content += formContainer.innerHTML;
+                item.innerHTML = content;
+                container.appendChild(item);
+                
+                // Настраиваем слушатели после добавления в DOM
+                setupRatingListeners(item, req.id, typeUpper, req.executor_id);
+                return; // Пропускаем стандартный appendChild ниже
+                
+            } else {
+                // Заявка завершена И оценена
+                content += `<p style="color: blue; font-weight: bold;">Рейтинг выставлен.</p>`;
+            }
+        }
+        
+        item.innerHTML = content;
+        container.appendChild(item);
+    });
+}
 
 // ===========================================
 // 1. ЗАЯВКИ НА РАБОТУ
@@ -819,6 +1008,26 @@ async function fetchMaterialAds() {
     }
 }
 
+@param {number} score Средний балл (например, 4.3).
+ * @returns {string} Строка с заполненными и пустыми звездами.
+ */
+function renderStars(score) {
+    const roundedScore = Math.round(score || 0);
+    let stars = '';
+    const filledStar = '★'; // Заполненная звезда (Unicode)
+    const emptyStar = '☆';  // Пустая звезда (Unicode)
+    
+    // Заполненные звезды
+    for (let i = 0; i < roundedScore; i++) {
+        stars += filledStar;
+    }
+    // Пустые звезды
+    for (let i = roundedScore; i < 5; i++) {
+        stars += emptyStar;
+    }
+    return `<span style="color: #FFD700;">${stars}</span>`; // Золотой цвет для звезд
+}
+
         function renderRequests(containerId, items, type) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
@@ -850,6 +1059,202 @@ async function fetchMaterialAds() {
                 container.appendChild(item);
             });
         }
+function renderStars(score, totalRatings) {
+    const roundedScore = Math.round(score || 0);
+    let stars = '';
+    const filledStar = '★'; 
+    const emptyStar = '☆';  
+    
+    for (let i = 0; i < roundedScore; i++) {
+        stars += filledStar;
+    }
+    for (let i = roundedScore; i < 5; i++) {
+        stars += emptyStar;
+    }
+    const scoreText = score ? score.toFixed(2) : '0.00';
+    const ratingsCountText = totalRatings !== undefined ? `, ${totalRatings} отз.` : '';
+    return `
+        <span style="color: #FFD700;">${stars}</span>
+        <span style="font-size: 0.9em; color: #555;">(${scoreText} / 5.0${ratingsCountText})</span>
+    `;
+}
+
+/**
+ * Обрабатывает отправку рейтинга.
+ */
+async function submitRating(requestId, requestType, executorId, score, comment, formContainer) {
+    if (score === 0) {
+        alert('Пожалуйста, выберите оценку.');
+        return;
+    }
+
+    const payload = {
+        request_id: requestId,
+        request_type: requestType,
+        executor_id: executorId, // Передаем ID исполнителя
+        score: score,
+        comment: comment
+    };
+    
+    const submitBtn = formContainer.querySelector('.submit-rating-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Отправка...';
+    submitBtn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/rate_executor/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${access_token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert('Рейтинг успешно выставлен!');
+            fetchMyRequests(); // Обновляем список, чтобы скрыть форму
+        } else {
+            alert(data.detail || 'Ошибка при выставлении рейтинга.');
+        }
+    } catch(e) {
+        alert('Ошибка соединения с сервером.');
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+/**
+ * Настраивает интерактивные слушатели для формы рейтинга.
+ */
+function setupRatingListeners(container, requestId, requestType, executorId) {
+    const starsContainer = container.querySelector('.stars-interactive');
+    const commentArea = container.querySelector('.rating-comment');
+    const submitBtn = container.querySelector('.submit-rating-btn');
+    let selectedScore = 0;
+
+    // 1. Логика выбора оценки звездами
+    starsContainer.addEventListener('click', (e) => {
+        const star = e.target.closest('.star');
+        if (star) {
+            selectedScore = parseInt(star.dataset.value);
+            // Обновление отображения звезд
+            starsContainer.querySelectorAll('.star').forEach(s => {
+                const isSelected = parseInt(s.dataset.value) <= selectedScore;
+                s.textContent = isSelected ? '★' : '☆';
+                s.classList.toggle('selected', isSelected);
+            });
+        }
+    });
+
+    // 2. Логика отправки рейтинга
+    submitBtn.addEventListener('click', () => {
+        submitRating(requestId, requestType, executorId, selectedScore, commentArea.value, container);
+    });
+}
+
+/**
+ * Показывает модальное окно с предложениями исполнителей по заявке. (п. 3)
+ */
+async function showOffersModal(requestId, requestType) {
+    const modal = document.getElementById('offersModal');
+    const listContainer = document.getElementById('offersListContainer');
+    const idSpan = document.getElementById('offersRequestId');
+    const errorEl = document.getElementById('offersError');
+
+    idSpan.textContent = `#${requestId}`;
+    listContainer.innerHTML = '<p>Загрузка предложений...</p>';
+    errorEl.style.display = 'none';
+    modal.classList.add('active');
+
+    try {
+        // Предполагаем, что этот маршрут существует и возвращает рейтинг (Шаг 1)
+        const res = await fetch(`${API_URL}/requests/${requestType}/${requestId}/offers`, { 
+            headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        const offers = await res.json();
+        
+        if (res.ok) {
+            renderOffers(offers, requestId, requestType);
+        } else {
+            errorEl.textContent = offers.detail || 'Не удалось загрузить предложения.';
+            errorEl.style.display = 'block';
+            listContainer.innerHTML = '';
+        }
+    } catch(e) {
+        errorEl.textContent = 'Ошибка сети при загрузке предложений.';
+        errorEl.style.display = 'block';
+        listContainer.innerHTML = '';
+    }
+}
+
+/**
+ * Рендерит список предложений в модальном окне, включая рейтинг. (п. 1)
+ */
+function renderOffers(offers, requestId, requestType) {
+    const listContainer = document.getElementById('offersListContainer');
+    listContainer.innerHTML = '';
+
+    if (offers.length === 0) {
+        listContainer.innerHTML = '<p>Пока нет предложений по этой заявке.</p>';
+        return;
+    }
+    
+    offers.forEach(offer => {
+        // average_rating и total_ratings приходят с бэкенда
+        const ratingHTML = renderStars(offer.average_rating, offer.total_ratings);
+
+        const offerElement = document.createElement('div');
+        offerElement.className = 'offer-item';
+        
+        offerElement.innerHTML = `
+            <p>Исполнитель: <strong>${offer.executor_username || 'Исполнитель'}</strong></p>
+            <p class="executor-rating-info" style="margin-top: 5px;">
+                Рейтинг: ${ratingHTML}
+            </p>
+            <p style="margin-top: 5px;">Детали: ${offer.offer_details || 'Нет деталей'}</p>
+            
+            <button 
+                onclick="selectExecutor(${offer.offer_id}, ${offer.executor_id}, '${requestType}', ${requestId})"
+                class="btn-primary" style="margin-top: 10px; width: auto; padding: 8px 15px; font-size: 14px;"
+            >
+                Выбрать исполнителя
+            </button>
+        `;
+        
+        listContainer.appendChild(offerElement);
+    });
+}
+
+/**
+ * Обрабатывает выбор исполнителя.
+ */
+async function selectExecutor(offerId, executorId, requestType, requestId) {
+    if (!confirm("Вы уверены, что хотите выбрать этого исполнителя?")) return;
+    
+    // Мы предполагаем, что этот маршрут существует в main.py для выбора
+    const endpoint = `/requests/${requestType}/${requestId}/select_offer/${offerId}`; 
+    
+    try {
+        const res = await fetch(`${API_URL}${endpoint}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            alert("Исполнитель успешно выбран. Статус заявки изменен на 'В РАБОТЕ'.");
+            document.getElementById('offersModal').classList.remove('active');
+            fetchMyRequests(); // Обновляем список моих заявок
+        } else {
+            alert(data.detail || 'Не удалось выбрать исполнителя.');
+        }
+    } catch(e) {
+        alert('Ошибка сети.');
+    }
+}
 
         async function takeOrder(requestId) {
             const takeOrderStatus = document.getElementById('takeOrderStatus');
@@ -904,7 +1309,41 @@ async function fetchMaterialAds() {
         listContainer.innerHTML = '<p>Не удалось загрузить данные.</p>';
     }
 }
+
+function showOffersList(offers, requestId, requestType) {
+    const offersContainer = document.getElementById('offersListContainer'); // Ваш контейнер для списка
+    if (!offersContainer) return;
+    
+    offersContainer.innerHTML = '';
+    
+    offers.forEach(offer => {
+        // Убедитесь, что executor_id, average_rating, total_ratings приходят с бэкенда
+        const ratingHTML = renderStars(offer.average_rating);
+
+        const offerElement = document.createElement('div');
+        offerElement.className = 'offer-item';
         
+        offerElement.innerHTML = `
+            <p>Исполнитель: <strong>${offer.executor_username || 'Неизвестный'}</strong></p>
+            
+            <p class="executor-rating-info" style="font-size: 0.9em; margin-top: 5px;">
+                Рейтинг: ${ratingHTML}
+                (${offer.average_rating.toFixed(2)} из 5.0, ${offer.total_ratings} отз.)
+            </p>
+            
+            <p>Детали предложения: ${offer.offer_details}</p>
+            
+            <button 
+                onclick="selectExecutor(${offer.offer_id}, ${offer.executor_id}, '${requestType}', ${requestId})"
+                style="margin-top: 10px;"
+            >
+                Выбрать исполнителя
+            </button>
+        `;
+        
+        offersContainer.appendChild(offerElement);
+    });        
+
         async function fetchWorkRequests() { await fetchAndRenderGeneric('/work_requests/', 'workRequestsList', 'work'); }
         async function fetchMachineryRequests() { await fetchAndRenderGeneric('/machinery_requests/', 'machineryRequestsList', 'machinery'); }
         async function fetchToolRequests() { await fetchAndRenderGeneric('/tool_requests/', 'toolRequestsList', 'tool'); } 
@@ -912,27 +1351,35 @@ async function fetchMaterialAds() {
 
         // ИСПРАВЛЕНИЕ: Добавлен запрос и рендеринг заявок на инструмент
         async function fetchMyRequests() {
-            const headers = { 'Authorization': `Bearer ${access_token}` };
-            const w = document.getElementById('myWorkRequestsList');
-            const m = document.getElementById('myMachineryRequestsList');
-            const t = document.getElementById('myToolRequestsList'); 
-            const a = document.getElementById('myMaterialAdsList');
-            w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Загрузка...</p>'; 
-            try {
-                const [rw, rm, rt, ra] = await Promise.all([ 
-                    fetch(`${API_URL}/my/work_requests`, { headers }).then(r => r.json()),
-                    fetch(`${API_URL}/my/machinery_requests`, { headers }).then(r => r.json()),
-                    fetch(`${API_URL}/my/tool_requests`, { headers }).then(r => r.json()), 
-                    fetch(`${API_URL}/my/material_ads`, { headers }).then(r => r.json()),
-                ]);
-                renderRequests('myWorkRequestsList', rw, 'work');
-                renderRequests('myMachineryRequestsList', rm, 'machinery');
-                renderRequests('myToolRequestsList', rt, 'tool'); 
-                renderRequests('myMaterialAdsList', ra, 'material');
-            } catch (e) {
-                w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Ошибка загрузки.</p>'; 
-            }
-        }
+    if (!access_token) return;
+    const headers = { 'Authorization': `Bearer ${access_token}` };
+    const w = document.getElementById('myWorkRequestsList');
+    const m = document.getElementById('myMachineryRequestsList');
+    const t = document.getElementById('myToolRequestsList'); 
+    const a = document.getElementById('myMaterialAdsList');
+    w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Загрузка...</p>'; 
+    try {
+        // Мы предполагаем, что эти маршруты теперь возвращают поле 'is_rated' (Шаг 2)
+        const [rw, rm, rt, ra] = await Promise.all([ 
+            fetch(`${API_URL}/my/work_requests`, { headers }).then(r => r.json()),
+            fetch(`${API_URL}/my/machinery_requests`, { headers }).then(r => r.json()),
+            fetch(`${API_URL}/my/tool_requests`, { headers }).then(r => r.json()), 
+            fetch(`${API_URL}/my/material_ads`, { headers }).then(r => r.json()),
+        ]);
+
+        // Используем новую функцию для work и machinery
+        renderMyCustomerRequests(rw, 'WORK', 'myWorkRequestsList');
+        renderMyCustomerRequests(rm, 'MACHINERY', 'myMachineryRequestsList');
+        
+        // Для инструмента и материалов пока оставляем общую функцию (без рейтинга)
+        renderRequests('myToolRequestsList', rt, 'tool'); 
+        renderRequests('myMaterialAdsList', ra, 'material');
+
+    } catch (e) {
+        console.error("Ошибка загрузки моих заявок:", e);
+        w.innerHTML = m.innerHTML = t.innerHTML = a.innerHTML = '<p>Ошибка загрузки.</p>'; 
+    }
+}
         
         document.getElementById('registerUserType').addEventListener('change', (e) => {
             document.getElementById('specializationGroup').style.display = e.target.value === 'ИСПОЛНИТЕЛЬ' ? 'block' : 'none';
