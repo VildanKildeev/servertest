@@ -554,8 +554,9 @@
             if (pageId === 'toolRequestsPage') fetchToolRequests(); 
             if (pageId === 'materialAdsPage') fetchMaterialAds();
             if (pageId === 'myRequestsPage') fetchMyRequests();
-            if (pageId === 'profilePage') fetchProfile();
-        }
+           if (pageId === 'profilePage' && typeof fetchProfile === 'function') {
+    fetchProfile();
+}
 
 async function fetchProfile() {
     // ВАЖНО: Убедитесь, что глобальная переменная accessToken загружена в начале скрипта
