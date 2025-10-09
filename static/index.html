@@ -866,20 +866,36 @@ async function fetchMaterialAds() {
         }
 
         async function fetchAndRenderGeneric(endpoint, listId, type) {
-            const listContainer = document.getElementById(listId);
-            listContainer.innerHTML = '<p>Загрузка...</p>';
-            let url = `${API_URL}${endpoint}`;
-            if (selectedCityId) {
-                url += `?city_id=${selectedCityId}`;
-            }
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                renderRequests(listId, data, type);
-            } catch (error) {
-                listContainer.innerHTML = '<p>Не удалось загрузить данные.</p>';
-            }
+    const listContainer = document.getElementById(listId);
+    listContainer.innerHTML = '<p>Загрузка...</p>';
+    let url = `${API_URL}${endpoint}`;
+    if (selectedCityId) {
+        // Убедитесь, что параметр добавляется правильно, если в URL уже есть другие параметры
+        url += url.includes('?') ? `&city_id=${selectedCityId}` : `?city_id=${selectedCityId}`;
+    }
+    try {
+        // ВАЖНОЕ ИСПРАВЛЕНИЕ: Добавление заголовков авторизации
+        const response = await fetch(url, { headers: getAuthHeaders() });
+        const data = await response.json();
+
+        // Дополнительная обработка 401 (как в старой fetchWorkRequests)
+        if (response.status === 401) {
+             listContainer.innerHTML = '<p>Для просмотра данных из вашего города необходимо войти в систему.</p>';
+             return;
         }
+
+        if (!response.ok) {
+             console.error(`Ошибка при загрузке ${endpoint}:`, response.status, data);
+             listContainer.innerHTML = `<p>Ошибка загрузки данных: ${data.detail || 'Неизвестная ошибка'}</p>`;
+             return;
+        }
+
+        renderRequests(listId, data, type);
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+        listContainer.innerHTML = '<p>Не удалось загрузить данные.</p>';
+    }
+}
         
         async function fetchWorkRequests() { await fetchAndRenderGeneric('/work_requests/', 'workRequestsList', 'work'); }
         async function fetchMachineryRequests() { await fetchAndRenderGeneric('/machinery_requests/', 'machineryRequestsList', 'machinery'); }
