@@ -1,3 +1,4 @@
+<!-- BUILD: index6-fix v1 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -653,43 +654,6 @@ async function fetchProfile() {
 }
 
 // =======================================================
-        // НОВАЯ ЛОГИКА: ЗАГРУЗКА РЕЙТИНГА ДЛЯ ИСПОЛНИТЕЛЯ
-        // =======================================================
-        const ratingDisplay = document.getElementById('executorRatingDisplay');
-        
-        // Скрываем элемент по умолчанию
-        if (ratingDisplay) ratingDisplay.style.display = 'none';
-
-        if (userData.user_type === 'ИСПОЛНИТЕЛЬ' && ratingDisplay) {
-            
-            const ratingRes = await fetch(`${API_URL}/executor_rating/${userData.id}`, { 
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${accessToken}` } 
-            });
-            const ratingData = await ratingRes.json();
-            
-            if (ratingRes.ok) {
-                const avgSpan = document.getElementById('userAvgRating');
-                const totalSpan = document.getElementById('userTotalRatings');
-                
-                // Проверяем, что это ИСПОЛНИТЕЛЬ и данные корректны
-                if (ratingData.average_rating !== undefined && ratingData.total_ratings !== undefined) {
-                    
-                    const starsHTML = renderStars(ratingData.average_rating);
-                    
-                    avgSpan.innerHTML = `
-                        ${starsHTML}
-                        <span style="font-size: 0.8em; color: #555;">(${ratingData.average_rating.toFixed(2)} / 5.0)</span>
-                    `;
-                    totalSpan.textContent = ratingData.total_ratings;
-                    
-                    ratingDisplay.style.display = 'block'; // Показываем блок с рейтингом
-                }
-            } else {
-                console.warn("Не удалось загрузить рейтинг исполнителя:", ratingData.detail);
-            }
-        }
-
         function updateProfilePage(profile) {
             const profileInfo = document.getElementById('profileInfo');
             const editSpecializationForm = document.getElementById('editSpecializationForm');
@@ -738,7 +702,7 @@ async function fetchProfile() {
 // ИСПРАВЛЕНИЕ 3: Добавлены функции для работы с модальным окном города
 /**
  * Отображает модальное окно выбора города.
- */
+// */
 function showCityModal() {
     const modal = document.getElementById('cityModal'); 
     if (modal) {
@@ -749,7 +713,7 @@ function showCityModal() {
 
 /**
  * Скрывает модальное окно выбора города.
- */
+// */
 function hideCityModal() {
     const modal = document.getElementById('cityModal');
     if (modal) {
@@ -759,7 +723,7 @@ function hideCityModal() {
 
 /**
  * Загружает список городов и заполняет <select>.
- */
+// */
 async function fetchCities() {
     if (CITIES_LIST.length === 0) {
         try {
@@ -789,7 +753,7 @@ async function fetchCities() {
 
 /**
  * Обрабатывает выбор города.
- */
+// */
 function selectCity() {
     const select = document.getElementById('citySelect');
     if (select && select.value) {
@@ -811,8 +775,24 @@ function selectCity() {
 }
 
 // Функция для генерации заголовков с токеном
+
+// --- Token helpers (robust sync for access_token/accessToken) ---
+function setToken(t) {
+    window.accessToken = t || null;
+    window.access_token = t || null;
+    if (t) {
+        try { localStorage.setItem('access_token', t); } catch(_) {}
+    } else {
+        try { localStorage.removeItem('access_token'); } catch(_) {}
+    }
+}
+
 function getAuthHeaders() {
+    const t = (typeof accessToken !== 'undefined' && accessToken) || (typeof access_token !== 'undefined' && access_token) || localStorage.getItem('access_token');
     const headers = {};
+    if (t) headers['Authorization'] = `Bearer ${t}`;
+    return headers;
+};
     if (access_token) {
         headers['Authorization'] = `Bearer ${access_token}`;
     }
@@ -854,10 +834,10 @@ function renderRequests(containerId, items, type) {
     });
 }
 
-@param {Array} requests Список заявок с полями status и is_rated
- * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
- * @param {string} containerId ID контейнера, куда рендерить
- */
+// @param {Array} requests Список заявок с полями status и is_rated
+// * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
+// * @param {string} containerId ID контейнера, куда рендерить
+// */
 function renderMyCustomerRequests(requests, type, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -1008,9 +988,9 @@ async function fetchMaterialAds() {
     }
 }
 
-@param {number} score Средний балл (например, 4.3).
- * @returns {string} Строка с заполненными и пустыми звездами.
- */
+// @param {number} score Средний балл (например, 4.3).
+// * @returns {string} Строка с заполненными и пустыми звездами.
+// */
 function renderStars(score) {
     const roundedScore = Math.round(score || 0);
     let stars = '';
@@ -1081,7 +1061,7 @@ function renderStars(score, totalRatings) {
 
 /**
  * Обрабатывает отправку рейтинга.
- */
+// */
 async function submitRating(requestId, requestType, executorId, score, comment, formContainer) {
     if (score === 0) {
         alert('Пожалуйста, выберите оценку.');
@@ -1128,7 +1108,7 @@ async function submitRating(requestId, requestType, executorId, score, comment, 
 
 /**
  * Настраивает интерактивные слушатели для формы рейтинга.
- */
+// */
 function setupRatingListeners(container, requestId, requestType, executorId) {
     const starsContainer = container.querySelector('.stars-interactive');
     const commentArea = container.querySelector('.rating-comment');
@@ -1157,7 +1137,7 @@ function setupRatingListeners(container, requestId, requestType, executorId) {
 
 /**
  * Показывает модальное окно с предложениями исполнителей по заявке. (п. 3)
- */
+// */
 async function showOffersModal(requestId, requestType) {
     const modal = document.getElementById('offersModal');
     const listContainer = document.getElementById('offersListContainer');
@@ -1192,7 +1172,7 @@ async function showOffersModal(requestId, requestType) {
 
 /**
  * Рендерит список предложений в модальном окне, включая рейтинг. (п. 1)
- */
+// */
 function renderOffers(offers, requestId, requestType) {
     const listContainer = document.getElementById('offersListContainer');
     listContainer.innerHTML = '';
@@ -1230,7 +1210,7 @@ function renderOffers(offers, requestId, requestType) {
 
 /**
  * Обрабатывает выбор исполнителя.
- */
+// */
 async function selectExecutor(offerId, executorId, requestType, requestId) {
     if (!confirm("Вы уверены, что хотите выбрать этого исполнителя?")) return;
     
@@ -1412,7 +1392,7 @@ function showOffersList(offers, requestId, requestType) {
         const data = await response.json();
         
         if (response.ok) {
-            accessToken = data.access_token; 
+            setToken(data.access_token); 
             localStorage.setItem('access_token', accessToken); 
             
             // ✅ Сначала загружаем профиль, потом показываем меню
@@ -1611,18 +1591,20 @@ function showOffersList(offers, requestId, requestType) {
 
         // ИСПРАВЛЕНИЕ 4: Добавлена функция logout, которая использовалась в HTML
         function logout() {
-            localStorage.removeItem('access_token');
-            accessToken = null;
-            currentUser = null;
-            selectedCityId = localStorage.getItem('selectedCityId') || 1; 
-            selectedCityName = localStorage.getItem('selectedCityName') || 'Москва';
-            document.getElementById('cityName').textContent = selectedCityName;
-            showPage('loginPage');
-        }
+    setToken(null);
+    window.currentUser = null;
+    try {
+        selectedCityId = localStorage.getItem('selectedCityId') || 1;
+        selectedCityName = localStorage.getItem('selectedCityName') || 'Москва';
+    } catch(_) {}
+    const cn = document.getElementById('cityName');
+    if (cn) cn.textContent = selectedCityName;
+    showPage('loginPage');
+}
 
         // Инициализация
         window.addEventListener('DOMContentLoaded', async () => {
-            accessToken = localStorage.getItem('access_token');
+            setToken(localStorage.getItem('access_token'));
             document.getElementById('cityName').textContent = selectedCityName;
             await Promise.all([
                 loadDirectory('/specializations', '#registerSpecialization, #workSpecialization, #newSpecialization'), 
