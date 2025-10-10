@@ -318,11 +318,43 @@
                     </div>
                     <button id="saveSpecializationBtn" class="btn-primary">Сохранить</button>
                 </div>
+<div id="myRequestsPage" class="content-page" style="display: none;">
+    <h2>Мои активные заявки</h2>
+    <div id="myRequestsList"></div> 
+</div>
+
+<div id="completedRequestsPage" class="content-page" style="display: none;">
+    <h2>Мои выполненные заявки (для оценки)</h2>
+    <p>Здесь отображаются работы, которые вы отметили как "ВЫПОЛНЕНА". Вы можете оценить исполнителя, если еще не сделали этого.</p>
+    <div id="completedRequestsList"></div>
+</div>
                 <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
 
-
+<div id="ratingModal" class="city-modal">
+    <div class="city-modal-content">
+        <span style="float: right; font-size: 28px; font-weight: bold; cursor: pointer; color: #333;" onclick="hideRatingModal()">&times;</span>
+        <h2>Оценить Исполнителя</h2>
+        <div id="ratingStatus" class="message"></div>
+        <form id="ratingForm">
+            <input type="hidden" id="ratingRequestId">
+            <p>Ваша оценка (1 - 5):</p>
+            <div class="input-group" style="display: flex; justify-content: space-around; font-size: 24px;">
+                <label style="cursor: pointer;"><input type="radio" name="ratingValue" value="1" required><span class="star-rating" data-rating="1"></span></label>
+                <label style="cursor: pointer;"><input type="radio" name="ratingValue" value="2"><span class="star-rating" data-rating="2"></span></label>
+                <label style="cursor: pointer;"><input type="radio" name="ratingValue" value="3"><span class="star-rating" data-rating="3"></span></label>
+                <label style="cursor: pointer;"><input type="radio" name="ratingValue" value="4"><span class="star-rating" data-rating="4"></span></label>
+                <label style="cursor: pointer;"><input type="radio" name="ratingValue" value="5"><span class="star-rating" data-rating="5"></span></label>
+            </div>
+            <div class="input-group">
+                <label for="ratingComment">Комментарий (необязательно):</label>
+                <textarea id="ratingComment"></textarea>
+            </div>
+            <button type="submit" class="btn-primary" style="margin-top: 10px;">Отправить оценку</button>
+        </form>
+    </div>
+</div>
 
         <div id="createWorkRequestPage" class="page">
             <div class="form-container">
@@ -744,7 +776,6 @@ function showCompletedRequestsPage() {
     fetchCompletedRequestsForRating();
 }
 
-// НОВАЯ ФУНКЦИЯ: Загрузить и отфильтровать выполненные заявки для оценки
 async function fetchCompletedRequestsForRating() {
     const accessToken = localStorage.getItem('accessToken');
     if (!accessToken) {
@@ -753,19 +784,19 @@ async function fetchCompletedRequestsForRating() {
     }
 
     const requestList = document.getElementById('completedRequestsList');
+    if (!requestList) return;
     requestList.innerHTML = 'Загрузка выполненных заявок...';
     
-    const currentUserId = profile?.id; // Используем глобальный объект profile
+    const currentUserId = profile?.id;
 
     try {
-        // Получаем все заявки пользователя (созданные и принятые)
         const res = await fetch(`${API_URL}/users/me/requests/`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
         const allRequests = await res.json();
         
-        // Фильтруем: Заказчик (user_id === currentUserId) И статус 'ВЫПОЛНЕНА'
+        // Фильтруем: Заявка создана текущим пользователем (Заказчик) И статус 'ВЫПОЛНЕНА'
         const completedRequests = allRequests.filter(req => 
             req.user_id === currentUserId && req.status === 'ВЫПОЛНЕНА'
         );
@@ -851,8 +882,10 @@ async function fetchCompletedRequestsForRating() {
         return;
     }
 
+    // ЭТОТ ЭЛЕМЕНТ БОЛЬШЕ НЕ БУДЕТ NULL благодаря добавленной HTML-структуре
     const requestList = document.getElementById('myRequestsList');
-    requestList.innerHTML = 'Загрузка ваших заявок...';
+    if (!requestList) return; 
+    requestList.innerHTML = 'Загрузка ваших активных заявок...';
 
     try {
         const res = await fetch(`${API_URL}/users/me/requests/`, {
@@ -865,35 +898,30 @@ async function fetchCompletedRequestsForRating() {
         const currentUserId = profile?.id;
 
         requestList.innerHTML = '';
-        if (requests.length === 0) {
-            requestList.innerHTML = '<p>У вас пока нет активных заявок.</p>';
+        
+        // Фильтруем: показываем только те, что не ВЫПОЛНЕНЫ и не ОТМЕНЕНЫ
+        const activeRequests = requests.filter(req => req.status !== 'ВЫПОЛНЕНА' && req.status !== 'ОТМЕНЕНА');
+
+        if (activeRequests.length === 0) {
+            requestList.innerHTML = '<p>У вас нет активных заявок (со статусом ОЖИДАЕТ или В РАБОТЕ).</p>';
             return;
         }
 
-        requests.forEach(req => {
+        activeRequests.forEach(req => {
             let actions = '';
             
             // Если заявка создана текущим пользователем (Заказчик)
             if (req.user_id === currentUserId) {
-                // Если статус "В РАБОТЕ" - Заказчик может отметить как выполненную или отменить
                 if (req.status === 'В РАБОТЕ') {
                     actions += `<button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>`;
                     actions += `<button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545;">Отменить</button>`;
                 }
-                // Заявки со статусом 'ВЫПОЛНЕНА' или 'ОТМЕНЕНА' больше не отображают действий, 
-                // так как оценку выносим на отдельную страницу.
             } 
             // Если заявка принята текущим пользователем (Исполнитель)
             else if (req.executor_id === currentUserId) {
-                 actions += `<p style="color: green; margin-top: 5px;">Вы — Исполнитель по этой заявке. Статус: ${req.status}</p>`;
+                 actions += `<p style="color: green; margin-top: 5px;">Вы — Исполнитель по этой заявке.</p>`;
             }
 
-            // Игнорируем показ завершенных заявок здесь, чтобы не дублировать
-            if (req.status === 'ВЫПОЛНЕНА' || req.status === 'ОТМЕНЕНА') {
-                return;
-            }
-
-            // Находим название города
             const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
 
             requestList.innerHTML += `
@@ -959,6 +987,100 @@ async function fetchCompletedRequestsForRating() {
                 statusEl.className = 'message error';
             }
         });
+
+document.getElementById('ratingForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Проверка, что токен существует
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+        alert('Ошибка аутентификации. Пожалуйста, войдите в систему.');
+        return;
+    }
+    
+    const requestId = document.getElementById('ratingRequestId').value;
+    const ratingElement = document.querySelector('#ratingForm input[name="ratingValue"]:checked');
+
+    const statusDiv = document.getElementById('ratingStatus');
+    statusDiv.classList.remove('success', 'error');
+
+    if (!ratingElement) {
+        statusDiv.innerHTML = 'Пожалуйста, выберите оценку (от 1 до 5).';
+        statusDiv.classList.add('error');
+        return;
+    }
+
+    const ratingValue = ratingElement.value;
+    const comment = document.getElementById('ratingComment').value;
+    
+    const data = {
+        rating_value: parseInt(ratingValue),
+        comment: comment || null,
+    };
+
+    statusDiv.innerHTML = 'Отправка...';
+
+    try {
+        const res = await fetch(`${API_URL}/work_requests/${requestId}/rate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+            statusDiv.innerHTML = `Успешно! Средний рейтинг исполнителя: ${result.average_rating.toFixed(2)}`;
+            statusDiv.classList.add('success');
+            
+            // Скрыть модал через 2 секунды и обновить списки
+            setTimeout(() => {
+                hideRatingModal();
+                fetchProfile(); // Обновить профиль для отображения актуального рейтинга
+                fetchCompletedRequestsForRating(); // Обновляем список выполненных заявок на странице
+            }, 2000);
+        } else {
+            statusDiv.innerHTML = `Ошибка: ${result.detail || 'Не удалось отправить оценку.'}`;
+            statusDiv.classList.add('error');
+        }
+    } catch(error) {
+        statusDiv.innerHTML = 'Ошибка соединения с сервером.';
+        statusDiv.classList.add('error');
+        console.error('Rating submission error:', error);
+    }
+});
+
+// НОВАЯ ФУНКЦИЯ: Инициализация звезд для отображения
+// Добавьте эту функцию, чтобы при загрузке страницы звезды были серыми (пустыми)
+// и обновлялись при выборе
+function updateStarDisplay(ratingValue) {
+    document.querySelectorAll('.star-rating').forEach(span => {
+        let stars = '';
+        // Определяем максимальное количество звезд для данного элемента span
+        const maxStars = parseInt(span.getAttribute('data-rating')) || 5; 
+        
+        for (let i = 1; i <= maxStars; i++) {
+            if (i <= ratingValue) {
+                // Заполненная звезда
+                stars += '<i class="fas fa-star" style="color: #FF8C00;"></i>';
+            } else {
+                // Пустая звезда
+                stars += '<i class="far fa-star" style="color: #ccc;"></i>';
+            }
+        }
+        span.innerHTML = stars;
+    });
+}
+
+// Обработчик события изменения радиокнопок для обновления звезд
+document.querySelectorAll('#ratingForm input[name="ratingValue"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+        updateStarDisplay(parseInt(radio.value));
+    });
+});
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1122,6 +1244,29 @@ async function fetchCompletedRequestsForRating() {
                 statusEl.textContent = 'Произошла ошибка при размещении заявки.'; statusEl.className = 'message error';
             }
         });
+function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выберите...") {
+    const selectElement = document.getElementById(selectId);
+    if (!selectElement) {
+        return;
+    }
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверка, что items является массивом
+    if (!Array.isArray(items)) {
+        console.error(`Ошибка при загрузке #${selectId}: Ожидается массив, получен ${typeof items}. Проверьте ответ API.`);
+        selectElement.innerHTML = `<option value="">Ошибка загрузки данных</option>`;
+        return;
+    }
+
+    selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+    
+    items.forEach(item => {
+        const value = item[valueKey];
+        const text = item[textKey];
+        if (value !== undefined && text !== undefined) {
+             selectElement.innerHTML += `<option value="${value}">${text}</option>`;
+        }
+    });
+}
 
         // Загрузка справочников
         async function loadDirectory(endpoint, selectors) {
@@ -1137,6 +1282,7 @@ async function fetchCompletedRequestsForRating() {
                         selectElement.appendChild(option);
                     });
                 });
+
             } catch (error) { console.error(`Ошибка при загрузке ${selectors}:`, error); }
         }
 
