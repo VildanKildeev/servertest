@@ -812,7 +812,13 @@ function selectCity() {
 
 // Функция для генерации заголовков с токеном
 function getAuthHeaders() {
+    const token = (typeof accessToken !== 'undefined' && accessToken) 
+               || (typeof access_token !== 'undefined' && access_token) 
+               || localStorage.getItem('access_token');
     const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+};
     if (access_token) {
         headers['Authorization'] = `Bearer ${access_token}`;
     }
@@ -853,9 +859,7 @@ function renderRequests(containerId, items, type) {
         container.appendChild(item);
     });
 }
-
-@param {Array} requests Список заявок с полями status и is_rated
- * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
+\1/* \2 */\3 * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
  * @param {string} containerId ID контейнера, куда рендерить
  */
 function renderMyCustomerRequests(requests, type, containerId) {
@@ -1007,9 +1011,7 @@ async function fetchMaterialAds() {
         console.error('Ошибка сети:', error);
     }
 }
-
-@param {number} score Средний балл (например, 4.3).
- * @returns {string} Строка с заполненными и пустыми звездами.
+\1/* \2 */\3 * @returns {string} Строка с заполненными и пустыми звездами.
  */
 function renderStars(score) {
     const roundedScore = Math.round(score || 0);
@@ -1412,7 +1414,8 @@ function showOffersList(offers, requestId, requestType) {
         
         if (response.ok) {
             accessToken = data.access_token; 
-            localStorage.setItem('access_token', accessToken); 
+            localStorage.setItem('access_token', accessToken);
+            access_token = accessToken; 
             
             // ✅ Сначала загружаем профиль, потом показываем меню
             await fetchProfile(); // Ждем загрузки данных пользователя
@@ -1622,6 +1625,7 @@ function showOffersList(offers, requestId, requestType) {
         // Инициализация
         window.addEventListener('DOMContentLoaded', async () => {
             accessToken = localStorage.getItem('access_token');
+            access_token = accessToken;
             document.getElementById('cityName').textContent = selectedCityName;
             await Promise.all([
                 loadDirectory('/specializations', '#registerSpecialization, #workSpecialization, #newSpecialization'), 
