@@ -1,3 +1,4 @@
+<!-- BUILD: await-fix v4 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -604,7 +605,7 @@
 
     <script>
         const API_URL = "/api";
-        let access_token = null;
+        let access_token = localStorage.getItem('access_token') || null;
         let selectedCityId = localStorage.getItem('selectedCityId') || 1; // Установка ID города по умолчанию
         let selectedCityName = localStorage.getItem('selectedCityName') || 'Москва'; // Установка названия города по умолчанию
         let currentUser = null;
@@ -622,61 +623,7 @@
             if (pageId === 'myRequestsPage') fetchMyRequests();
             
 
-            // Загрузка рейтинга для ИСПОЛНИТЕЛЯ (перенесено внутрь fetchProfile, чтобы можно было использовать await)
-            try {
-                const ratingDisplay = document.getElementById('executorRatingDisplay');
-                if (data.user_type === 'ИСПОЛНИТЕЛЬ' && ratingDisplay) {
-                    ratingDisplay.style.display = 'none';
-                    const ratingRes = await fetch(`${API_URL}/executor_rating/${data.id}`, {
-                        method: 'GET',
-                        headers: getAuthHeaders()
-                    });
-                    const ratingData = await ratingRes.json();
-                    if (ratingRes.ok) {
-                        const avgSpan = document.getElementById('userAvgRating');
-                        const totalSpan = document.getElementById('userTotalRatings');
-                        if (avgSpan) avgSpan.textContent = (ratingData && ratingData.average_rating) ?? 0;
-                        if (totalSpan) totalSpan.textContent = (ratingData && ratingData.total_ratings) ?? 0;
-                        ratingDisplay.style.display = 'block';
-                    } else {
-                        console.warn('Не удалось загрузить рейтинг:', (ratingData && ratingData.message) || ratingRes.status);
-                    }
-                }
-            } catch (e) {
-                console.error('Ошибка загрузки рейтинга:', e);
             }
-
-if (pageId === 'profilePage' && typeof fetchProfile === 'function') {
-                fetchProfile();
-            }
-        }
-
-async function fetchProfile() {
-    if (!accessToken) {
-        logout(); 
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/users/me`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            currentUser = data; // 1. Сохраняем данные пользователя
-            updateProfilePage(data); // 2. ✅ ДОБАВЛЕНО: Вызываем функцию для отрисовки профиля
-            fetchMyRequests();
-            
-        } else if (response.status === 401) {
-            logout(); 
-        } else {
-            console.error('Ошибка при получении профиля:', response.status);
-        }
-    } catch (error) {
-        console.error('Сетевая ошибка при получении профиля:', error);
-    }
-}
 
 // =======================================================
         // ИСПРАВЛЕНИЕ 3: Добавлены функции для работы с модальным окном города
@@ -798,7 +745,8 @@ function renderRequests(containerId, items, type) {
     });
 }
 
-@param {Array} requests Список заявок с полями status и is_rated
+/* @param {Array} requests Список заявок с полями status и is_rated
+ */
  * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
  * @param {string} containerId ID контейнера, куда рендерить
  */
@@ -952,7 +900,8 @@ async function fetchMaterialAds() {
     }
 }
 
-@param {number} score Средний балл (например, 4.3).
+/* @param {number} score Средний балл (например, 4.3).
+ */
  * @returns {string} Строка с заполненными и пустыми звездами.
  */
 function renderStars(score) {
