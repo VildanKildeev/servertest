@@ -17,7 +17,8 @@ if not DATABASE_URL:
 # --- АДАПТАЦИЯ URL ДЛЯ RENDER/ASYNC ---
 # Добавляем параметр SSL для Render.com
 if "?" in DATABASE_URL:
-    DATABASE_URL += "&sslmode=require"
+    if "sslmode" not in DATABASE_URL:
+        DATABASE_URL += "&sslmode=require"
 else:
     DATABASE_URL += "?sslmode=require"
 
