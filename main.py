@@ -306,7 +306,8 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     if not user_record:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
         
-    user_info = dict(user_record)
+    # Преобразуем в словарь и сразу возвращаем, Pydantic модель UserOut сама отфильтрует поля
+    return user_record
     
     # ----------------------------------------------------
     # 2. Логика для добавления рейтинга
