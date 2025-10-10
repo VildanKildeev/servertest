@@ -585,6 +585,12 @@
         let selectedCityName = localStorage.getItem('selectedCityName') || 'Москва'; // Установка названия города по умолчанию
         let currentUser = null;
         let CITIES_LIST = []; // Список городов для модального окна
+const API_URL = "https://servertest2-0.onrender.com/api"; 
+let CITIES = [];
+// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Глобальная переменная для хранения данных пользователя
+let profile = null; 
+let selectedCityId = localStorage.getItem('selectedCityId') || null;
+let selectedCityName = localStorage.getItem('selectedCityName') || "Выберите город";
 
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
@@ -600,24 +606,53 @@
         }
 
         async function fetchProfile() {
-            try {
-                const response = await fetch(`${API_URL}/users/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                });
-                if (response.ok) {
-                    currentUser = await response.json();
-                    updateProfilePage(currentUser);
-                } else {
-                    localStorage.removeItem('accessToken');
-                    accessToken = null;
-                    showPage('loginPage');
-                }
-            } catch (error) {
-                console.error('Ошибка при получении профиля:', error);
+    const accessToken = localStorage.getItem('accessToken');
+    const profileDiv = document.getElementById('profileInfo');
+
+    if (!accessToken) {
+        showPage('loginPage');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/users/me`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
             }
+        });
+
+        if (!res.ok) {
+            // Если токен невалиден
+            logout();
+            return;
         }
+
+        const data = await res.json();
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Заполняем глобальную переменную profile
+        profile = data; 
+
+        // Отображение информации
+        let specializationInfo = profile.user_type === 'ИСПОЛНИТЕЛЬ' 
+            ? `<p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'} 
+               <button class="btn-link" onclick="toggleEditSpecialization()">Изменить</button></p>
+               <p><strong>Рейтинг:</strong> ${profile.average_rating ? profile.average_rating.toFixed(2) : 'Нет оценок'} (${profile.ratings_count} оценок)</p>` 
+            : '';
+
+        profileDiv.innerHTML = `
+            <p><strong>Email:</strong> ${profile.email}</p>
+            <p><strong>Телефон:</strong> ${profile.phone_number}</p>
+            <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
+            ${specializationInfo}
+            ${profile.is_premium ? '<p class="premium"><strong>Статус:</strong> Премиум ★</p>' : '<p><strong>Статус:</strong> Обычный</p>'}
+            <button class="btn-primary" onclick="showPage('myRequestsPage'); fetchMyRequests()">Мои заявки</button>
+            <button class="btn-primary" onclick="showCompletedRequestsPage()" style="background-color: #28a745;">Мои выполненные заявки</button>
+        `;
+        
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>';
+    }
+}
 
         function updateProfilePage(profile) {
             const profileInfo = document.getElementById('profileInfo');
@@ -1244,6 +1279,7 @@ document.querySelectorAll('#ratingForm input[name="ratingValue"]').forEach(radio
                 statusEl.textContent = 'Произошла ошибка при размещении заявки.'; statusEl.className = 'message error';
             }
         });
+
 function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выберите...") {
     const selectElement = document.getElementById(selectId);
     if (!selectElement) {
@@ -1269,19 +1305,31 @@ function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выб
 }
 
         // Загрузка справочников
-        async function loadDirectory(endpoint, selectors) {
-            try {
-                const response = await fetch(`${API_URL}${endpoint}/`);
-                const items = await response.json();
-                document.querySelectorAll(selectors).forEach(selectElement => {
-                    if (!selectElement) return;
-                    selectElement.innerHTML = '';
-                    items.forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = item; option.textContent = item;
-                        selectElement.appendChild(option);
-                    });
-                });
+        function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выберите...") {
+    const selectElement = document.getElementById(selectId);
+    if (!selectElement) {
+        return;
+    }
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверка, что items является массивом
+    if (!Array.isArray(items)) {
+        console.error(`Ошибка при загрузке #${selectId}: Ожидается массив, получен ${typeof items}. Проверьте ответ API.`);
+        // Установка сообщения об ошибке
+        selectElement.innerHTML = `<option value="">Ошибка загрузки данных</option>`; 
+        return;
+    }
+
+    selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+    
+    items.forEach(item => {
+        const value = item[valueKey];
+        const text = item[textKey];
+        if (value !== undefined && text !== undefined) {
+             // Используем id в качестве value, name в качестве текста
+             selectElement.innerHTML += `<option value="${value}">${text}</option>`;
+        }
+    });
+}
 
             } catch (error) { console.error(`Ошибка при загрузке ${selectors}:`, error); }
         }
