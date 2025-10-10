@@ -548,6 +548,7 @@ async def get_material_types():
         {"id": 4, "name": "Щебень"},
         {"id": 5, "name": "Пиломатериалы"},
     ]
+
 # Создание запроса на спецтехнику
 @api_router.post("/machinery_requests/", status_code=status.HTTP_201_CREATED)
 async def create_machinery_request(machinery_request: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
