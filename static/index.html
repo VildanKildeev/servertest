@@ -579,15 +579,9 @@
     </div>
 
     <script>
-        const API_URL = "/api";
-        let accessToken = null;
-        let selectedCityId = localStorage.getItem('selectedCityId') || 1; // Установка ID города по умолчанию
-        let selectedCityName = localStorage.getItem('selectedCityName') || 'Москва'; // Установка названия города по умолчанию
-        let currentUser = null;
-        let CITIES_LIST = []; // Список городов для модального окна
-const API_URL = "https://servertest2-0.onrender.com/api"; 
+        const API_URL = "https://servertest2-0.onrender.com/api"; 
 let CITIES = [];
-// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Глобальная переменная для хранения данных пользователя
+// ИСПРАВЛЕНИЕ: Используем 'let' для CITIES и инициализируем 'profile' как null
 let profile = null; 
 let selectedCityId = localStorage.getItem('selectedCityId') || null;
 let selectedCityName = localStorage.getItem('selectedCityName') || "Выберите город";
@@ -622,7 +616,6 @@ let selectedCityName = localStorage.getItem('selectedCityName') || "Выбери
         });
 
         if (!res.ok) {
-            // Если токен невалиден
             logout();
             return;
         }
@@ -644,7 +637,7 @@ let selectedCityName = localStorage.getItem('selectedCityName') || "Выбери
             <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
             ${specializationInfo}
             ${profile.is_premium ? '<p class="premium"><strong>Статус:</strong> Премиум ★</p>' : '<p><strong>Статус:</strong> Обычный</p>'}
-            <button class="btn-primary" onclick="showPage('myRequestsPage'); fetchMyRequests()">Мои заявки</button>
+            <button class="btn-primary" onclick="showPage('myRequestsPage'); fetchMyRequests()">Мои активные заявки</button>
             <button class="btn-primary" onclick="showCompletedRequestsPage()" style="background-color: #28a745;">Мои выполненные заявки</button>
         `;
         
@@ -1289,7 +1282,8 @@ function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выб
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверка, что items является массивом
     if (!Array.isArray(items)) {
         console.error(`Ошибка при загрузке #${selectId}: Ожидается массив, получен ${typeof items}. Проверьте ответ API.`);
-        selectElement.innerHTML = `<option value="">Ошибка загрузки данных</option>`;
+        // Установка сообщения об ошибке
+        selectElement.innerHTML = `<option value="">Ошибка загрузки данных. (Проверьте API: ${selectId})</option>`; 
         return;
     }
 
@@ -1303,7 +1297,6 @@ function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выб
         }
     });
 }
-
         // Загрузка справочников
         function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выберите...") {
     const selectElement = document.getElementById(selectId);
