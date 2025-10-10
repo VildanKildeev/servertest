@@ -1324,9 +1324,6 @@ function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выб
     });
 }
 
-            } catch (error) { console.error(`Ошибка при загрузке ${selectors}:`, error); }
-        }
-
         // ИСПРАВЛЕНИЕ 4: Добавлена функция logout, которая использовалась в HTML
         function logout() {
             localStorage.removeItem('accessToken');
