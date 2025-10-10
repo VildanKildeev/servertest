@@ -718,17 +718,40 @@ function hideCityModal() {
  * Загружает список городов и заполняет <select>.
  */
 async function fetchCities() {
-    if (CITIES_LIST.length === 0) {
-        try {
-            const response = await fetch(`${API_URL}/cities/`);
-            if (response.ok) {
-                CITIES_LIST = await response.json();
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки городов:', error);
+    const cityListDiv = document.getElementById('cityList');
+    if (!cityListDiv) return;
+    cityListDiv.innerHTML = '<p>Загрузка городов...</p>';
+    
+    try {
+        const res = await fetch(`${API_URL}/cities`);
+        const data = await res.json();
+        
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Заполняем глобальную переменную CITIES
+        CITIES = data; 
+        
+        cityListDiv.innerHTML = '';
+        if (!Array.isArray(CITIES) || CITIES.length === 0) {
+            cityListDiv.innerHTML = '<p class="message error">Города не найдены или ошибка загрузки.</p>';
             return;
         }
+
+        CITIES.forEach(city => {
+            const isSelected = parseInt(selectedCityId) === city.id;
+            cityListDiv.innerHTML += `
+                <button 
+                    class="btn-city ${isSelected ? 'selected' : ''}" 
+                    onclick="selectCity(${city.id}, '${city.name}')"
+                >
+                    ${city.name} ${isSelected ? ' (Выбран)' : ''}
+                </button>
+            `;
+        });
+    } catch (error) {
+        cityListDiv.innerHTML = '<p class="message error">Ошибка загрузки списка городов.</p>';
+        console.error('Error fetching cities:', error);
     }
+}
+
 
     const selectEl = document.getElementById('citySelect');
     if (selectEl) {
