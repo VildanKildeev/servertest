@@ -297,13 +297,56 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 # НОВЫЙ МАРШРУТ для получения профиля пользователя
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
-    return current_user
+    user_id = current_user["id"]
+    
+    # 1. Запрос основной информации о пользователе
+    query = users.select().where(users.c.id == user_id)
+    user_record = await database.fetch_one(query)
+    
+    if not user_record:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+    user_info = dict(user_record)
+    
+    # ----------------------------------------------------
+    # 2. Логика для добавления рейтинга
+    # ----------------------------------------------------
+    # Для выполнения этого кода убедитесь, что в main.py есть импорты:
+    # from database import ratings (из database.py)
+    # from sqlalchemy.sql import select, func as sa_func 
+    
+    if user_info.get('user_type') == 'ИСПОЛНИТЕЛЬ':
+        # Вычисляем средний рейтинг и количество оценок
+        # (Предполагается, что 'ratings' и 'sa_func' импортированы)
+        from sqlalchemy.sql import select, func as sa_func # Добавляем импорт здесь, если его нет
+        
+        rating_query = sa_func.avg(ratings.c.rating_value).label("average_rating")
+        count_query = sa_func.count(ratings.c.id).label("ratings_count")
+        
+        select_rating = (
+            select([rating_query, count_query])
+            .where(ratings.c.rated_id == user_id)
+        )
+        rating_result = await database.fetch_one(select_rating)
 
-# --- Helper function for email check --- 
-async def is_email_taken(email: str):
-    query = users.select().where(users.c.email == email)
-    existing_user = await database.fetch_one(query)
-    return existing_user is not None
+        if rating_result:
+            # Преобразование в float, если не NULL; иначе 0.0
+            user_info["average_rating"] = float(rating_result["average_rating"]) if rating_result["average_rating"] is not None else 0.0
+            user_info["ratings_count"] = rating_result["ratings_count"] if rating_result["ratings_count"] is not None else 0
+        else:
+            # Если оценок нет, устанавливаем значения по умолчанию
+            user_info["average_rating"] = 0.0
+            user_info["ratings_count"] = 0
+            
+    else:
+        # 3. Для ЗАКАЗЧИКОВ добавляем пустые поля, чтобы фронтенд не падал (ReferenceError: profile is not defined)
+        user_info["average_rating"] = 0.0
+        user_info["ratings_count"] = 0
+        
+    # Удаляем хешированный пароль перед отправкой на фронтенд
+    user_info.pop('hashed_password', None)
+    
+    return user_info
 
 # ИСПРАВЛЕНИЕ: Путь изменен на /register для соответствия фронтенду
 @api_router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserOut)
