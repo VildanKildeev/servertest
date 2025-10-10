@@ -627,9 +627,9 @@
 
 // =======================================================
         // ИСПРАВЛЕНИЕ 3: Добавлены функции для работы с модальным окном города
-/**
- * Отображает модальное окно выбора города.
- */
+// /**
+ // * Отображает модальное окно выбора города.
+// */
 function showCityModal() {
     const modal = document.getElementById('cityModal'); 
     if (modal) {
@@ -638,9 +638,9 @@ function showCityModal() {
     }
 }
 
-/**
- * Скрывает модальное окно выбора города.
- */
+// /**
+ // * Скрывает модальное окно выбора города.
+// */
 function hideCityModal() {
     const modal = document.getElementById('cityModal');
     if (modal) {
@@ -648,9 +648,9 @@ function hideCityModal() {
     }
 }
 
-/**
- * Загружает список городов и заполняет <select>.
- */
+// /**
+ // * Загружает список городов и заполняет <select>.
+// */
 async function fetchCities() {
     if (CITIES_LIST.length === 0) {
         try {
@@ -678,9 +678,9 @@ async function fetchCities() {
     }
 }
 
-/**
- * Обрабатывает выбор города.
- */
+// /**
+ // * Обрабатывает выбор города.
+// */
 function selectCity() {
     const select = document.getElementById('citySelect');
     if (select && select.value) {
@@ -744,12 +744,11 @@ function renderRequests(containerId, items, type) {
         container.appendChild(item);
     });
 }
-
-/* @param {Array} requests Список заявок с полями status и is_rated
- */
- * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
- * @param {string} containerId ID контейнера, куда рендерить
- */
+// @param {Array} requests Список заявок с полями status и is_rated
+// */
+// * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
+// * @param {string} containerId ID контейнера, куда рендерить
+// */
 function renderMyCustomerRequests(requests, type, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -899,11 +898,10 @@ async function fetchMaterialAds() {
         console.error('Ошибка сети:', error);
     }
 }
-
-/* @param {number} score Средний балл (например, 4.3).
- */
- * @returns {string} Строка с заполненными и пустыми звездами.
- */
+// @param {number} score Средний балл (например, 4.3).
+// */
+// * @returns {string} Строка с заполненными и пустыми звездами.
+// */
 function renderStars(score) {
     const roundedScore = Math.round(score || 0);
     let stars = '';
@@ -972,9 +970,9 @@ function renderStars(score, totalRatings) {
     `;
 }
 
-/**
- * Обрабатывает отправку рейтинга.
- */
+// /**
+ // * Обрабатывает отправку рейтинга.
+// */
 async function submitRating(requestId, requestType, executorId, score, comment, formContainer) {
     if (score === 0) {
         alert('Пожалуйста, выберите оценку.');
@@ -1019,9 +1017,9 @@ async function submitRating(requestId, requestType, executorId, score, comment, 
     }
 }
 
-/**
- * Настраивает интерактивные слушатели для формы рейтинга.
- */
+// /**
+ // * Настраивает интерактивные слушатели для формы рейтинга.
+// */
 function setupRatingListeners(container, requestId, requestType, executorId) {
     const starsContainer = container.querySelector('.stars-interactive');
     const commentArea = container.querySelector('.rating-comment');
@@ -1048,9 +1046,9 @@ function setupRatingListeners(container, requestId, requestType, executorId) {
     });
 }
 
-/**
- * Показывает модальное окно с предложениями исполнителей по заявке. (п. 3)
- */
+// /**
+ // * Показывает модальное окно с предложениями исполнителей по заявке. (п. 3)
+// */
 async function showOffersModal(requestId, requestType) {
     const modal = document.getElementById('offersModal');
     const listContainer = document.getElementById('offersListContainer');
@@ -1083,9 +1081,9 @@ async function showOffersModal(requestId, requestType) {
     }
 }
 
-/**
- * Рендерит список предложений в модальном окне, включая рейтинг. (п. 1)
- */
+// /**
+ // * Рендерит список предложений в модальном окне, включая рейтинг. (п. 1)
+// */
 function renderOffers(offers, requestId, requestType) {
     const listContainer = document.getElementById('offersListContainer');
     listContainer.innerHTML = '';
@@ -1121,9 +1119,9 @@ function renderOffers(offers, requestId, requestType) {
     });
 }
 
-/**
- * Обрабатывает выбор исполнителя.
- */
+// /**
+ // * Обрабатывает выбор исполнителя.
+// */
 async function selectExecutor(offerId, executorId, requestType, requestId) {
     if (!confirm("Вы уверены, что хотите выбрать этого исполнителя?")) return;
     
