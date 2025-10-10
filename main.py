@@ -345,7 +345,7 @@ async def executor_rating(user_id: int):
     if u["user_type"] != "ИСПОЛНИТЕЛЬ":
         return {"message": "Пользователь не является исполнителем. Рейтинг не применим."}
     row = await database.fetch_one(
-        select(func.avg(ratings.c.score).label(\"average_rating\"), func.count(ratings.c.id).label(\"total_ratings\")).where(ratings.c.executor_id == user_id)
+        select(func.avg(ratings.c.score).label("average_rating"), func.count(ratings.c.id).label("total_ratings")).where(ratings.c.executor_id == user_id)
     )
     avg = float(row["average_rating"]) if row and row["average_rating"] is not None else 0.0
     total = int(row["total_ratings"]) if row else 0
@@ -367,7 +367,7 @@ async def offers(request_type: str, request_id: int, current_user: dict = Depend
     enriched = []
     for off in offers_data:
         row = await database.fetch_one(
-            select(func.avg(ratings.c.score).label(\"avg\"), func.count(ratings.c.id).label(\"cnt\")).where(ratings.c.executor_id == off["executor_id"])
+            select(func.avg(ratings.c.score).label("avg"), func.count(ratings.c.id).label("cnt")).where(ratings.c.executor_id == off["executor_id"])
         )
         avg = float(row["avg"]) if row and row["avg"] is not None else 0.0
         cnt = int(row["cnt"]) if row else 0
