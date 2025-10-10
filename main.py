@@ -503,9 +503,51 @@ async def rate_work_request(request_id: int, rating: RatingCreate, current_user:
 
     return {"message": "Исполнитель успешно оценен", "average_rating": new_average}
 
-# ... (Остальные маршруты API - machinery, tool, material ads)
-# ... (Код ниже не менялся, добавлен только для полноты)
+api_router.get("/specializations/")
+async def get_specializations():
+    # Примерный список специализаций
+    return [
+        {"id": 1, "name": "Электрик"},
+        {"id": 2, "name": "Сантехник"},
+        {"id": 3, "name": "Плотник"},
+        {"id": 4, "name": "Мастер на час"},
+        {"id": 5, "name": "Отделочник"},
+        {"id": 6, "name": "Сварщик"},
+        {"id": 7, "name": "Грузчик"},
+    ]
 
+@api_router.get("/machinery_types/")
+async def get_machinery_types():
+    # Примерный список типов спецтехники
+    return [
+        {"id": 1, "name": "Экскаватор-погрузчик"},
+        {"id": 2, "name": "Автокран"},
+        {"id": 3, "name": "Самосвал"},
+        {"id": 4, "name": "Манипулятор"},
+        {"id": 5, "name": "Компрессор"},
+    ]
+
+@api_router.get("/tools_list/")
+async def get_tools_list():
+    # Примерный список инструментов
+    return [
+        {"id": 1, "name": "Отбойный молоток"},
+        {"id": 2, "name": "Бетономешалка"},
+        {"id": 3, "name": "Виброплита"},
+        {"id": 4, "name": "Перфоратор (мощный)"},
+        {"id": 5, "name": "Сварочный аппарат"},
+    ]
+
+@api_router.get("/material_types/")
+async def get_material_types():
+    # Примерный список типов материалов
+    return [
+        {"id": 1, "name": "Кирпич"},
+        {"id": 2, "name": "Цемент"},
+        {"id": 3, "name": "Песок"},
+        {"id": 4, "name": "Щебень"},
+        {"id": 5, "name": "Пиломатериалы"},
+    ]
 # Создание запроса на спецтехнику
 @api_router.post("/machinery_requests/", status_code=status.HTTP_201_CREATED)
 async def create_machinery_request(machinery_request: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
