@@ -1,172 +1,128 @@
-import sqlalchemy
-from sqlalchemy.schema import MetaData
-from sqlalchemy.engine import create_engine
 import os
 import databases
-from sqlalchemy.types import JSON
-from sqlalchemy.sql import func # Добавлено для явного использования func.now()
+import sqlalchemy
+from sqlalchemy import Table, Column, Integer, String, Boolean, Date, Float, DateTime, ForeignKey, MetaData, UniqueConstraint
+from sqlalchemy.engine import create_engine
+from sqlalchemy.sql import func
 
-# Получаем DATABASE_URL из переменных окружения.
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
-# Проверяем, что переменная установлена
 if not DATABASE_URL:
-    raise Exception("Переменная окружения DATABASE_URL не установлена. Пожалуйста, установите ее в настройках вашего веб-сервиса на Render.com.")
+    raise RuntimeError("Переменная окружения DATABASE_URL не установлена.")
 
-# --- АДАПТАЦИЯ URL ДЛЯ RENDER/ASYNC ---
-# Добавляем параметр SSL для Render.com
-if "?" in DATABASE_URL:
-    DATABASE_URL += "&sslmode=require"
-else:
-    DATABASE_URL += "?sslmode=require"
+# sslmode=require for Render/Heroku
+if "sslmode=" not in DATABASE_URL:
+    DATABASE_URL = (DATABASE_URL + ("&" if "?" in DATABASE_URL else "?") + "sslmode=require")
 
-# ИСПРАВЛЕНИЕ: Render/Heroku дают URL в формате postgres://,
-# но SQLAlchemy/asyncpg требует формат postgresql://
+# postgres:// -> postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Создание объектов базы данных
 engine = create_engine(DATABASE_URL)
 database = databases.Database(DATABASE_URL)
 metadata = MetaData()
-# --- КОНЕЦ НАСТРОЕК БАЗЫ ДАННЫХ ---
 
-# =======================================================================
-# 1. Таблица городов (Cities)
-# =======================================================================
-cities = sqlalchemy.Table(
-    "cities",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("name", sqlalchemy.String, nullable=False, unique=True),
-    extend_existing=True,
+# 1) Справочник городов
+cities = Table(
+    "cities", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String, nullable=False, unique=True),
 )
 
-# =======================================================================
-# 2. Таблица пользователей (Users)
-# =======================================================================
-users = sqlalchemy.Table(
-    "users",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("email", sqlalchemy.String, nullable=False, unique=True),
-    sqlalchemy.Column("hashed_password", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("phone_number", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("user_type", sqlalchemy.String, default="ЗАКАЗЧИК"), # ЗАКАЗЧИК или ИСПОЛНИТЕЛЬ
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=True), # Используется для ИСПОЛНИТЕЛЯ
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
-sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id"), nullable=True),
-    extend_existing=True,
+# 2) Пользователи
+users = Table(
+    "users", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("email", String, nullable=False, unique=True),
+    Column("hashed_password", String, nullable=False),
+    Column("phone_number", String),
+    Column("user_type", String, default="ЗАКАЗЧИК"),  # ЗАКАЗЧИК | ИСПОЛНИТЕЛЬ
+    Column("specialization", String),
+    Column("is_premium", Boolean, server_default=sqlalchemy.sql.expression.false(), nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+    Column("city_id", Integer, ForeignKey("cities.id")),
 )
 
-# =======================================================================
-# 3. Таблица заявок на работу (Work Requests)
-# =======================================================================
-work_requests = sqlalchemy.Table(
-    "work_requests",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("specialization", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("budget", sqlalchemy.Float, nullable=False),
-    sqlalchemy.Column("contact_info", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    # СТОЛБЦЫ ДЛЯ ИСПОЛНИТЕЛЯ И СТАТУСА (Work)
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True), 
-    sqlalchemy.Column("status", sqlalchemy.String, default="active"), 
-    sqlalchemy.Column("is_master_visit_required", sqlalchemy.Boolean, default=False),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
-    extend_existing=True,
+# 3) Заявки на работу
+work_requests = Table(
+    "work_requests", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("description", String, nullable=False),
+    Column("specialization", String, nullable=False),
+    Column("budget", Float, nullable=False),
+    Column("contact_info", String, nullable=False),
+    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
+    Column("is_premium", Boolean, server_default=sqlalchemy.sql.expression.false(), nullable=False),
+    Column("executor_id", Integer, ForeignKey("users.id")),
+    Column("status", String, server_default="active", nullable=False),
+    Column("is_master_visit_required", Boolean, server_default=sqlalchemy.sql.expression.false(), nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
 )
 
-# =======================================================================
-# 4. Таблица заявок на спецтехнику (Machinery Requests)
-# =======================================================================
-machinery_requests = sqlalchemy.Table(
-    "machinery_requests",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("machinery_type", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("rental_date", sqlalchemy.Date, nullable=True),
-    sqlalchemy.Column("min_rental_hours", sqlalchemy.Integer, default=4),
-    sqlalchemy.Column("rental_price", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
-    # СТОЛБЦЫ ДЛЯ ИСПОЛНИТЕЛЯ И СТАТУСА (Machinery)
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True), # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 1
-    sqlalchemy.Column("status", sqlalchemy.String, default="active"), # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 2
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
-    # Поля для доставки
-    sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False, nullable=False),
-    sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
-    extend_existing=True,
+# 4) Заявки на спецтехнику
+machinery_requests = Table(
+    "machinery_requests", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("machinery_type", String, nullable=False),
+    Column("description", String),
+    Column("rental_date", Date),
+    Column("min_rental_hours", Integer, server_default="4", nullable=False),
+    Column("rental_price", Float),
+    Column("contact_info", String),
+    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
+    Column("is_premium", Boolean, server_default=sqlalchemy.sql.expression.false(), nullable=False),
+    Column("executor_id", Integer, ForeignKey("users.id")),
+    Column("status", String, server_default="active", nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+    Column("has_delivery", Boolean, server_default=sqlalchemy.sql.expression.false(), nullable=False),
+    Column("delivery_address", String),
 )
 
-# =======================================================================
-# 5. Таблица заявок на инструмент (Tool Requests)
-# =======================================================================
-tool_requests = sqlalchemy.Table(
-    "tool_requests",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("tool_name", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("rental_price", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    # СТОЛБЦЫ ДЛЯ ИСПОЛНИТЕЛЯ И СТАТУСА (Tool)
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=True), 
-    sqlalchemy.Column("status", sqlalchemy.String, default="active"), 
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
-    # ОБНОВЛЕННЫЕ СТОЛБЦЫ:
-    sqlalchemy.Column("count", sqlalchemy.Integer, default=1),
-    sqlalchemy.Column("rental_start_date", sqlalchemy.Date, nullable=True),
-    sqlalchemy.Column("rental_end_date", sqlalchemy.Date, nullable=True),
-    sqlalchemy.Column("has_delivery", sqlalchemy.Boolean, default=False, nullable=False),
-    sqlalchemy.Column("delivery_address", sqlalchemy.String, nullable=True),
-    extend_existing=True,
+# 5) Заявки на инструмент
+tool_requests = Table(
+    "tool_requests", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("tool_name", String, nullable=False),
+    Column("description", String),
+    Column("rental_price", Float),
+    Column("contact_info", String),
+    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
+    Column("executor_id", Integer, ForeignKey("users.id")),
+    Column("status", String, server_default="active", nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+    Column("count", Integer, server_default="1", nullable=False),
+    Column("rental_start_date", Date),
+    Column("rental_end_date", Date),
+    Column("has_delivery", Boolean, server_default=sqlalchemy.sql.expression.false(), nullable=False),
+    Column("delivery_address", String),
 )
 
-# =======================================================================
-# 6. Таблица объявлений о материалах (Material Ads)
-# =======================================================================
-material_ads = sqlalchemy.Table(
-    "material_ads",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")),
-    sqlalchemy.Column("material_type", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("description", sqlalchemy.String, nullable=True),
-    sqlalchemy.Column("price", sqlalchemy.Float),
-    sqlalchemy.Column("contact_info", sqlalchemy.String),
-    sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
-    extend_existing=True,
+# 6) Объявления о материалах
+material_ads = Table(
+    "material_ads", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("material_type", String, nullable=False),
+    Column("description", String),
+    Column("price", Float),
+    Column("contact_info", String),
+    Column("city_id", Integer, ForeignKey("cities.id"), nullable=False),
+    Column("is_premium", Boolean, server_default=sqlalchemy.sql.expression.false(), nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
 )
 
-ratings = sqlalchemy.Table(
-    "ratings",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    # Заказчик, который ставит рейтинг
-    sqlalchemy.Column("customer_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")), 
-    # Исполнитель, которому ставится рейтинг
-    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id")), 
-    # ID заявки (для work_requests или machinery_requests)
-    sqlalchemy.Column("request_id", sqlalchemy.Integer, nullable=False), 
-    # Тип заявки для однозначной идентификации (например, 'WORK' или 'MACHINERY')
-    sqlalchemy.Column("request_type", sqlalchemy.String, nullable=False), 
-    # Оценка (от 1 до 5)
-    sqlalchemy.Column("score", sqlalchemy.Integer, nullable=False), 
-    sqlalchemy.Column("comment", sqlalchemy.String, nullable=True), 
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
-    # Уникальный индекс: гарантирует, что одна заявка (по ее ID и типу) может быть оценена только один раз.
-    sqlalchemy.UniqueConstraint('request_id', 'request_type', name='uq_request_rating') 
+# 7) Рейтинги
+ratings = Table(
+    "ratings", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("customer_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("executor_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("request_id", Integer, nullable=False),
+    Column("request_type", String, nullable=False),  # 'WORK' | 'MACHINERY'
+    Column("score", Integer, nullable=False),
+    Column("comment", String),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+    UniqueConstraint('request_id', 'request_type', name='uq_request_rating'),
 )
