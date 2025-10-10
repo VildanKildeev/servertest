@@ -305,29 +305,34 @@
     <div id="completedRequestsList"></div>
 </div>
 
-        <div id="profilePage" class="page">
+ <div id="profilePage" class="page">
             <div class="form-container">
                 <h2>Профиль</h2>
                 <div id="profileInfo"></div>
                 <div id="editSpecializationForm" style="display: none;">
-<button onclick="showPage('myRequestsPage'); fetchMyRequests()" class="btn-primary">Мои активные заявки</button>
-<button onclick="showCompletedRequestsPage()" class="btn-primary" style="background-color: #28a745;">Мои выполненные заявки</button>
                     <div class="input-group">
                         <label for="newSpecialization">Новая специализация:</label>
                         <select id="newSpecialization"></select>
                     </div>
                     <button id="saveSpecializationBtn" class="btn-primary">Сохранить</button>
                 </div>
-<div id="myRequestsPage" class="content-page" style="display: none;">
-    <h2>Мои активные заявки</h2>
-    <div id="myRequestsList"></div> 
-</div>
+                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
 
-<div id="completedRequestsPage" class="content-page" style="display: none;">
-    <h2>Мои выполненные заявки (для оценки)</h2>
-    <p>Здесь отображаются работы, которые вы отметили как "ВЫПОЛНЕНА". Вы можете оценить исполнителя, если еще не сделали этого.</p>
-    <div id="completedRequestsList"></div>
-</div>
+        <div id="myRequestsPage" class="page">
+            <div class="list-container">
+                <h2>Мои активные заявки</h2>
+                <div id="myRequestsList"></div>
+                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+            </div>
+        </div>
+
+        <div id="completedRequestsPage" class="page">
+             <div class="list-container">
+                <h2>Мои выполненные заявки (для оценки)</h2>
+                <p>Здесь отображаются работы, которые вы отметили как "ВЫПОЛНЕНА". Вы можете оценить исполнителя, если еще не сделали этого.</p>
+                <div id="completedRequestsList"></div>
                 <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
             </div>
         </div>
@@ -904,6 +909,71 @@ async function fetchCompletedRequestsForRating() {
             }
         }
 
+**
+         * Асинхронно загружает данные из API и заполняет указанные select-элементы.
+         * @param {string} endpoint - Путь к API (например, '/specializations/').
+         * @param {string} selectors - CSS-селекторы для всех <select>, которые нужно заполнить (через запятую).
+         * @param {string} valueKey - Ключ для значения <option> (например, 'name').
+         * @param {string} textKey - Ключ для текста <option> (например, 'name').
+         */
+        async function loadAndFillDirectory(endpoint, selectors, valueKey, textKey) {
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`);
+                if (!response.ok) throw new Error(`Failed to load ${endpoint}`);
+                
+                const items = await response.json();
+                
+                if (!Array.isArray(items)) {
+                    console.error(`Data from ${endpoint} is not an array.`);
+                    return;
+                }
+
+                document.querySelectorAll(selectors).forEach(selectElement => {
+                    if (selectElement) {
+                        selectElement.innerHTML = '<option value="">Выберите...</option>';
+                        items.forEach(item => {
+                            const value = item[valueKey];
+                            const text = item[textKey];
+                            if (value !== undefined && text !== undefined) {
+                                selectElement.innerHTML += `<option value="${value}">${text}</option>`;
+                            }
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading directory:', error);
+                document.querySelectorAll(selectors).forEach(select => {
+                    if(select) select.innerHTML = '<option value="">Ошибка загрузки</option>';
+                });
+            }
+        }
+
+        // Инициализация
+        window.addEventListener('DOMContentLoaded', async () => {
+            accessToken = localStorage.getItem('accessToken');
+            document.getElementById('cityName').textContent = selectedCityName;
+
+            // Загружаем все справочники параллельно
+            await Promise.all([
+                loadAndFillDirectory('/specializations/', '#registerSpecialization, #workSpecialization, #newSpecialization', 'name', 'name'),
+                loadAndFillDirectory('/machinery_types/', '#machineryType', 'name', 'name'),
+                loadAndFillDirectory('/tools_list/', '#toolName', 'name', 'name'),
+                loadAndFillDirectory('/material_types/', '#materialType', 'name', 'name')
+            ]);
+            
+            // Загружаем города для модального окна
+            await fetchCities();
+            
+            // Определяем, какую страницу показать
+            if (accessToken) {
+                await fetchProfile(); // Сначала загружаем профиль, чтобы иметь данные о пользователе
+                showPage('buttonContainer');
+            } else {
+                showPage('loginPage');
+            }
+        });
+
+
         async function fetchAndRenderGeneric(endpoint, listId, type) {
             const listContainer = document.getElementById(listId);
             listContainer.innerHTML = '<p>Загрузка...</p>';
@@ -1296,57 +1366,6 @@ document.querySelectorAll('#ratingForm input[name="ratingValue"]').forEach(radio
             }
         });
 
-function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выберите...") {
-    const selectElement = document.getElementById(selectId);
-    if (!selectElement) {
-        return;
-    }
-
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверка, что items является массивом
-    if (!Array.isArray(items)) {
-        console.error(`Ошибка при загрузке #${selectId}: Ожидается массив, получен ${typeof items}. Проверьте ответ API.`);
-        // Установка сообщения об ошибке
-        selectElement.innerHTML = `<option value="">Ошибка загрузки данных. (Проверьте API: ${selectId})</option>`; 
-        return;
-    }
-
-    selectElement.innerHTML = `<option value="">${defaultText}</option>`;
-    
-    items.forEach(item => {
-        const value = item[valueKey];
-        const text = item[textKey];
-        if (value !== undefined && text !== undefined) {
-             selectElement.innerHTML += `<option value="${value}">${text}</option>`;
-        }
-    });
-}
-        // Загрузка справочников
-        function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выберите...") {
-    const selectElement = document.getElementById(selectId);
-    if (!selectElement) {
-        return;
-    }
-
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверка, что items является массивом
-    if (!Array.isArray(items)) {
-        console.error(`Ошибка при загрузке #${selectId}: Ожидается массив, получен ${typeof items}. Проверьте ответ API.`);
-        // Установка сообщения об ошибке
-        selectElement.innerHTML = `<option value="">Ошибка загрузки данных</option>`; 
-        return;
-    }
-
-    selectElement.innerHTML = `<option value="">${defaultText}</option>`;
-    
-    items.forEach(item => {
-        const value = item[valueKey];
-        const text = item[textKey];
-        if (value !== undefined && text !== undefined) {
-             // Используем id в качестве value, name в качестве текста
-             selectElement.innerHTML += `<option value="${value}">${text}</option>`;
-        }
-    });
-}
-
         // ИСПРАВЛЕНИЕ 4: Добавлена функция logout, которая использовалась в HTML
         function logout() {
             localStorage.removeItem('accessToken');
@@ -1358,19 +1377,7 @@ function loadDirectory(selectId, items, valueKey, textKey, defaultText = "Выб
             showPage('loginPage');
         }
 
-        // Инициализация
-        window.addEventListener('DOMContentLoaded', async () => {
-            accessToken = localStorage.getItem('accessToken');
-            document.getElementById('cityName').textContent = selectedCityName;
-            await Promise.all([
-                loadDirectory('/specializations', '#registerSpecialization, #workSpecialization, #newSpecialization'), 
-                loadDirectory('/machinery_types', '#machineryType'),
-                loadDirectory('/tools_list', '#toolName'), 
-                loadDirectory('/material_types', '#materialType') 
-            ]);
-            showPage(accessToken ? 'buttonContainer' : 'loginPage');
-        });
-
+        
         // --- Bottom bar links setup ---
         (function() {
           const CONTACTS = { telegram: "your_channel_or_username", whatsapp: "79990000000", forumUrl: "/forum" };
