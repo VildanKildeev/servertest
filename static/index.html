@@ -1,4 +1,3 @@
-<!-- BUILD: await-fix v4 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -605,7 +604,7 @@
 
     <script>
         const API_URL = "/api";
-        let access_token = localStorage.getItem('access_token') || null;
+        let access_token = null;
         let selectedCityId = localStorage.getItem('selectedCityId') || 1; // Установка ID города по умолчанию
         let selectedCityName = localStorage.getItem('selectedCityName') || 'Москва'; // Установка названия города по умолчанию
         let currentUser = null;
@@ -621,15 +620,125 @@
             if (pageId === 'toolRequestsPage') fetchToolRequests();
             if (pageId === 'materialAdsPage') fetchMaterialAds();
             if (pageId === 'myRequestsPage') fetchMyRequests();
-            
-
+            if (pageId === 'profilePage' && typeof fetchProfile === 'function') {
+                fetchProfile();
             }
+        }
+
+async function fetchProfile() {
+    if (!accessToken) {
+        logout(); 
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/users/me`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data; // 1. Сохраняем данные пользователя
+            updateProfilePage(data); // 2. ✅ ДОБАВЛЕНО: Вызываем функцию для отрисовки профиля
+            fetchMyRequests();
+            
+        } else if (response.status === 401) {
+            logout(); 
+        } else {
+            console.error('Ошибка при получении профиля:', response.status);
+        }
+    } catch (error) {
+        console.error('Сетевая ошибка при получении профиля:', error);
+    }
+}
 
 // =======================================================
-        // ИСПРАВЛЕНИЕ 3: Добавлены функции для работы с модальным окном города
-// /**
- // * Отображает модальное окно выбора города.
-// */
+        // НОВАЯ ЛОГИКА: ЗАГРУЗКА РЕЙТИНГА ДЛЯ ИСПОЛНИТЕЛЯ
+        // =======================================================
+        const ratingDisplay = document.getElementById('executorRatingDisplay');
+        
+        // Скрываем элемент по умолчанию
+        if (ratingDisplay) ratingDisplay.style.display = 'none';
+
+        if (userData.user_type === 'ИСПОЛНИТЕЛЬ' && ratingDisplay) {
+            
+            const ratingRes = await fetch(`${API_URL}/executor_rating/${userData.id}`, { 
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${accessToken}` } 
+            });
+            const ratingData = await ratingRes.json();
+            
+            if (ratingRes.ok) {
+                const avgSpan = document.getElementById('userAvgRating');
+                const totalSpan = document.getElementById('userTotalRatings');
+                
+                // Проверяем, что это ИСПОЛНИТЕЛЬ и данные корректны
+                if (ratingData.average_rating !== undefined && ratingData.total_ratings !== undefined) {
+                    
+                    const starsHTML = renderStars(ratingData.average_rating);
+                    
+                    avgSpan.innerHTML = `
+                        ${starsHTML}
+                        <span style="font-size: 0.8em; color: #555;">(${ratingData.average_rating.toFixed(2)} / 5.0)</span>
+                    `;
+                    totalSpan.textContent = ratingData.total_ratings;
+                    
+                    ratingDisplay.style.display = 'block'; // Показываем блок с рейтингом
+                }
+            } else {
+                console.warn("Не удалось загрузить рейтинг исполнителя:", ratingData.detail);
+            }
+        }
+
+        function updateProfilePage(profile) {
+            const profileInfo = document.getElementById('profileInfo');
+            const editSpecializationForm = document.getElementById('editSpecializationForm');
+            profileInfo.innerHTML = `
+    <p><strong>Ваш email:</strong> ${profile.email}</p>
+                <p><strong>Ваш email:</strong> ${profile.email}</p>
+                <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
+                <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'}</p>
+                <p><strong>Премиум-подписка:</strong> ${profile.is_premium ? 'Активна' : 'Неактивна'}</p>
+            `;
+            if (!profile.is_premium) {
+                const subscribeBtn = document.createElement('button');
+                subscribeBtn.id = 'subscribeBtn';
+                subscribeBtn.textContent = 'Активировать премиум-подписку';
+                subscribeBtn.className = 'btn-primary';
+                subscribeBtn.onclick = async () => {
+                    const response = await fetch(`${API_URL}/subscribe/`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${access_token}`
+                        }
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        alert(data.message);
+                        fetchProfile();
+                    } else {
+                        alert(data.detail || 'Не удалось активировать премиум.');
+                    }
+                };
+                profileInfo.appendChild(subscribeBtn);
+            }
+
+            if (profile.user_type === "ИСПОЛНИТЕЛЬ") {
+                const updateSpecializationBtn = document.createElement('button');
+                updateSpecializationBtn.id = 'updateSpecializationBtn';
+                updateSpecializationBtn.textContent = 'Обновить специализацию';
+                updateSpecializationBtn.className = 'btn-secondary';
+                updateSpecializationBtn.onclick = () => {
+                    editSpecializationForm.style.display = 'block';
+                };
+                profileInfo.appendChild(updateSpecializationBtn);
+            }
+        }
+
+// ИСПРАВЛЕНИЕ 3: Добавлены функции для работы с модальным окном города
+/**
+ * Отображает модальное окно выбора города.
+ */
 function showCityModal() {
     const modal = document.getElementById('cityModal'); 
     if (modal) {
@@ -638,9 +747,9 @@ function showCityModal() {
     }
 }
 
-// /**
- // * Скрывает модальное окно выбора города.
-// */
+/**
+ * Скрывает модальное окно выбора города.
+ */
 function hideCityModal() {
     const modal = document.getElementById('cityModal');
     if (modal) {
@@ -648,9 +757,9 @@ function hideCityModal() {
     }
 }
 
-// /**
- // * Загружает список городов и заполняет <select>.
-// */
+/**
+ * Загружает список городов и заполняет <select>.
+ */
 async function fetchCities() {
     if (CITIES_LIST.length === 0) {
         try {
@@ -678,9 +787,9 @@ async function fetchCities() {
     }
 }
 
-// /**
- // * Обрабатывает выбор города.
-// */
+/**
+ * Обрабатывает выбор города.
+ */
 function selectCity() {
     const select = document.getElementById('citySelect');
     if (select && select.value) {
@@ -744,11 +853,11 @@ function renderRequests(containerId, items, type) {
         container.appendChild(item);
     });
 }
-// @param {Array} requests Список заявок с полями status и is_rated
-// */
-// * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
-// * @param {string} containerId ID контейнера, куда рендерить
-// */
+
+@param {Array} requests Список заявок с полями status и is_rated
+ * @param {string} type Тип заявки ('WORK' или 'MACHINERY')
+ * @param {string} containerId ID контейнера, куда рендерить
+ */
 function renderMyCustomerRequests(requests, type, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -898,10 +1007,10 @@ async function fetchMaterialAds() {
         console.error('Ошибка сети:', error);
     }
 }
-// @param {number} score Средний балл (например, 4.3).
-// */
-// * @returns {string} Строка с заполненными и пустыми звездами.
-// */
+
+@param {number} score Средний балл (например, 4.3).
+ * @returns {string} Строка с заполненными и пустыми звездами.
+ */
 function renderStars(score) {
     const roundedScore = Math.round(score || 0);
     let stars = '';
@@ -970,9 +1079,9 @@ function renderStars(score, totalRatings) {
     `;
 }
 
-// /**
- // * Обрабатывает отправку рейтинга.
-// */
+/**
+ * Обрабатывает отправку рейтинга.
+ */
 async function submitRating(requestId, requestType, executorId, score, comment, formContainer) {
     if (score === 0) {
         alert('Пожалуйста, выберите оценку.');
@@ -1017,9 +1126,9 @@ async function submitRating(requestId, requestType, executorId, score, comment, 
     }
 }
 
-// /**
- // * Настраивает интерактивные слушатели для формы рейтинга.
-// */
+/**
+ * Настраивает интерактивные слушатели для формы рейтинга.
+ */
 function setupRatingListeners(container, requestId, requestType, executorId) {
     const starsContainer = container.querySelector('.stars-interactive');
     const commentArea = container.querySelector('.rating-comment');
@@ -1046,9 +1155,9 @@ function setupRatingListeners(container, requestId, requestType, executorId) {
     });
 }
 
-// /**
- // * Показывает модальное окно с предложениями исполнителей по заявке. (п. 3)
-// */
+/**
+ * Показывает модальное окно с предложениями исполнителей по заявке. (п. 3)
+ */
 async function showOffersModal(requestId, requestType) {
     const modal = document.getElementById('offersModal');
     const listContainer = document.getElementById('offersListContainer');
@@ -1081,9 +1190,9 @@ async function showOffersModal(requestId, requestType) {
     }
 }
 
-// /**
- // * Рендерит список предложений в модальном окне, включая рейтинг. (п. 1)
-// */
+/**
+ * Рендерит список предложений в модальном окне, включая рейтинг. (п. 1)
+ */
 function renderOffers(offers, requestId, requestType) {
     const listContainer = document.getElementById('offersListContainer');
     listContainer.innerHTML = '';
@@ -1119,9 +1228,9 @@ function renderOffers(offers, requestId, requestType) {
     });
 }
 
-// /**
- // * Обрабатывает выбор исполнителя.
-// */
+/**
+ * Обрабатывает выбор исполнителя.
+ */
 async function selectExecutor(offerId, executorId, requestType, requestId) {
     if (!confirm("Вы уверены, что хотите выбрать этого исполнителя?")) return;
     
@@ -1233,7 +1342,8 @@ function showOffersList(offers, requestId, requestType) {
         `;
         
         offersContainer.appendChild(offerElement);
-    });        
+    });
+}
 
         async function fetchWorkRequests() { await fetchAndRenderGeneric('/work_requests/', 'workRequestsList', 'work'); }
         async function fetchMachineryRequests() { await fetchAndRenderGeneric('/machinery_requests/', 'machineryRequestsList', 'machinery'); }
