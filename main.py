@@ -124,7 +124,7 @@ class UserOut(BaseModel):
     is_premium: Optional[bool] = False
     average_rating: float = 0.0
     ratings_count: int = 0
-    class Config: from_attributes = Tr
+    class Config: from_attributes = True
         
 class UserUpdate(BaseModel):
     user_name: Optional[str] = None
