@@ -496,8 +496,9 @@
       </a>
     </div>
 
-    <script>
-        const API_URL = "https://servertest2-0.onrender.com/api"; 
+   <script>
+        // const API_URL = "http://127.0.0.1:8000/api"; // Для локального теста
+        const API_URL = "/api"; // Для продакшена
         let CITIES = [];
         let profile = null; 
         let accessToken = null;
@@ -544,42 +545,38 @@
             setTimeout(() => { el.style.display = 'none'; }, 3000);
         }
 
-function toggleEditSpecialization() {
-    const form = document.getElementById('editSpecializationForm');
-    form.style.display = form.style.display === 'none' ? 'block' : 'none';
-}
+        // --- Управление профилем и специализацией ---
 
-document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
-    const newSpec = document.getElementById('newSpecialization').value;
-    if (!newSpec) {
-        alert('Пожалуйста, выберите новую специализацию.');
-        return;
-    }
-
-    try {
-        const res = await fetch(`${API_URL}/update_specialization/?specialization=${encodeURIComponent(newSpec)}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const data = await res.json();
-        if (res.ok) {
-            alert('Специализация успешно обновлена!');
-            toggleEditSpecialization(); // Скрываем форму
-            fetchProfile(); // Обновляем информацию в профиле
-        } else {
-            alert(`Ошибка: ${data.detail}`);
+        function toggleEditSpecialization() {
+            const form = document.getElementById('editSpecializationForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
-    } catch (error) {
-        alert('Сетевая ошибка при обновлении специализации.');
-    }
-});
 
-// Добавим вызов этой функции на странице "Мои выполненные заявки"
-// чтобы она загружала данные при переходе на нее
-document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').addEventListener('click', fetchCompletedRequestsForRating);
+        document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
+            const newSpec = document.getElementById('newSpecialization').value;
+            if (!newSpec) {
+                alert('Пожалуйста, выберите новую специализацию.');
+                return;
+            }
 
-        // --- ЗАГРУЗКА ДАННЫХ (FETCH) ---
-
+            try {
+                const res = await fetch(`${API_URL}/update_specialization/?specialization=${encodeURIComponent(newSpec)}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Специализация успешно обновлена!');
+                    toggleEditSpecialization(); // Скрываем форму
+                    fetchProfile(); // Обновляем информацию в профиле
+                } else {
+                    alert(`Ошибка: ${data.detail}`);
+                }
+            } catch (error) {
+                alert('Сетевая ошибка при обновлении специализации.');
+            }
+        });
+        
         async function fetchProfile() {
             if (!accessToken) { showPage('loginPage'); return; }
             const profileDiv = document.getElementById('profileInfo');
@@ -590,85 +587,27 @@ document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').
                 if (!res.ok) { logout(); return; }
                 profile = await res.json();
                 localStorage.setItem('profile', JSON.stringify(profile));
-
                 let specializationInfo = '';
                 if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
                     specializationInfo = `
-                        <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'} 
-                           <button class="btn-link" onclick="toggleEditSpecialization()">Изменить</button></p>
+                        <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'} <button class="btn-link" onclick="toggleEditSpecialization()">Изменить</button></p>
                         <p><strong>Рейтинг:</strong> ${profile.average_rating ? profile.average_rating.toFixed(2) : 'Нет оценок'} (${profile.ratings_count} оценок)</p>`;
                 }
-
                 profileDiv.innerHTML = `
-            <p><strong>Email:</strong> ${profile.email}</p>
-            <p><strong>Телефон:</strong> ${profile.phone_number}</p>
-            <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
-            ${specializationInfo}
-            <p><strong>Статус:</strong> ${profile.is_premium ? '<span class="premium">Премиум ★</span>' : 'Обычный'}</p>
-        `; // <-- КНОПКА ОТСЮДА УДАЛЕНА
-
-    } catch (error) {
+                    <p><strong>Email:</strong> ${profile.email}</p>
+                    <p><strong>Телефон:</strong> ${profile.phone_number}</p>
+                    <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
+                    ${specializationInfo}
+                    <p><strong>Статус:</strong> ${profile.is_premium ? '<span class="premium">Премиум ★</span>' : 'Обычный'}</p>
+                `;
+            } catch (error) {
                 console.error('Error fetching profile:', error);
                 profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>';
             }
         }
         
-       async function fetchMyRequests() {
-    if (!accessToken || !profile) { showPage('loginPage'); return; }
-    const requestList = document.getElementById('myRequestsList');
-    requestList.innerHTML = 'Загрузка ваших заявок и откликов...';
-
-    try {
-        const res = await fetch(`${API_URL}/users/me/requests/`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const requests = await res.json();
-        
-        if (requests.length === 0) {
-            requestList.innerHTML = '<p>У вас нет активных заявок или откликов.</p>';
-            return;
-        }
-        
-        requestList.innerHTML = '';
-        for (const req of requests) {
-            const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
-            let requestHTML = `<div class="request-item" id="my-request-${req.id}">
-                                <h4>Заявка #${req.id}: ${req.specialization}</h4>
-                                <p><strong>Город:</strong> ${city}</p>
-                                <p><strong>Статус:</strong> ${req.status}</p>
-                                <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
-                                <p><strong>Описание:</strong> ${req.description}</p>`;
-            
-            // --- Логика для ЗАКАЗЧИКА ---
-            if (profile.user_type === 'ЗАКАЗЧИК' && req.user_id === profile.id) {
-                if (req.status === 'ОЖИДАЕТ') {
-                    // Кнопка для просмотра откликов
-                    requestHTML += `<button class="btn-primary" onclick="fetchAndShowResponses(${req.id})">Посмотреть отклики</button>
-                                    <div class="responses-container" id="responses-for-${req.id}"></div>`;
-                } else if (req.status === 'В РАБОТЕ') {
-                    // Кнопки для завершения/отмены
-                    requestHTML += `<p style="color: green; margin-top: 5px;"><strong>Исполнитель назначен (ID: ${req.executor_id}).</strong></p>
-                                    <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
-                                    <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545;">Отменить</button>`;
-                }
-            } 
-            // --- Логика для ИСПОЛНИТЕЛЯ ---
-            else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                if (req.executor_id === profile.id) {
-                    requestHTML += `<p style="color: green; margin-top: 5px;">Вы — назначенный Исполнитель по этой заявке.</p>`;
-                } else {
-                    requestHTML += `<p style="color: #FF8C00; margin-top: 5px;">Вы откликнулись на эту заявку. Ожидайте решения заказчика.</p>`;
-                }
-            }
-            
-            requestHTML += `</div>`;
-            requestList.innerHTML += requestHTML;
-        }
-    } catch (error) {
-        console.error("Ошибка загрузки заявок:", error);
-        requestList.innerHTML = `<p class="message error">Ошибка загрузки заявок.</p>`;
-    }
-}
+        // Добавим вызов этой функции на странице "Мои выполненные заявки"
+        document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').addEventListener('click', fetchCompletedRequestsForRating);
         
         async function fetchCompletedRequestsForRating() {
             if (!accessToken || !profile) { showPage('loginPage'); return; }
@@ -680,535 +619,620 @@ document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 const allRequests = await res.json();
-                const completedRequests = allRequests.filter(req => req.user_id === profile.id && req.status === 'ВЫПОЛНЕНА');
                 
+                const completedRequests = allRequests.filter(req => {
+                    const isCompleted = req.status === 'ВЫПОЛНЕНА';
+                    if (profile.user_type === 'ЗАКАЗЧИК') {
+                        return isCompleted && req.user_id === profile.id && !req.customer_rated_executor;
+                    } else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+                        return isCompleted && req.executor_id === profile.id && !req.executor_rated_customer;
+                    }
+                    return false;
+                });
+
                 if (completedRequests.length === 0) {
-                    requestList.innerHTML = '<p>У вас нет выполненных заявок, ожидающих оценки.</p>';
+                    requestList.innerHTML = '<p>Нет работ, ожидающих вашей оценки.</p>';
                     return;
                 }
 
                 requestList.innerHTML = '';
                 completedRequests.forEach(req => {
+                    const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
+                    const ratingType = profile.user_type === 'ЗАКАЗЧИК' ? 'TO_EXECUTOR' : 'TO_CUSTOMER';
+                    const buttonText = profile.user_type === 'ЗАКАЗЧИК' ? 'Оценить исполнителя' : 'Оценить заказчика';
+
                     requestList.innerHTML += `
                         <div class="request-item">
-                            <h4>Заявка #${req.id}: ${req.specialization}</h4>
-                            <p><strong>Исполнитель ID:</strong> ${req.executor_id || 'Не назначен'}</p>
-                            <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
+                            <h4>${req.specialization} (Бюджет: ${req.budget} руб.)</h4>
+                            <p><strong>Город:</strong> ${city}</p>
                             <p><strong>Описание:</strong> ${req.description}</p>
-                            <button class="btn-primary" onclick="showRatingModal(${req.id})" style="margin-top: 10px;">Оценить Исполнителя</button>
+                            <button class="btn-primary" onclick="showRatingModal(${req.id}, '${ratingType}')">${buttonText}</button>
                         </div>`;
                 });
+
             } catch (error) {
+                console.error("Ошибка загрузки выполненных заявок:", error);
                 requestList.innerHTML = `<p class="message error">Ошибка загрузки выполненных заявок.</p>`;
             }
         }
-        
-        async function fetchAndRenderGeneric(endpoint, listId, type) {
-            const listContainer = document.getElementById(listId);
-            listContainer.innerHTML = '<p>Загрузка...</p>';
-            let url = `${API_URL}${endpoint}`;
-            if (selectedCityId) { url += `?city_id=${selectedCityId}`; }
+
+        // =======================================================================
+        // ИЗМЕНЕНО: Полностью переписанная логика для "Моих заявок"
+        // =======================================================================
+        async function fetchMyRequests() {
+            if (!accessToken || !profile) { showPage('loginPage'); return; }
+            const list = document.getElementById('myRequestsList');
+            list.innerHTML = 'Загрузка ваших заявок...';
+
             try {
-                const response = await fetch(url);
-                const data = await response.json();
-                renderRequests(listId, data, type);
+                const res = await fetch(`${API_URL}/users/me/requests/`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!res.ok) throw new Error('Ошибка загрузки');
+                const requests = await res.json();
+                
+                if (requests.length === 0) {
+                    list.innerHTML = '<p>У вас нет активных заявок или откликов.</p>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                requests.forEach(req => {
+                    const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
+                    let buttonsHTML = '';
+                    
+                    // --- Логика для ЗАКАЗЧИКА ---
+                    if (profile.user_type === 'ЗАКАЗЧИК' && req.user_id === profile.id) {
+                        if (req.status === 'ОЖИДАЕТ') {
+                            buttonsHTML = `<button class="btn-primary" onclick="fetchAndShowResponses(${req.id})">Посмотреть отклики</button>
+                                           <div class="responses-container" id="responses-for-${req.id}"></div>`;
+                        } else if (req.status === 'В РАБОТЕ') {
+                            buttonsHTML = `<p style="color: green;"><strong>Исполнитель назначен (ID: ${req.executor_id})</strong></p>
+                                           <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
+                                           <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545!important;">Отменить</button>`;
+                        } else if (req.status === 'ВЫПОЛНЕНА' && !req.customer_rated_executor) {
+                            // Кнопка оценки исполнителя
+                            buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                                           <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_EXECUTOR')">Оценить исполнителя</button>`;
+                        }
+                    } 
+                    // --- Логика для ИСПОЛНИТЕЛЯ ---
+                    else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+                        if (req.executor_id === profile.id) { // Если он назначен исполнителем
+                             if (req.status === 'В РАБОТЕ') {
+                                buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
+                             } else if (req.status === 'ВЫПОЛНЕНА' && !req.executor_rated_customer) {
+                                // Кнопка оценки заказчика
+                                buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                                               <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
+                             }
+                        } else { // Если он просто откликнулся
+                            buttonsHTML = `<p style="color: #FF8C00;">Вы откликнулись. Ожидайте решения.</p>`;
+                        }
+                    }
+                    
+                    list.innerHTML += `
+                        <div class="request-item" id="my-request-${req.id}">
+                            <h4>${req.specialization} (Бюджет: ${req.budget} руб.)</h4>
+                            <p><strong>Город:</strong> ${city}</p>
+                            <p><strong>Статус:</strong> ${req.status}</p>
+                            <p><strong>Описание:</strong> ${req.description}</p>
+                            <div style="margin-top: 10px;">${buttonsHTML}</div>
+                        </div>`;
+                });
             } catch (error) {
-                listContainer.innerHTML = '<p>Не удалось загрузить данные.</p>';
+                list.innerHTML = `<p class="message error">Ошибка загрузки заявок.</p>`;
             }
         }
         
+        // =======================================================================
+        // НОВАЯ ФУНКЦИЯ: Загрузка и отображение откликов для заказчика
+        // =======================================================================
+        async function fetchAndShowResponses(requestId) {
+            const container = document.getElementById(`responses-for-${requestId}`);
+            container.innerHTML = `<p>Загрузка откликов...</p>`;
+
+            try {
+                const res = await fetch(`${API_URL}/work_requests/${requestId}/responses`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                const responses = await res.json();
+                
+                if (responses.length === 0) {
+                    container.innerHTML = '<p>Пока нет откликов.</p>';
+                    return;
+                }
+
+                let responsesHTML = '<h5>Откликнувшиеся исполнители:</h5>';
+                responses.forEach(resp => {
+                    const rating = resp.average_rating ? `${resp.average_rating.toFixed(1)} ★` : 'Нет оценок';
+                    responsesHTML += `
+                        <div class="response-item">
+                            <p><strong>Исполнитель:</strong> ${resp.email}</p>
+                            <p><strong>Рейтинг:</strong> ${rating} (${resp.ratings_count} оценок)</p>
+                            <p><strong>Комментарий:</strong> ${resp.response_comment || 'Без комментария'}</p>
+                            <button class="btn-primary" onclick="approveExecutor(${requestId}, ${resp.response_id})" style="width: auto; padding: 5px 10px; font-size: 12px; margin-top: 5px;">Выбрать этого исполнителя</button>
+                        </div>`;
+                });
+                container.innerHTML = responsesHTML;
+
+            } catch (error) {
+                container.innerHTML = `<p class="message error">${error.message}</p>`;
+            }
+        }
+        
+        // =======================================================================
+        // НОВАЯ ФУНКЦИЯ: Утверждение исполнителя заказчиком
+        // =======================================================================
+        async function approveExecutor(requestId, responseId) {
+            if (!confirm('Вы уверены, что хотите назначить этого исполнителя?')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/work_requests/${requestId}/responses/${responseId}/approve`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+                
+                alert('Исполнитель успешно назначен!');
+                fetchMyRequests(); // Обновляем список "Мои заявки"
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+            }
+        }
+        
+        // --- Управление статусом ---
+        async function changeRequestStatus(requestId, newStatus) {
+            if (!confirm(`Вы уверены, что хотите изменить статус заявки #${requestId} на "${newStatus}"?`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/work_requests/${requestId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+
+                alert(`Статус заявки #${requestId} изменен на ${newStatus}.`);
+                fetchMyRequests(); // Обновляем список
+                fetchCompletedRequestsForRating();
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+            }
+        }
+
+        // --- ОТОБРАЖЕНИЕ СПИСКОВ ЗАЯВОК (work, machinery, etc.) ---
         function renderRequests(containerId, items, type) {
             const container = document.getElementById(containerId);
             if (!items || items.length === 0) {
-                container.innerHTML = '<p>Ничего не найдено.</p>';
+                container.innerHTML = '<p>В вашем городе по этой специализации пока нет заявок.</p>';
                 return;
             }
             container.innerHTML = '';
             items.forEach(req => {
                 const item = document.createElement('div');
                 item.className = 'request-item';
-                let title = '', price_info = '';
-                if (type === 'work') { title = `Заявка #${req.id}`; price_info = `<p><strong>Бюджет:</strong> ${req.budget}</p>`; }
-                if (type === 'machinery') { title = `${req.machinery_type} #${req.id}`; price_info = `<p><strong>Цена аренды:</strong> ${req.rental_price}</p>`; }
-                if (type === 'tool') { title = `${req.tool_name} #${req.id}`; price_info = `<p><strong>Цена аренды:</strong> ${req.rental_price}</p>`; }
-                if (type === 'material') { title = `${req.material_type || 'Материал'} — #${req.id}`; price_info = `<p><strong>Цена:</strong> ${req.price}</p>`; }
                 
+                // ИСПРАВЛЕНО: Кнопка "Откликнуться" для исполнителей
                 let actionBtn = '';
-if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ' && req.status === 'ОЖИДАЕТ') {
-    actionBtn = `<button class="take-btn" onclick="respondToRequest(${req.id})">Откликнуться</button>`;
-}
+                if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ') {
+                    actionBtn = `<button class="take-btn" onclick="respondToRequest(${req.id})">Откликнуться</button>`;
+                }
 
                 item.innerHTML = `
-                    <h4>${title}</h4>
-                    <p>${req.description || ''}</p>
-                    ${price_info}
-                    <p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>
-                    ${req.is_premium ? '<p class="premium">Премиум-заявка</p>' : ''}
-                    ${req.status === 'В РАБОТЕ' ? '<p class="taken" style="color: green;">Заявка принята в работу</p>' : ''}
+                    <h4>${req.specialization || req.machinery_type || req.tool_name || req.material_type}</h4>
+                    <p>${req.description}</p>
+                    <p><strong>Бюджет/Цена:</strong> ${req.budget || req.rental_price || req.price} руб.</p>
+                    <p><strong>Контакт:</strong> ${req.contact_info}</p>
                     ${actionBtn}`;
                 container.appendChild(item);
             });
         }
         
-        const fetchWorkRequests = () => fetchAndRenderGeneric('/work_requests/', 'workRequestsList', 'work');
-        const fetchMachineryRequests = () => fetchAndRenderGeneric('/machinery_requests/', 'machineryRequestsList', 'machinery');
-        const fetchToolRequests = () => fetchAndRenderGeneric('/tool_requests/', 'toolRequestsList', 'tool'); 
-        const fetchMaterialAds = () => fetchAndRenderGeneric('/material_ads/', 'materialAdsList', 'material');
+        async function fetchAndRenderGeneric(endpoint, containerId, type) {
+            if (!selectedCityId) {
+                document.getElementById(containerId).innerHTML = '<p>Пожалуйста, выберите город.</p>';
+                return;
+            }
+            document.getElementById(containerId).innerHTML = 'Загрузка...';
 
-        // --- ЛОГИКА ГОРОДОВ (ИСПРАВЛЕНО) ---
+            let specializationQuery = '';
+            if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ' && profile.specialization) {
+                specializationQuery = `&specialization=${encodeURIComponent(profile.specialization)}`;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}${endpoint}?city_id=${selectedCityId}${specializationQuery}`);
+                if (!res.ok) throw new Error('Ошибка загрузки');
+                const items = await res.json();
+                renderRequests(containerId, items, type);
+            } catch (error) {
+                document.getElementById(containerId).innerHTML = `<p class="message error">Ошибка загрузки: ${error.message}</p>`;
+            }
+        }
+
+        function fetchWorkRequests() {
+            fetchAndRenderGeneric('/work_requests/', 'workRequestsList', 'work');
+        }
+
+        function fetchMachineryRequests() {
+            fetchAndRenderGeneric('/machinery_requests/', 'machineryRequestsList', 'machinery');
+        }
+
+        function fetchToolRequests() {
+            fetchAndRenderGeneric('/tool_requests/', 'toolRequestsList', 'tool');
+        }
+
+        function fetchMaterialAds() {
+            fetchAndRenderGeneric('/material_ads/', 'materialAdsList', 'material');
+        }
+        
+        // =======================================================================
+        // ИСПРАВЛЕНО: Отклик на заявку
+        // =======================================================================
+        async function respondToRequest(requestId) {
+            const comment = prompt("Вы можете оставить комментарий к вашему отклику (необязательно):", "");
+            if (comment === null) return; // Пользователь нажал "Отмена"
+
+            try {
+                const response = await fetch(`${API_URL}/work_requests/${requestId}/respond`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    body: JSON.stringify({ comment: comment })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail);
+
+                displayMessage('takeOrderStatus', 'Вы успешно откликнулись!', true);
+                fetchMyRequests(); // Обновить мои заявки, чтобы увидеть отклик
+            } catch (error) {
+                displayMessage('takeOrderStatus', error.message || 'Не удалось откликнуться.', false);
+            }
+        }
+
+        // --- ЛОГИКА ГОРОДОВ ---
 
         function showCityModal() {
             document.getElementById('cityModal').classList.add('active');
         }
+
         function hideCityModal() {
             document.getElementById('cityModal').classList.remove('active');
         }
-        
+
         async function fetchCities() {
             try {
                 const res = await fetch(`${API_URL}/cities/`);
                 CITIES = await res.json();
-                const selectEl = document.getElementById('citySelect');
-                selectEl.innerHTML = '';
+                const select = document.getElementById('citySelect');
+                select.innerHTML = '';
+                
+                if (CITIES.length === 0) {
+                    select.innerHTML = '<option value="">Нет доступных городов</option>';
+                    return;
+                }
+
                 CITIES.forEach(city => {
                     const option = document.createElement('option');
                     option.value = city.id;
                     option.textContent = city.name;
-                    selectEl.appendChild(option);
+                    select.appendChild(option);
                 });
+                
+                // Предварительный выбор текущего города
                 if (selectedCityId) {
-                    selectEl.value = selectedCityId;
-                } else {
-                    selectCity(true); // Если город не выбран, выбираем первый из списка
+                    select.value = selectedCityId;
                 }
             } catch (error) {
                 console.error('Ошибка загрузки городов:', error);
             }
         }
-        
+
         function selectCity(isInitial = false) {
             const select = document.getElementById('citySelect');
-            if (!select || !select.value) return;
-            selectedCityId = parseInt(select.value);
-            selectedCityName = select.options[select.selectedIndex].textContent;
-            
-            localStorage.setItem('selectedCityId', selectedCityId);
-            localStorage.setItem('selectedCityName', selectedCityName);
-            document.getElementById('cityName').textContent = selectedCityName;
-            
-            if (!isInitial) {
-                hideCityModal();
-                const activePage = document.querySelector('.page.active');
-                if (activePage && ['workRequestsPage', 'machineryRequestsPage', 'toolRequestsPage', 'materialAdsPage'].includes(activePage.id)) {
-                    showPage(activePage.id); // Обновляем данные на текущей странице, если это страница со списком
+            const newCityId = select.value;
+            const newCityName = select.options[select.selectedIndex].textContent;
+
+            if (newCityId && newCityId !== selectedCityId) {
+                selectedCityId = newCityId;
+                selectedCityName = newCityName;
+                localStorage.setItem('selectedCityId', selectedCityId);
+                localStorage.setItem('selectedCityName', selectedCityName);
+                document.getElementById('cityName').textContent = selectedCityName;
+
+                if (!isInitial) {
+                    hideCityModal();
+                    // Перезагрузка списка заявок после смены города
+                    if (document.getElementById('workRequestsPage').classList.contains('active')) fetchWorkRequests();
+                    if (document.getElementById('machineryRequestsPage').classList.contains('active')) fetchMachineryRequests();
+                    if (document.getElementById('toolRequestsPage').classList.contains('active')) fetchToolRequests();
+                    if (document.getElementById('materialAdsPage').classList.contains('active')) fetchMaterialAds();
                 }
+            } else if (!isInitial && newCityId === selectedCityId) {
+                 hideCityModal(); // Просто закрываем, если город не менялся
+            } else if (!isInitial && !newCityId) {
+                 alert('Пожалуйста, выберите город.');
             }
+        }
+        
+        // --- ЛОГИКА ФОРМ (Создание заявок) ---
+
+        async function handleFormSubmit(formId, endpoint, statusElementId, successMessage, payloadBuilder) {
+            document.getElementById(formId).addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const statusElement = document.getElementById(statusElementId);
+                
+                if (!accessToken) {
+                    displayMessage(statusElementId, 'Вы не авторизованы.', false);
+                    showPage('loginPage');
+                    return;
+                }
+                
+                if (!selectedCityId) {
+                     displayMessage(statusElementId, 'Пожалуйста, выберите город вверху страницы.', false);
+                     return;
+                }
+
+                const payload = payloadBuilder(form, selectedCityId);
+
+                try {
+                    const response = await fetch(`${API_URL}${endpoint}`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Authorization': `Bearer ${accessToken}` 
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Неизвестная ошибка создания заявки.');
+                    }
+
+                    displayMessage(statusElementId, successMessage, true);
+                    form.reset();
+                } catch (error) {
+                    displayMessage(statusElementId, `Ошибка: ${error.message}`, false);
+                }
+            });
+        }
+        
+        function buildWorkRequestPayload(form, cityId) {
+            return {
+                city_id: parseInt(cityId),
+                specialization: form.workSpecialization.value,
+                description: form.workDescription.value,
+                budget: parseInt(form.workBudget.value),
+                contact_info: form.workContact.value,
+                is_master_visit_required: form.isMasterVisitRequired.checked
+            };
+        }
+
+        function buildMachineryRequestPayload(form, cityId) {
+             return {
+                city_id: parseInt(cityId),
+                machinery_type: form.machineryType.value,
+                description: form.machineryDescription.value,
+                rental_price: parseInt(form.machineryRentalPrice.value),
+                contact_info: form.machineryContact.value,
+                rental_date: form.machineryRentalDate.value || null,
+                min_hours: parseInt(form.machineryMinHours.value),
+                has_delivery: form.machineryHasDelivery.checked,
+                delivery_address: form.machineryDeliveryAddress.value || null,
+            };
+        }
+        
+        function buildToolRequestPayload(form, cityId) {
+            return {
+                city_id: parseInt(cityId),
+                tool_name: form.toolName.value,
+                description: form.toolDescription.value,
+                rental_price: parseInt(form.toolRentalPrice.value),
+                count: parseInt(form.toolCount.value),
+                rental_start_date: form.toolRentalStartDate.value || null,
+                rental_end_date: form.toolRentalEndDate.value || null,
+                contact_info: form.toolContact.value,
+                has_delivery: form.hasDelivery.checked,
+                delivery_address: form.deliveryAddress.value || null,
+            };
+        }
+        
+        function buildMaterialAdPayload(form, cityId) {
+            return {
+                city_id: parseInt(cityId),
+                material_type: form.materialType.value,
+                description: form.materialDescription.value,
+                price: parseInt(form.materialPrice.value),
+                contact_info: form.materialContact.value,
+            };
         }
 
         // --- ЛОГИКА РЕЙТИНГА ---
-
+        // =======================================================================
+        // ИСПРАВЛЕНО: Логика рейтинга (Show/Hide/Update)
+        // =======================================================================
         function showRatingModal(requestId, ratingType) {
-    // 1. Устанавливаем ID заявки
-    document.getElementById('ratingRequestId').value = requestId;
-    // 2. Устанавливаем тип рейтинга (TO_EXECUTOR или TO_CUSTOMER)
-    document.getElementById('ratingTypeHidden').value = ratingType; 
-    
-    // 3. Обновляем заголовок модального окна
-    const modalTitle = document.getElementById('ratingModalTitle');
-    if (ratingType === 'TO_EXECUTOR') {
-        modalTitle.textContent = 'Оценить Исполнителя';
-    } else if (ratingType === 'TO_CUSTOMER') {
-        modalTitle.textContent = 'Оценить Заказчика';
-    } else {
-        modalTitle.textContent = 'Оставить оценку';
-    }
-
-    // Сбрасываем форму и статус
-    document.getElementById('ratingForm').reset();
-    document.getElementById('ratingStatus').style.display = 'none';
-    
-    // Сбрасываем отображение звезд
-    updateStarDisplay(0); 
-
-    // Показываем модальное окно
-    document.getElementById('ratingModal').classList.add('active');
-}
-        
-async function handleRatingSubmission(event) {
-    event.preventDefault(); // Предотвращаем стандартную отправку формы
-    
-    const requestId = document.getElementById('ratingRequestId').value;
-    // Считываем rating_type из скрытого поля
-    const ratingType = document.getElementById('ratingTypeHidden').value; 
-    
-    // Получаем остальные данные
-    const rating = document.querySelector('#ratingForm input[name="ratingValue"]:checked');
-    const comment = document.getElementById('ratingComment').value;
-    
-    if (!rating) {
-        alert('Пожалуйста, выберите оценку.');
-        return;
-    }
-
-    const token = localStorage.getItem('access_token');
-    
-    const payload = {
-        rating: parseInt(rating.value),
-        comment: comment,
-        rating_type: ratingType // <-- Отправляем считанный тип оценки
-    };
-
-    const statusElement = document.getElementById('ratingStatus');
-    statusElement.style.display = 'none';
-
-    try {
-        const response = await fetch(`/api/work_requests/${requestId}/rate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-        
-        if (response.ok) {
-            statusElement.className = 'message success';
-            statusElement.textContent = result.message || 'Оценка успешно отправлена!';
-            statusElement.style.display = 'block';
+            document.getElementById('ratingRequestId').value = requestId;
+            document.getElementById('ratingTypeHidden').value = ratingType; // Сохраняем тип
             
-            // Закрыть модальное окно через 2 секунды
-            setTimeout(() => {
-                hideRatingModal();
-                // Возможно, обновить список заявок для скрытия кнопки "Оценить"
-                // await fetchMyRequests(); 
-            }, 2000); 
+            const title = document.getElementById('ratingModalTitle');
+            title.textContent = ratingType === 'TO_EXECUTOR' ? 'Оценить Исполнителя' : 'Оценить Заказчика';
             
-        } else {
-            statusElement.className = 'message error';
-            statusElement.textContent = result.detail || 'Ошибка при отправке оценки.';
-            statusElement.style.display = 'block';
+            document.getElementById('ratingForm').reset();
+            document.getElementById('ratingStatus').style.display = 'none';
+            updateStarDisplay(0);
+            document.getElementById('ratingModal').classList.add('active');
         }
-    } catch (error) {
-        statusElement.className = 'message error';
-        statusElement.textContent = 'Сетевая ошибка. Попробуйте позже.';
-        statusElement.style.display = 'block';
-    }
-}
-
-        // --- ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ (ОБРАБОТЧИКИ) ---
-
-        async function respondToRequest(requestId) {
-    // Можно добавить модальное окно для комментария, но для простоты сделаем пока без него
-    const comment = prompt("Вы можете оставить комментарий к вашему отклику:", "");
-
-    try {
-        const response = await fetch(`${API_URL}/work_requests/${requestId}/respond`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
-            },
-            body: JSON.stringify({ comment: comment }) // Отправляем даже если комментарий пустой
-        });
-        const data = await response.json();
-        if (response.ok) {
-            displayMessage('takeOrderStatus', 'Вы успешно откликнулись!', true);
-        } else {
-            displayMessage('takeOrderStatus', data.detail || 'Не удалось откликнуться.', false);
+        
+        function hideRatingModal() {
+            document.getElementById('ratingModal').classList.remove('active');
         }
-    } catch (error) {
-        displayMessage('takeOrderStatus', 'Ошибка соединения.', false);
-    }
-}
-
-        async function changeRequestStatus(requestId, newStatus) {
+        
+        function updateStarDisplay(rating) {
+            const stars = document.querySelectorAll('#ratingForm .star-rating i');
+            stars.forEach((star, index) => {
+                star.className = index < rating ? 'fas fa-star' : 'far fa-star';
+            });
+        }
+        
+        // --- ИНИЦИАЛИЗАЦИЯ И ОБРАБОТЧИКИ ФОРМ ---
+        
+        async function fetchOptions(selectId, endpoint) {
             try {
-                const res = await fetch(`${API_URL}/work_requests/${requestId}/status?new_status=${newStatus}`, {
-                    method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                const res = await fetch(`${API_URL}${endpoint}`);
+                const options = await res.json();
+                const select = document.getElementById(selectId);
+                select.innerHTML = '';
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.name;
+                    option.textContent = opt.name;
+                    select.appendChild(option);
                 });
-                if (res.ok) {
-                    alert(`Статус заявки #${requestId} изменен на "${newStatus}"`);
-                    fetchMyRequests(); // Обновляем список
-                } else {
-                    const error = await res.json();
-                    alert(`Ошибка: ${error.detail}`);
-                }
             } catch (error) {
-                alert('Ошибка сети.');
+                console.error(`Error fetching options for ${selectId}:`, error);
             }
         }
         
-        // --- ИНИЦИАЛИЗАЦИЯ И ОБРАБОТЧИКИ СОБЫТИЙ ---
-        
+        // Инициализация при загрузке страницы
         window.addEventListener('DOMContentLoaded', async () => {
-            document.getElementById('cityName').textContent = selectedCityName;
             accessToken = localStorage.getItem('accessToken');
-            
-            const directories = [
-                loadAndFillDirectory('/specializations/', '#registerSpecialization, #workSpecialization, #newSpecialization', 'name', 'name'),
-                loadAndFillDirectory('/machinery_types/', '#machineryType', 'name', 'name'),
-                loadAndFillDirectory('/tools_list/', '#toolName', 'name', 'name'),
-                fetchCities() // Загружаем города для модального окна и select-ов
-            ];
-            await Promise.all(directories);
+            const storedProfile = localStorage.getItem('profile');
+            if (storedProfile) {
+                profile = JSON.parse(storedProfile);
+            }
 
+            // Загрузка городов
+            await fetchCities();
+            selectCity(true); 
+
+            // Загрузка опций для форм
+            fetchOptions('registerSpecialization', '/specializations/');
+            fetchOptions('newSpecialization', '/specializations/');
+            fetchOptions('workSpecialization', '/specializations/');
+            fetchOptions('machineryType', '/machinery_types/');
+            fetchOptions('toolName', '/tool_names/');
+            
+            // Определяем начальную страницу
             if (accessToken) {
-                await fetchProfile();
                 showPage('buttonContainer');
             } else {
                 showPage('loginPage');
             }
-        });
-        
-        async function loadAndFillDirectory(endpoint, selectors, valueKey, textKey) {
-            try {
-                const response = await fetch(`${API_URL}${endpoint}`);
-                if (!response.ok) throw new Error(`Failed to load ${endpoint}`);
-                const items = await response.json();
-                document.querySelectorAll(selectors).forEach(selectElement => {
-                    if (!selectElement) return;
-                    selectElement.innerHTML = '<option value="">Выберите...</option>';
-                    items.forEach(item => {
-                        selectElement.innerHTML += `<option value="${item[valueKey]}">${item[textKey]}</option>`;
-                    });
-                });
-            } catch (error) {
-                console.error('Error loading directory:', error);
-                document.querySelectorAll(selectors).forEach(select => {
-                    if(select) select.innerHTML = '<option value="">Ошибка загрузки</option>';
-                });
-            }
-        }
 
-        // Обработчики форм
+            // Привязка обработчиков для создания заявок
+            handleFormSubmit('workRequestForm', '/work_requests/', 'workRequestStatus', 'Заявка на работу создана!', buildWorkRequestPayload);
+            handleFormSubmit('machineryRequestForm', '/machinery_requests/', 'machineryRequestStatus', 'Заявка на технику создана!', buildMachineryRequestPayload);
+            handleFormSubmit('toolRequestForm', '/tool_requests/', 'toolRequestStatus', 'Заявка на инструмент создана!', buildToolRequestPayload);
+            handleFormSubmit('materialAdForm', '/material_ads/', 'materialAdStatus', 'Объявление создано!', buildMaterialAdPayload);
+        });
+
+        // Обработчики форм (login, register)
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new URLSearchParams();
-            formData.append('username', document.getElementById('loginEmail').value);
-            formData.append('password', document.getElementById('loginPassword').value);
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
             try {
                 const response = await fetch(`${API_URL}/token`, {
-                    method: 'POST', body: formData
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
                 });
                 const data = await response.json();
+                
                 if (response.ok) {
                     accessToken = data.access_token;
                     localStorage.setItem('accessToken', accessToken);
-                    await fetchProfile();
+                    await fetchProfile(); // Загружаем профиль и сохраняем его
+                    displayMessage('loginStatus', 'Успешный вход!', true);
                     showPage('buttonContainer');
                 } else {
-                    displayMessage('loginStatus', data.detail || 'Неверные данные.', false);
+                    displayMessage('loginStatus', data.detail || 'Неверный логин или пароль.', false);
                 }
             } catch (error) {
-                displayMessage('loginStatus', 'Ошибка соединения.', false);
+                displayMessage('loginStatus', 'Ошибка соединения с сервером.', false);
             }
         });
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const payload = {
-                email: document.getElementById('registerEmail').value,
-                password: document.getElementById('registerPassword').value,
-                phone_number: document.getElementById('registerPhoneNumber').value,
-                user_type: document.getElementById('registerUserType').value,
-                specialization: document.getElementById('registerUserType').value === 'ИСПОЛНИТЕЛЬ' ? document.getElementById('registerSpecialization').value : null
-            };
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const phone_number = document.getElementById('registerPhoneNumber').value;
+            const user_type = document.getElementById('registerUserType').value;
+            const specialization = document.getElementById('registerSpecialization').value;
+
+            const payload = { email, password, phone_number, user_type };
+
+            if (user_type === 'ИСПОЛНИТЕЛЬ') {
+                 payload.specialization = specialization;
+            }
+
             try {
-                const response = await fetch(`${API_URL}/register`, {
+                const response = await fetch(`${API_URL}/users/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await response.json();
+
                 if (response.ok) {
-                    displayMessage('registerStatus', 'Регистрация успешна! Теперь войдите.', true);
-                    setTimeout(() => showPage('loginPage'), 2000);
+                    displayMessage('registerStatus', 'Регистрация прошла успешно. Теперь войдите в систему.', true);
+                    document.getElementById('registerForm').reset();
+                    showPage('loginPage');
                 } else {
-                    displayMessage('registerStatus', `Ошибка: ${data.detail}`, false);
+                    displayMessage('registerStatus', data.detail[0].msg || data.detail || 'Ошибка регистрации.', false);
                 }
             } catch (error) {
-                displayMessage('registerStatus', 'Произошла ошибка при регистрации.', false);
+                displayMessage('registerStatus', 'Ошибка соединения с сервером.', false);
             }
         });
 
+        // =======================================================================
+        // ИСПРАВЛЕНО: Обработчик формы рейтинга
+        // =======================================================================
         document.getElementById('ratingForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!accessToken) { alert('Ошибка аутентификации.'); return; }
-            const requestId = document.getElementById('ratingRequestId').value;
             const ratingElement = document.querySelector('#ratingForm input[name="ratingValue"]:checked');
-            if (!ratingElement) { displayMessage('ratingStatus', 'Пожалуйста, выберите оценку.', false); return; }
+            if (!ratingElement) {
+                displayMessage('ratingStatus', 'Пожалуйста, выберите оценку.', false);
+                return;
+            }
 
-            const data = {
-                rating_value: parseInt(ratingElement.value),
-                comment: document.getElementById('ratingComment').value || null,
+            const payload = {
+                rating: parseInt(ratingElement.value),
+                comment: document.getElementById('ratingComment').value,
+                rating_type: document.getElementById('ratingTypeHidden').value // <-- Отправляем тип!
             };
+            const requestId = document.getElementById('ratingRequestId').value;
 
             try {
                 const res = await fetch(`${API_URL}/work_requests/${requestId}/rate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(payload)
                 });
                 const result = await res.json();
-                if (res.ok) {
-                    displayMessage('ratingStatus', `Успешно!`, true);
-                    setTimeout(() => {
-                        hideRatingModal();
-                        showPage('completedRequestsPage');
-                    }, 2000);
-                } else {
-                    displayMessage('ratingStatus', `Ошибка: ${result.detail}`, false);
-                }
+                if (!res.ok) throw new Error(result.detail);
+
+                displayMessage('ratingStatus', 'Оценка успешно отправлена!', true);
+                setTimeout(() => {
+                    hideRatingModal();
+                    fetchMyRequests(); // Обновляем список, чтобы скрыть кнопку
+                    fetchCompletedRequestsForRating();
+                }, 2000);
             } catch(error) {
-                displayMessage('ratingStatus', 'Ошибка соединения с сервером.', false);
+                displayMessage('ratingStatus', error.message || 'Ошибка соединения.', false);
             }
         });
-
-        // --- УЛУЧШЕНИЕ: Универсальный обработчик для всех форм создания заявок ---
-        function handleFormSubmit(formId, endpoint, statusId, successMessage, payloadBuilder) {
-            document.getElementById(formId).addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!accessToken) return;
-                const payload = payloadBuilder();
-                if (!payload) return; // Прерываем, если данные невалидны
-                try {
-                    const response = await fetch(`${API_URL}${endpoint}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-                        body: JSON.stringify(payload)
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                        displayMessage(statusId, successMessage, true);
-                        e.target.reset();
-                    } else {
-                        displayMessage(statusId, data.detail || 'Ошибка.', false);
-                    }
-                } catch (error) {
-                    displayMessage(statusId, 'Ошибка сети.', false);
-                }
-            });
-        }
-
-async function fetchAndShowResponses(requestId) {
-    const container = document.getElementById(`responses-for-${requestId}`);
-    container.innerHTML = `<p>Загрузка откликов...</p>`;
-
-    try {
-        const res = await fetch(`${API_URL}/work_requests/${requestId}/responses`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || 'Ошибка загрузки');
-        }
-        const responses = await res.json();
         
-        if (responses.length === 0) {
-            container.innerHTML = '<p>Пока нет откликов.</p>';
-            return;
-        }
-
-        let responsesHTML = '<h5>Откликнувшиеся исполнители:</h5>';
-        responses.forEach(resp => {
-            responsesHTML += `
-                <div class="response-item" style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
-                    <p><strong>Исполнитель:</strong> ${resp.email}</p>
-                    <p><strong>Рейтинг:</strong> ${resp.average_rating.toFixed(2)} (${resp.ratings_count} оценок)</p>
-                    <p><strong>Комментарий:</strong> ${resp.response_comment || 'Без комментария'}</p>
-                    <button class="btn-primary" onclick="approveExecutor(${requestId}, ${resp.response_id})">Выбрать этого исполнителя</button>
-                </div>
-            `;
-        });
-        container.innerHTML = responsesHTML;
-
-    } catch (error) {
-        container.innerHTML = `<p class="message error">${error.message}</p>`;
-    }
-}
-
-async function approveExecutor(requestId, responseId) {
-    if (!confirm('Вы уверены, что хотите назначить этого исполнителя? Это действие нельзя отменить.')) {
-        return;
-    }
-
-    try {
-        const res = await fetch(`${API_URL}/work_requests/${requestId}/responses/${response_id}/approve`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const data = await res.json();
-        if (res.ok) {
-            alert('Исполнитель успешно назначен!');
-            fetchMyRequests(); // Обновляем список "Мои заявки"
-        } else {
-            alert(`Ошибка: ${data.detail}`);
-        }
-    } catch (error) {
-        alert('Сетевая ошибка при назначении исполнителя.');
-    }
-}
-
-        // Функции-сборщики данных для каждой формы
-        const buildWorkRequestPayload = () => ({
-            description: document.getElementById('workDescription').value,
-            specialization: document.getElementById('workSpecialization').value,
-            budget: parseFloat(document.getElementById('workBudget').value),
-            contact_info: document.getElementById('workContact').value,
-            city_id: selectedCityId,
-            is_master_visit_required: document.getElementById('isMasterVisitRequired').checked
-        });
-
-        const buildMachineryRequestPayload = () => {
-            const hasDelivery = document.getElementById('machineryHasDelivery').checked;
-            return {
-                machinery_type: document.getElementById('machineryType').value,
-                description: document.getElementById('machineryDescription').value,
-                rental_date: document.getElementById('machineryRentalDate').value || null,
-                min_rental_hours: parseInt(document.getElementById('machineryMinHours').value),
-                rental_price: parseFloat(document.getElementById('machineryRentalPrice').value),
-                contact_info: document.getElementById('machineryContact').value,
-                city_id: selectedCityId,
-                has_delivery: hasDelivery,
-                delivery_address: hasDelivery ? document.getElementById('machineryDeliveryAddress').value : null
-            };
-        };
-
-        const buildToolRequestPayload = () => {
-            const hasDelivery = document.getElementById('hasDelivery').checked;
-            return {
-                tool_name: document.getElementById('toolName').value,
-                description: document.getElementById('toolDescription').value,
-                rental_price: parseFloat(document.getElementById('toolRentalPrice').value),
-                contact_info: document.getElementById('toolContact').value,
-                city_id: selectedCityId,
-                count: parseInt(document.getElementById('toolCount').value),
-                rental_start_date: document.getElementById('toolRentalStartDate').value || null,
-                rental_end_date: document.getElementById('toolRentalEndDate').value || null,
-                has_delivery: hasDelivery,
-                delivery_address: hasDelivery ? document.getElementById('deliveryAddress').value : null
-            };
-        };
-        
-        const buildMaterialAdPayload = () => ({
-            material_type: document.getElementById('materialType').value,
-            description: document.getElementById('materialDescription').value,
-            price: parseFloat(document.getElementById('materialPrice').value),
-            contact_info: document.getElementById('materialContact').value,
-            city_id: selectedCityId
-        });
-
-        // Привязка универсального обработчика ко всем формам
-        handleFormSubmit('workRequestForm', '/work_requests/', 'workRequestStatus', 'Заявка на работу создана!', buildWorkRequestPayload);
-        handleFormSubmit('machineryRequestForm', '/machinery_requests/', 'machineryRequestStatus', 'Заявка на технику создана!', buildMachineryRequestPayload);
-        handleFormSubmit('toolRequestForm', '/tool_requests/', 'toolRequestStatus', 'Заявка на инструмент создана!', buildToolRequestPayload);
-        handleFormSubmit('materialAdForm', '/material_ads/', 'materialAdStatus', 'Объявление создано!', buildMaterialAdPayload);
-
-
-        // Дополнительные обработчики
+        // Дополнительные обработчики для UI (specializationGroup, star rating click, delivery address)
         document.getElementById('registerUserType').addEventListener('change', (e) => {
             document.getElementById('specializationGroup').style.display = e.target.value === 'ИСПОЛНИТЕЛЬ' ? 'block' : 'none';
         });
