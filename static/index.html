@@ -540,6 +540,40 @@
             setTimeout(() => { el.style.display = 'none'; }, 3000);
         }
 
+function toggleEditSpecialization() {
+    const form = document.getElementById('editSpecializationForm');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
+    const newSpec = document.getElementById('newSpecialization').value;
+    if (!newSpec) {
+        alert('Пожалуйста, выберите новую специализацию.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/update_specialization/?specialization=${encodeURIComponent(newSpec)}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert('Специализация успешно обновлена!');
+            toggleEditSpecialization(); // Скрываем форму
+            fetchProfile(); // Обновляем информацию в профиле
+        } else {
+            alert(`Ошибка: ${data.detail}`);
+        }
+    } catch (error) {
+        alert('Сетевая ошибка при обновлении специализации.');
+    }
+});
+
+// Добавим вызов этой функции на странице "Мои выполненные заявки"
+// чтобы она загружала данные при переходе на нее
+document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').addEventListener('click', fetchCompletedRequestsForRating);
+
         // --- ЗАГРУЗКА ДАННЫХ (FETCH) ---
 
         async function fetchProfile() {
