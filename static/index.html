@@ -575,50 +575,62 @@
             }
         }
         
-        async function fetchMyRequests() {
-            if (!accessToken || !profile) { showPage('loginPage'); return; }
-            const requestList = document.getElementById('myRequestsList');
-            requestList.innerHTML = 'Загрузка ваших активных заявок...';
+       async function fetchMyRequests() {
+    if (!accessToken || !profile) { showPage('loginPage'); return; }
+    const requestList = document.getElementById('myRequestsList');
+    requestList.innerHTML = 'Загрузка ваших заявок и откликов...';
 
-            try {
-                const res = await fetch(`${API_URL}/users/me/requests/`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const requests = await res.json();
-                const activeRequests = requests.filter(req => req.status !== 'ВЫПОЛНЕНА' && req.status !== 'ОТМЕНЕНА');
-
-                if (activeRequests.length === 0) {
-                    requestList.innerHTML = '<p>У вас нет активных заявок.</p>';
-                    return;
-                }
-                
-                requestList.innerHTML = '';
-                activeRequests.forEach(req => {
-                    let actions = '';
-                    if (req.user_id === profile.id && req.status === 'В РАБОТЕ') {
-                        actions = `
-                            <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
-                            <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545;">Отменить</button>`;
-                    } else if (req.executor_id === profile.id) {
-                         actions = `<p style="color: green; margin-top: 5px;">Вы — Исполнитель по этой заявке.</p>`;
-                    }
-                    const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
-                    requestList.innerHTML += `
-                        <div class="request-item">
-                            <h4>Заявка #${req.id}: ${req.specialization}</h4>
-                            <p><strong>Город:</strong> ${city}</p>
-                            <p><strong>Статус:</strong> ${req.status}</p>
-                            <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
-                            <p><strong>Описание:</strong> ${req.description}</p>
-                            <p><strong>Контакт:</strong> ${req.contact_info}</p>
-                            ${req.is_premium ? '<span class="premium">★ Премиум</span>' : ''}
-                            <div class="actions" style="margin-top:10px;">${actions}</div>
-                        </div>`;
-                });
-            } catch (error) {
-                requestList.innerHTML = `<p class="message error">Ошибка загрузки заявок.</p>`;
-            }
+    try {
+        const res = await fetch(`${API_URL}/users/me/requests/`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const requests = await res.json();
+        
+        if (requests.length === 0) {
+            requestList.innerHTML = '<p>У вас нет активных заявок или откликов.</p>';
+            return;
         }
+        
+        requestList.innerHTML = '';
+        for (const req of requests) {
+            const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
+            let requestHTML = `<div class="request-item" id="my-request-${req.id}">
+                                <h4>Заявка #${req.id}: ${req.specialization}</h4>
+                                <p><strong>Город:</strong> ${city}</p>
+                                <p><strong>Статус:</strong> ${req.status}</p>
+                                <p><strong>Бюджет:</strong> ${req.budget} руб.</p>
+                                <p><strong>Описание:</strong> ${req.description}</p>`;
+            
+            // --- Логика для ЗАКАЗЧИКА ---
+            if (profile.user_type === 'ЗАКАЗЧИК' && req.user_id === profile.id) {
+                if (req.status === 'ОЖИДАЕТ') {
+                    // Кнопка для просмотра откликов
+                    requestHTML += `<button class="btn-primary" onclick="fetchAndShowResponses(${req.id})">Посмотреть отклики</button>
+                                    <div class="responses-container" id="responses-for-${req.id}"></div>`;
+                } else if (req.status === 'В РАБОТЕ') {
+                    // Кнопки для завершения/отмены
+                    requestHTML += `<p style="color: green; margin-top: 5px;"><strong>Исполнитель назначен (ID: ${req.executor_id}).</strong></p>
+                                    <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
+                                    <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545;">Отменить</button>`;
+                }
+            } 
+            // --- Логика для ИСПОЛНИТЕЛЯ ---
+            else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+                if (req.executor_id === profile.id) {
+                    requestHTML += `<p style="color: green; margin-top: 5px;">Вы — назначенный Исполнитель по этой заявке.</p>`;
+                } else {
+                    requestHTML += `<p style="color: #FF8C00; margin-top: 5px;">Вы откликнулись на эту заявку. Ожидайте решения заказчика.</p>`;
+                }
+            }
+            
+            requestHTML += `</div>`;
+            requestList.innerHTML += requestHTML;
+        }
+    } catch (error) {
+        console.error("Ошибка загрузки заявок:", error);
+        requestList.innerHTML = `<p class="message error">Ошибка загрузки заявок.</p>`;
+    }
+}
         
         async function fetchCompletedRequestsForRating() {
             if (!accessToken || !profile) { showPage('loginPage'); return; }
@@ -683,8 +695,10 @@
                 if (type === 'tool') { title = `${req.tool_name} #${req.id}`; price_info = `<p><strong>Цена аренды:</strong> ${req.rental_price}</p>`; }
                 if (type === 'material') { title = `${req.material_type || 'Материал'} — #${req.id}`; price_info = `<p><strong>Цена:</strong> ${req.price}</p>`; }
                 
-                let takeBtn = (type === 'work' && req.status === 'ОЖИДАЕТ' && profile?.user_type === 'ИСПОЛНИТЕЛЬ') 
-                    ? `<button class="take-btn" onclick="takeOrder(${req.id})">Взять в работу</button>` : '';
+                let actionBtn = '';
+if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ' && req.status === 'ОЖИДАЕТ') {
+    actionBtn = `<button class="take-btn" onclick="respondToRequest(${req.id})">Откликнуться</button>`;
+}
 
                 item.innerHTML = `
                     <h4>${title}</h4>
@@ -693,7 +707,7 @@
                     <p class="contact"><strong>Контакт:</strong> ${req.contact_info}</p>
                     ${req.is_premium ? '<p class="premium">Премиум-заявка</p>' : ''}
                     ${req.status === 'В РАБОТЕ' ? '<p class="taken" style="color: green;">Заявка принята в работу</p>' : ''}
-                    ${takeBtn}`;
+                    ${actionBtn}`;
                 container.appendChild(item);
             });
         }
@@ -779,23 +793,29 @@
         
         // --- ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ (ОБРАБОТЧИКИ) ---
 
-        async function takeOrder(requestId) {
-            try {
-                const response = await fetch(`${API_URL}/work_requests/${requestId}/take`, {
-                    method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    displayMessage('takeOrderStatus', 'Заявка успешно принята!', true);
-                    fetchWorkRequests();
-                } else {
-                    displayMessage('takeOrderStatus', data.detail || 'Не удалось принять заявку.', false);
-                }
-            } catch (error) {
-                displayMessage('takeOrderStatus', 'Ошибка соединения.', false);
-            }
+        async function respondToRequest(requestId) {
+    // Можно добавить модальное окно для комментария, но для простоты сделаем пока без него
+    const comment = prompt("Вы можете оставить комментарий к вашему отклику:", "");
+
+    try {
+        const response = await fetch(`${API_URL}/work_requests/${requestId}/respond`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ comment: comment }) // Отправляем даже если комментарий пустой
+        });
+        const data = await response.json();
+        if (response.ok) {
+            displayMessage('takeOrderStatus', 'Вы успешно откликнулись!', true);
+        } else {
+            displayMessage('takeOrderStatus', data.detail || 'Не удалось откликнуться.', false);
         }
+    } catch (error) {
+        displayMessage('takeOrderStatus', 'Ошибка соединения.', false);
+    }
+}
 
         async function changeRequestStatus(requestId, newStatus) {
             try {
@@ -966,6 +986,65 @@
                 }
             });
         }
+
+async function fetchAndShowResponses(requestId) {
+    const container = document.getElementById(`responses-for-${requestId}`);
+    container.innerHTML = `<p>Загрузка откликов...</p>`;
+
+    try {
+        const res = await fetch(`${API_URL}/work_requests/${requestId}/responses`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Ошибка загрузки');
+        }
+        const responses = await res.json();
+        
+        if (responses.length === 0) {
+            container.innerHTML = '<p>Пока нет откликов.</p>';
+            return;
+        }
+
+        let responsesHTML = '<h5>Откликнувшиеся исполнители:</h5>';
+        responses.forEach(resp => {
+            responsesHTML += `
+                <div class="response-item" style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
+                    <p><strong>Исполнитель:</strong> ${resp.email}</p>
+                    <p><strong>Рейтинг:</strong> ${resp.average_rating.toFixed(2)} (${resp.ratings_count} оценок)</p>
+                    <p><strong>Комментарий:</strong> ${resp.response_comment || 'Без комментария'}</p>
+                    <button class="btn-primary" onclick="approveExecutor(${requestId}, ${resp.response_id})">Выбрать этого исполнителя</button>
+                </div>
+            `;
+        });
+        container.innerHTML = responsesHTML;
+
+    } catch (error) {
+        container.innerHTML = `<p class="message error">${error.message}</p>`;
+    }
+}
+
+async function approveExecutor(requestId, responseId) {
+    if (!confirm('Вы уверены, что хотите назначить этого исполнителя? Это действие нельзя отменить.')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/work_requests/${requestId}/responses/${response_id}/approve`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert('Исполнитель успешно назначен!');
+            fetchMyRequests(); // Обновляем список "Мои заявки"
+        } else {
+            alert(`Ошибка: ${data.detail}`);
+        }
+    } catch (error) {
+        alert('Сетевая ошибка при назначении исполнителя.');
+    }
+}
 
         // Функции-сборщики данных для каждой формы
         const buildWorkRequestPayload = () => ({
