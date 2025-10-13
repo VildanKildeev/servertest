@@ -203,10 +203,12 @@
         <div id="ratingModal" class="modal">
             <div class="modal-content">
                 <span class="close-btn" onclick="hideRatingModal()">&times;</span>
-                <h2>Оценить Исполнителя</h2>
+                <h2 id="ratingModalTitle">Оценить</h2> 
                 <div id="ratingStatus" class="message"></div>
                 <form id="ratingForm">
                     <input type="hidden" id="ratingRequestId">
+                    <input type="hidden" id="ratingTypeHidden"> 
+                    
                     <p>Ваша оценка (1 - 5):</p>
                     <div class="star-rating input-group" style="display: flex; justify-content: space-around;">
                         <label> <input type="radio" name="ratingValue" value="1" required> <i class="far fa-star"></i> </label>
@@ -218,7 +220,7 @@
                     <div class="input-group">
                         <label for="ratingComment">Комментарий (необязательно):</label>
                         <textarea id="ratingComment"></textarea>
-                    </div>
+                    </div> 
                     <button type="submit" class="btn-primary" style="margin-top: 10px;">Отправить оценку</button>
                 </form>
             </div>
@@ -805,28 +807,96 @@ if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ' && req.st
 
         // --- ЛОГИКА РЕЙТИНГА ---
 
-        function showRatingModal(requestId) {
-            document.getElementById('ratingRequestId').value = requestId;
-            document.getElementById('ratingForm').reset();
-            updateStarDisplay(0);
-            document.getElementById('ratingModal').classList.add('active');
-        }
-        function hideRatingModal() {
-            document.getElementById('ratingModal').classList.remove('active');
-        }
-        function updateStarDisplay(rating) {
-            const stars = document.querySelectorAll('#ratingForm .star-rating i');
-            stars.forEach((star, index) => {
-                if (index < rating) {
-                    star.classList.replace('far', 'fas');
-                    star.style.color = '#FF8C00';
-                } else {
-                    star.classList.replace('fas', 'far');
-                    star.style.color = '#ccc';
-                }
-            });
-        }
+        function showRatingModal(requestId, ratingType) {
+    // 1. Устанавливаем ID заявки
+    document.getElementById('ratingRequestId').value = requestId;
+    // 2. Устанавливаем тип рейтинга (TO_EXECUTOR или TO_CUSTOMER)
+    document.getElementById('ratingTypeHidden').value = ratingType; 
+    
+    // 3. Обновляем заголовок модального окна
+    const modalTitle = document.getElementById('ratingModalTitle');
+    if (ratingType === 'TO_EXECUTOR') {
+        modalTitle.textContent = 'Оценить Исполнителя';
+    } else if (ratingType === 'TO_CUSTOMER') {
+        modalTitle.textContent = 'Оценить Заказчика';
+    } else {
+        modalTitle.textContent = 'Оставить оценку';
+    }
+
+    // Сбрасываем форму и статус
+    document.getElementById('ratingForm').reset();
+    document.getElementById('ratingStatus').style.display = 'none';
+    
+    // Сбрасываем отображение звезд
+    updateStarDisplay(0); 
+
+    // Показываем модальное окно
+    document.getElementById('ratingModal').classList.add('active');
+}
         
+async function handleRatingSubmission(event) {
+    event.preventDefault(); // Предотвращаем стандартную отправку формы
+    
+    const requestId = document.getElementById('ratingRequestId').value;
+    // Считываем rating_type из скрытого поля
+    const ratingType = document.getElementById('ratingTypeHidden').value; 
+    
+    // Получаем остальные данные
+    const rating = document.querySelector('#ratingForm input[name="ratingValue"]:checked');
+    const comment = document.getElementById('ratingComment').value;
+    
+    if (!rating) {
+        alert('Пожалуйста, выберите оценку.');
+        return;
+    }
+
+    const token = localStorage.getItem('access_token');
+    
+    const payload = {
+        rating: parseInt(rating.value),
+        comment: comment,
+        rating_type: ratingType // <-- Отправляем считанный тип оценки
+    };
+
+    const statusElement = document.getElementById('ratingStatus');
+    statusElement.style.display = 'none';
+
+    try {
+        const response = await fetch(`/api/work_requests/${requestId}/rate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+            statusElement.className = 'message success';
+            statusElement.textContent = result.message || 'Оценка успешно отправлена!';
+            statusElement.style.display = 'block';
+            
+            // Закрыть модальное окно через 2 секунды
+            setTimeout(() => {
+                hideRatingModal();
+                // Возможно, обновить список заявок для скрытия кнопки "Оценить"
+                // await fetchMyRequests(); 
+            }, 2000); 
+            
+        } else {
+            statusElement.className = 'message error';
+            statusElement.textContent = result.detail || 'Ошибка при отправке оценки.';
+            statusElement.style.display = 'block';
+        }
+    } catch (error) {
+        statusElement.className = 'message error';
+        statusElement.textContent = 'Сетевая ошибка. Попробуйте позже.';
+        statusElement.style.display = 'block';
+    }
+}
+
         // --- ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ (ОБРАБОТЧИКИ) ---
 
         async function respondToRequest(requestId) {
