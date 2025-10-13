@@ -150,6 +150,8 @@ material_ads = sqlalchemy.Table(
     sqlalchemy.Column("price", sqlalchemy.Float),
     sqlalchemy.Column("contact_info", sqlalchemy.String),
     sqlalchemy.Column("city_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("cities.id")),
+    # ✅ ИСПРАВЛЕНИЕ: ДОБАВЛЕНА НЕДОСТАЮЩАЯ КОЛОНКА
+    sqlalchemy.Column("is_premium", sqlalchemy.Boolean, default=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
     extend_existing=True,
 )
@@ -169,6 +171,25 @@ ratings = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
     extend_existing=True,
 )
+
+
+# =======================================================================
+# 8. Таблица откликов на заявки (Work Request Responses) <-- НОВАЯ ТАБЛИЦА
+# =======================================================================
+work_request_responses = sqlalchemy.Table(
+    "work_request_responses",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("work_request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id"), nullable=False),
+    sqlalchemy.Column("executor_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False), # Исполнитель, который откликнулся
+    sqlalchemy.Column("comment", sqlalchemy.String, nullable=True), # Комментарий от исполнителя к отклику
+    sqlalchemy.Column("status", sqlalchemy.String, default="PENDING"), # PENDING, APPROVED, REJECTED
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
+    # Уникальное ограничение, чтобы один исполнитель не мог откликнуться дважды на одну заявку
+    sqlalchemy.UniqueConstraint('work_request_id', 'executor_id', name='uq_work_request_executor'),
+    extend_existing=True,
+)
+
 
 # Функция для создания всех таблиц в базе данных
 def create_db_tables():

@@ -22,7 +22,7 @@ from pathlib import Path
 
 # --- Database setup ---
 # Импортируем все таблицы и метаданды из файла database.py
-from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, ratings # Добавили 'ratings'
+from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, ratings, work_request_responses
 
 load_dotenv()
 
@@ -159,6 +159,14 @@ class WorkRequestUpdate(BaseModel):
     is_premium: Optional[bool] = None
     executor_id: Optional[int] = None
     status: Optional[str] = None
+
+class ResponseCreate(BaseModel):
+    comment: Optional[str] = None
+
+class ResponseOut(UserOut): # Наследуем от UserOut, чтобы сразу получить данные исполнителя
+    response_id: int
+    response_comment: Optional[str] = None
+    response_created_at: datetime
 
 # Схемы для спецтехники (ОБНОВЛЕНО)
 class MachineryRequestIn(BaseModel):
@@ -366,25 +374,96 @@ async def get_my_requests(current_user: dict = Depends(get_current_user)):
 
     return sorted(all_requests, key=lambda x: x["created_at"], reverse=True)
 
-@api_router.patch("/work_requests/{request_id}/take")
-async def take_work_request(request_id: int, current_user: dict = Depends(get_current_user)):
+@api_router.post("/work_requests/{request_id}/respond", status_code=status.HTTP_201_CREATED)
+async def respond_to_work_request(request_id: int, response: ResponseCreate, current_user: dict = Depends(get_current_user)):
+    """ Эндпоинт для Исполнителя, чтобы откликнуться на заявку """
     if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
-        raise HTTPException(status_code=403, detail="Только исполнители могут принимать заявки.")
+        raise HTTPException(status_code=403, detail="Только исполнители могут откликаться на заявки.")
 
-    query_select = work_requests.select().where(work_requests.c.id == request_id)
-    request_db = await database.fetch_one(query_select)
-
-    if not request_db:
+    # Проверяем, что заявка существует и ожидает исполнителя
+    request_query = work_requests.select().where(work_requests.c.id == request_id)
+    work_request = await database.fetch_one(request_query)
+    if not work_request:
         raise HTTPException(status_code=404, detail="Заявка не найдена.")
-    
-    if request_db["status"] != "ОЖИДАЕТ":
-        raise HTTPException(status_code=400, detail=f"Заявка имеет статус '{request_db['status']}' и не может быть принята.")
+    if work_request["status"] != "ОЖИДАЕТ":
+        raise HTTPException(status_code=400, detail="Откликнуться можно только на заявки со статусом 'ОЖИДАЕТ'.")
+    if work_request["user_id"] == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Вы не можете откликнуться на собственную заявку.")
 
-    user_id = current_user['id']
-    query_update = work_requests.update().where(work_requests.c.id == request_id).values(status="В РАБОТЕ", executor_id=user_id)
-    await database.execute(query_update)
-    
-    return {"message": "Заявка успешно принята.", "request_id": request_id}
+    # Создаем отклик
+    insert_query = work_request_responses.insert().values(
+        work_request_id=request_id,
+        executor_id=current_user["id"],
+        comment=response.comment
+    )
+    try:
+        last_record_id = await database.execute(insert_query)
+        return {"message": "Вы успешно откликнулись на заявку.", "response_id": last_record_id}
+    except exc.IntegrityError:
+        # Это сработает, если сработает UniqueConstraint в БД (повторный отклик)
+        raise HTTPException(status_code=400, detail="Вы уже откликались на эту заявку.")
+
+
+@api_router.get("/work_requests/{request_id}/responses", response_model=List[ResponseOut])
+async def get_work_request_responses(request_id: int, current_user: dict = Depends(get_current_user)):
+    """ Эндпоинт для Заказчика, чтобы посмотреть отклики на свою заявку """
+    # Проверяем, что заявка существует и принадлежит текущему пользователю
+    request_query = work_requests.select().where(work_requests.c.id == request_id)
+    work_request = await database.fetch_one(request_query)
+    if not work_request:
+        raise HTTPException(status_code=404, detail="Заявка не найдена.")
+    if work_request["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Вы можете просматривать отклики только на свои заявки.")
+
+    # Получаем всех откликнувшихся исполнителей
+    query = work_request_responses.join(users, work_request_responses.c.executor_id == users.c.id).select().with_only_columns([
+        users.c.id, users.c.email, users.c.phone_number, users.c.user_type, users.c.specialization,
+        users.c.is_premium, users.c.average_rating, users.c.ratings_count,
+        work_request_responses.c.id.label("response_id"),
+        work_request_responses.c.comment.label("response_comment"),
+        work_request_responses.c.created_at.label("response_created_at")
+    ]).where(work_request_responses.c.work_request_id == request_id)
+
+    executors = await database.fetch_all(query)
+    return executors
+
+
+@api_router.patch("/work_requests/{request_id}/responses/{response_id}/approve")
+async def approve_work_request_response(request_id: int, response_id: int, current_user: dict = Depends(get_current_user)):
+    """ Эндпоинт для Заказчика, чтобы одобрить отклик и назначить исполнителя """
+    async with database.transaction():
+        # Шаг 1: Проверить, что заявка принадлежит заказчику и ожидает исполнителя
+        request_query = work_requests.select().where(work_requests.c.id == request_id)
+        work_request = await database.fetch_one(request_query)
+
+        if not work_request:
+            raise HTTPException(status_code=404, detail="Заявка не найдена.")
+        if work_request["user_id"] != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Вы можете одобрять исполнителей только для своих заявок.")
+        if work_request["status"] != "ОЖИДАЕТ":
+            raise HTTPException(status_code=400, detail="Заявка уже в работе или выполнена.")
+
+        # Шаг 2: Найти отклик и убедиться, что он относится к этой заявке
+        response_query = work_request_responses.select().where(work_request_responses.c.id == response_id)
+        response = await database.fetch_one(response_query)
+
+        if not response or response["work_request_id"] != request_id:
+            raise HTTPException(status_code=404, detail="Отклик не найден или не относится к данной заявке.")
+        
+        approved_executor_id = response["executor_id"]
+
+        # Шаг 3: Обновить статус заявки, назначить исполнителя
+        update_request_query = work_requests.update().where(work_requests.c.id == request_id).values(
+            status="В РАБОТЕ",
+            executor_id=approved_executor_id
+        )
+        await database.execute(update_request_query)
+
+        # Шаг 4: Обновить статус одобренного отклика
+        update_response_query = work_request_responses.update().where(work_request_responses.c.id == response_id).values(status="APPROVED")
+        await database.execute(update_response_query)
+
+    return {"message": "Исполнитель успешно назначен. Заявка переведена в статус 'В РАБОТЕ'."}
 
 @api_router.patch("/work_requests/{request_id}/status")
 async def update_work_request_status(request_id: int, new_status: str, current_user: dict = Depends(get_current_user)):
