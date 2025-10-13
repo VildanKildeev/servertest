@@ -286,7 +286,8 @@
                     <button class="btn-primary" onclick="showPage('materialAdsPage')">Найти материалы</button>
                 </div>
                 <button class="btn-secondary" onclick="showPage('myRequestsPage')">Мои заявки</button>
-                <button class="btn-secondary" onclick="showPage('profilePage')">Профиль</button>
+                <button class="btn-secondary" onclick="showPage('myRequestsPage')">Мои активные заявки</button>
+<button class="btn-secondary" onclick="showPage('profilePage')">Профиль</button>
                 <button class="btn-link" onclick="logout()">Выйти</button>
             </div>
         </div>
@@ -596,14 +597,14 @@ document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').
                 }
 
                 profileDiv.innerHTML = `
-                    <p><strong>Email:</strong> ${profile.email}</p>
-                    <p><strong>Телефон:</strong> ${profile.phone_number}</p>
-                    <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
-                    ${specializationInfo}
-                    <p><strong>Статус:</strong> ${profile.is_premium ? '<span class="premium">Премиум ★</span>' : 'Обычный'}</p>
-                    <button class="btn-primary" onclick="showPage('completedRequestsPage')">Мои выполненные заявки</button>
-                `;
-            } catch (error) {
+            <p><strong>Email:</strong> ${profile.email}</p>
+            <p><strong>Телефон:</strong> ${profile.phone_number}</p>
+            <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
+            ${specializationInfo}
+            <p><strong>Статус:</strong> ${profile.is_premium ? '<span class="premium">Премиум ★</span>' : 'Обычный'}</p>
+        `; // <-- КНОПКА ОТСЮДА УДАЛЕНА
+
+    } catch (error) {
                 console.error('Error fetching profile:', error);
                 profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>';
             }
