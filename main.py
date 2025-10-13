@@ -354,12 +354,40 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
     return {"id": last_record_id, **work_request.model_dump()}
 
 @api_router.get("/work_requests/")
-async def get_work_requests(city_id: Optional[int] = None):
+async def get_work_requests(
+    city_id: Optional[int] = None, 
+    current_user: dict = Depends(get_current_user)
+):
+    # 1. Базовый запрос
     query = work_requests.select()
+    
+    # 2. Фильтр по городу (обязательно должен быть передан с клиента)
     if city_id:
         query = query.where(work_requests.c.city_id == city_id)
-    query = query.where(work_requests.c.status != "ВЫПОЛНЕНА") # Исключаем выполненные
+        
+    # 3. Фильтр по статусу (показываем только активные/открытые заявки)
+    # Предполагаем, что новые заявки имеют статус 'OPEN'
+    query = query.where(work_requests.c.status == "OPEN") 
+
+    # 4. КЛЮЧЕВОЙ ФИЛЬТР: Фильтр по специализации для ИСПОЛНИТЕЛЕЙ
+    if current_user["user_type"] == "ИСПОЛНИТЕЛЬ":
+        specialization = current_user.get("specialization")
+        
+        # Если специализация Исполнителя установлена, фильтруем
+        if specialization:
+            query = query.where(work_requests.c.specialization == specialization)
+        else:
+            # Если специализация Исполнителя не установлена, 
+            # то ему нечего показывать (или нужно показать ошибку/предупреждение), 
+            # чтобы он заполнил профиль. Возвращаем пустой список, чтобы не показывать нерелевантные заявки.
+            return [] 
+            
+    # 5. Исключаем заявки, созданные самим пользователем (даже если он Заказчик, но просматривает список)
+    query = query.where(work_requests.c.user_id != current_user["id"])
+    
+    # 6. Сортировка: Premium заявки выше
     query = query.order_by(work_requests.c.is_premium.desc(), work_requests.c.created_at.desc())
+
     return await database.fetch_all(query)
 
 @api_router.get("/users/me/requests/")
