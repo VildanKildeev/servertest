@@ -109,7 +109,7 @@ class UserInDB(BaseModel):
     phone_number: str
     user_type: str
     specialization: Optional[str] = None
-    is_premium: bool = False
+    is_premium: Optional[bool] = False # ✅ ИСПРАВЛЕНО
     average_rating: float = 0.0
     ratings_count: int = 0
     class Config: from_attributes = True
@@ -121,10 +121,10 @@ class UserOut(BaseModel):
     phone_number: str
     user_type: str
     specialization: Optional[str] = None
-    is_premium: bool = False
+    is_premium: Optional[bool] = False # ✅ ИСПРАВЛЕНО
     average_rating: float = 0.0
     ratings_count: int = 0
-    class Config: from_attributes = True
+    class Config: from_attributes = Tr
         
 class UserUpdate(BaseModel):
     user_name: Optional[str] = None
