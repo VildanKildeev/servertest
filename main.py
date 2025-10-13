@@ -194,7 +194,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user_db = await database.fetch_one(users.select().where(users.c.email == email))
     if user_db is None:
         raise credentials_exception
-    return user_db
+    return dict(user_db) # Возвращает стандартный словарь
 
 # --- Маршруты API ---
 
