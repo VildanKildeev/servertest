@@ -365,14 +365,38 @@ async def get_work_requests(city_id: Optional[int] = None):
 @api_router.get("/users/me/requests/")
 async def get_my_requests(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
+    user_type = current_user["user_type"]
     
-    # Заявки, созданные пользователем (Заказчик) или где он исполнитель
-    query = work_requests.select().where(
-        (work_requests.c.user_id == user_id) | (work_requests.c.executor_id == user_id)
-    )
-    all_requests = await database.fetch_all(query)
+    final_requests = []
 
-    return sorted(all_requests, key=lambda x: x["created_at"], reverse=True)
+    if user_type == "ЗАКАЗЧИК":
+        # Для заказчика логика проста: все заявки, которые он создал
+        query = work_requests.select().where(work_requests.c.user_id == user_id)
+        final_requests = await database.fetch_all(query)
+
+    elif user_type == "ИСПОЛНИТЕЛЬ":
+        # Для исполнителя логика сложнее:
+        # 1. Заявки, где он уже назначен исполнителем
+        assigned_requests_query = work_requests.select().where(work_requests.c.executor_id == user_id)
+        assigned_requests = await database.fetch_all(assigned_requests_query)
+        
+        # 2. Заявки, на которые он откликнулся, но они еще в статусе "ОЖИДАЕТ"
+        responded_requests_ids_query = select([work_request_responses.c.work_request_id]).where(
+            work_request_responses.c.executor_id == user_id
+        )
+        responded_requests_ids = [row[0] for row in await database.fetch_all(responded_requests_ids_query)]
+
+        # Собираем уникальные ID, чтобы не дублировать
+        all_request_ids = set([req['id'] for req in assigned_requests])
+        all_request_ids.update(responded_requests_ids)
+        
+        if all_request_ids:
+            # Выбираем все уникальные заявки по их ID
+            final_query = work_requests.select().where(work_requests.c.id.in_(all_request_ids))
+            final_requests = await database.fetch_all(final_query)
+
+    # Сортируем по дате создания
+    return sorted(final_requests, key=lambda x: x["created_at"], reverse=True)
 
 @api_router.post("/work_requests/{request_id}/respond", status_code=status.HTTP_201_CREATED)
 async def respond_to_work_request(request_id: int, response: ResponseCreate, current_user: dict = Depends(get_current_user)):
