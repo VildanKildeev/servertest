@@ -14,36 +14,30 @@ from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import exc, text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import select, func as sa_func # Используем alias для func, чтобы не конфликтовать с func из database.py
+from sqlalchemy.sql import select, func as sa_func
 import os
 from dotenv import load_dotenv
 from pathlib import Path
 
-
 # --- Database setup ---
-# Импортируем все таблицы и метаданды из файла database.py
+# Импортируем все таблицы, включая новые, из файла database.py
 from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, ratings, work_request_responses
 
 load_dotenv()
 
-# --- ИСПРАВЛЕНИЕ ПУТЕЙ ДЛЯ СТАТИЧЕСКИХ ФАЙЛОВ ---
-# Находим корневую папку проекта
 base_path = Path(__file__).parent
-# Определяем путь к папке static
 static_path = base_path / "static"
-# ------------------------------------------------
 
 # Настройки для токенов
-SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key")
+SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key-that-is-long")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 часа для удобства тестирования
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 app = FastAPI(title="СМЗ.РФ API")
 api_router = APIRouter(prefix="/api")
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*", "null"],
@@ -52,48 +46,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- ИСПРАВЛЕНИЕ 2: Монтирование папки static ---
-# Монтируем папку static под префиксом /static
 app.mount("/static", StaticFiles(directory=static_path), name="static")
-# ------------------------------------------------
 
 @app.on_event("startup")
 async def startup():
     await database.connect()
-    metadata.create_all(engine)
-    print("Database connected and tables checked/created.")
-
-    # --- КОД ДЛЯ ЗАПОЛНЕНИЯ ГОРОДОВ ---
+    # metadata.create_all(engine) # В продакшене лучше управлять миграциями отдельно
+    print("Database connected.")
+    
+    # Код для начального заполнения городов
     query = cities.select().limit(1)
-    city_exists = await database.fetch_one(query)
-
-    if not city_exists:
+    if not await database.fetch_one(query):
         print("Города не найдены, добавляю стандартный список...")
-        default_cities = [
-            {"name": "Москва"},
-            {"name": "Санкт-Петербург"},
-            {"name": "Новосибирск"},
-            {"name": "Екатеринбург"},
-            {"name": "Казань"},
-            {"name": "Нижний Новгород"},
-            {"name": "Челябинск"},
-            {"name": "Самара"},
-            {"name": "Омск"},
-            {"name": "Ростов-на-Дону"},
-        ]
-        insert_query = cities.insert().values(default_cities)
-        await database.execute(insert_query)
+        default_cities = [{"name": "Москва"}, {"name": "Санкт-Петербург"}, {"name": "Новосибирск"}, {"name": "Екатеринбург"}, {"name": "Казань"}]
+        await database.execute(cities.insert().values(default_cities))
         print("Города успешно добавлены.")
-    # --- КОНЕЦ КОДА ---
 
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
     print("Database disconnected.")
 
-# Схемы Pydantic для валидации данных
+# --- Схемы Pydantic (модели данных) ---
 
-# НОВАЯ И ОБНОВЛЕННАЯ модель для создания пользователя
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -101,46 +76,24 @@ class UserCreate(BaseModel):
     user_type: str = Field(..., description="Тип пользователя: ЗАКАЗЧИК или ИСПОЛНИТЕЛЬ")
     specialization: Optional[str] = None
 
-# Модель для пользователя, который хранится в БД
-class UserInDB(BaseModel):
-    id: int
-    email: str
-    hashed_password: str
-    phone_number: str
-    user_type: str
-    specialization: Optional[str] = None
-    is_premium: Optional[bool] = False
-    average_rating: Optional[float] = 0.0
-    ratings_count: Optional[int] = 0
-    class Config: from_attributes = True
-
-# Обновленная модель для вывода пользователя
 class UserOut(BaseModel):
     id: int
     email: str
     phone_number: str
     user_type: str
     specialization: Optional[str] = None
-    is_premium: Optional[bool] = False
-    average_rating: Optional[float] = 0.0 # <- СТАЛО
-    ratings_count: Optional[int] = 0    # <- СТАЛО
+    is_premium: bool
+    average_rating: float
+    ratings_count: int
     class Config: from_attributes = True
-        
-class UserUpdate(BaseModel):
-    user_name: Optional[str] = None
-    email: Optional[str] = None
-    user_type: Optional[str] = None
-    specialization: Optional[str] = None
-    is_premium: Optional[bool] = None
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
-    username: str | None = None
+    username: Optional[str] = None
 
-# Схемы для работы
 class WorkRequestIn(BaseModel):
     description: str
     specialization: str
@@ -150,77 +103,27 @@ class WorkRequestIn(BaseModel):
     is_premium: bool = False
     is_master_visit_required: bool = False
 
-class WorkRequestUpdate(BaseModel):
-    description: Optional[str] = None
-    specialization: Optional[str] = None
-    budget: Optional[float] = None
-    contact_info: Optional[str] = None
-    city_id: Optional[int] = None
-    is_premium: Optional[bool] = None
-    executor_id: Optional[int] = None
-    status: Optional[str] = None
-
 class ResponseCreate(BaseModel):
     comment: Optional[str] = None
 
-class RatingIn(BaseModel):
-    rating: int = Field(..., ge=1, le=5)
-    comment: Optional[str] = None
-    # НОВОЕ ПОЛЕ для двустороннего рейтинга
-    rating_type: str # Должно быть 'TO_EXECUTOR' или 'TO_CUSTOMER'
-
-class ResponseOut(UserOut): # Наследуем от UserOut, чтобы сразу получить данные исполнителя
+class ResponseOut(UserOut):
     response_id: int
     response_comment: Optional[str] = None
     response_created_at: datetime
 
-# Схемы для спецтехники (ОБНОВЛЕНО)
-class MachineryRequestIn(BaseModel):
-    machinery_type: str
-    description: Optional[str] = None
-    rental_price: float
-    contact_info: str
-    city_id: int
-    is_premium: bool = False
-    rental_date: Optional[date] = None
-    min_rental_hours: int = 4
-    has_delivery: bool = False
-    delivery_address: Optional[str] = None
+# ИСПРАВЛЕНА: Модель для рейтинга, теперь она одна и универсальная
+class RatingIn(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = None
+    rating_type: str # 'TO_EXECUTOR' или 'TO_CUSTOMER'
 
-# Схемы для инструмента
-class ToolRequestIn(BaseModel):
-    tool_name: str
-    description: Optional[str] = None
-    rental_price: float
-    contact_info: str
-    city_id: int
-    count: int = 1
-    rental_start_date: Optional[date] = None
-    rental_end_date: Optional[date] = None
-    has_delivery: bool = False
-    delivery_address: Optional[str] = None
-
-# Схемы для материалов
-class MaterialAdIn(BaseModel):
-    material_type: str
-    description: Optional[str] = None
-    price: float
-    contact_info: str
-    city_id: int
-    is_premium: bool = False
-
-# Схемы для города
 class City(BaseModel):
     id: int
     name: str
     class Config: from_attributes = True
 
-# НОВАЯ СХЕМА ДЛЯ РЕЙТИНГА
-class RatingCreate(BaseModel):
-    rating_value: int = Field(..., ge=1, le=5)
-    comment: Optional[str] = None
+# --- Утилиты для аутентификации и безопасности ---
 
-# Хэширование пароля
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password, hashed_password):
@@ -229,21 +132,22 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-# Функция для аутентификации пользователя
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 async def authenticate_user(username: str, password: str):
-    query = users.select().where(users.c.email == username)
-    user_db = await database.fetch_one(query)
-    if not user_db:
-        return False
-    if not verify_password(password, user_db["hashed_password"]):
-        return False
+    user_db = await database.fetch_one(users.select().where(users.c.email == username))
+    if not user_db or not verify_password(password, user_db["hashed_password"]):
+        return None
     return user_db
 
-# Проверка пользователя
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -251,26 +155,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-        token_data = TokenData(username=email)
     except JWTError:
         raise credentials_exception
-
-    query = users.select().where(users.c.email == token_data.username)
-    user_db = await database.fetch_one(query)
+    
+    user_db = await database.fetch_one(users.select().where(users.c.email == email))
     if user_db is None:
         raise credentials_exception
     return user_db
-
-# Создание токена
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
 
 # --- Маршруты API ---
 
@@ -278,19 +169,14 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 async def serve_index():
     return FileResponse(static_path / "index.html")
 
-@api_router.get("/cities/", response_model=List[City])
-async def get_cities():
-    query = cities.select().order_by(cities.c.name)
-    return await database.fetch_all(query)
+# --- Регистрация, логин, профиль ---
 
 @api_router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user_db = await authenticate_user(form_data.username, form_data.password)
     if not user_db:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль"
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -298,182 +184,102 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@api_router.get("/users/me", response_model=UserOut)
-async def read_users_me(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["id"]
-    
-    query = users.select().where(users.c.id == user_id)
-    user_record = await database.fetch_one(query)
-    
-    if not user_record:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-        
-    # Просто возвращаем запись. Модель Pydantic `UserOut` сама отфильтрует
-    # ненужные поля (например, `hashed_password`) и включит нужные (`average_rating`).
-    # Это самый правильный и эффективный способ.
-    return user_record
-
 @api_router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserOut)
-async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
-    query_check = users.select().where(users.c.email == user.email)
-    if await database.fetch_one(query_check):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Пользователь с таким email уже существует."
-        )
-
+async def create_user(user: UserCreate):
+    if await database.fetch_one(users.select().where(users.c.email == user.email)):
+        raise HTTPException(status_code=409, detail="Пользователь с таким email уже существует.")
     if user.user_type == "ИСПОЛНИТЕЛЬ" and not user.specialization:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Для типа 'ИСПОЛНИТЕЛЬ' поле 'specialization' обязательно."
-        )
+        raise HTTPException(status_code=400, detail="Для 'ИСПОЛНИТЕЛЯ' специализация обязательна.")
     
     hashed_password = get_password_hash(user.password)
     query = users.insert().values(
-        email=user.email,
-        hashed_password=hashed_password,
-        phone_number=user.phone_number,
-        user_type=user.user_type,
-        specialization=user.specialization
+        email=user.email, hashed_password=hashed_password, phone_number=user.phone_number,
+        user_type=user.user_type, specialization=user.specialization
     )
-    last_record_id = await database.execute(query)
-    
-    user_in_db_query = users.select().where(users.c.id == last_record_id)
-    user_in_db = await database.fetch_one(user_in_db_query)
-    return user_in_db
+    user_id = await database.execute(query)
+    return await database.fetch_one(users.select().where(users.c.id == user_id))
 
-# Создание запроса на работу
+@api_router.get("/users/me", response_model=UserOut)
+async def read_users_me(current_user: dict = Depends(get_current_user)):
+    return current_user
+
+# --- Основная логика заявок на работу ---
+
 @api_router.post("/work_requests/", status_code=status.HTTP_201_CREATED)
 async def create_work_request(work_request: WorkRequestIn, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["id"]
-    query = work_requests.insert().values(
-        user_id=user_id,
-        description=work_request.description,
-        specialization=work_request.specialization,
-        budget=work_request.budget,
-        contact_info=work_request.contact_info,
-        city_id=work_request.city_id,
-        is_premium=work_request.is_premium,
-        is_master_visit_required=work_request.is_master_visit_required
-    )
-    last_record_id = await database.execute(query)
-    return {"id": last_record_id, **work_request.model_dump()}
+    query = work_requests.insert().values(user_id=current_user["id"], **work_request.model_dump())
+    request_id = await database.execute(query)
+    return {"id": request_id, **work_request.model_dump()}
 
 @api_router.get("/work_requests/")
-async def get_work_requests(
-    city_id: Optional[int] = None, 
-    current_user: dict = Depends(get_current_user)
-):
-    # 1. Базовый запрос
-    query = work_requests.select()
-    
-    # 2. Фильтр по городу (обязательно должен быть передан с клиента)
-    if city_id:
-        query = query.where(work_requests.c.city_id == city_id)
-        
-    # 3. Фильтр по статусу (показываем только активные/открытые заявки)
-    # Предполагаем, что новые заявки имеют статус 'OPEN'
-    query = query.where(work_requests.c.status == "OPEN") 
+async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
+    """ ИСПРАВЛЕНО: Полностью переписанная и стандартизированная логика фильтрации. """
+    query = work_requests.select().where(work_requests.c.city_id == city_id)
+    # Показываем только заявки, которые ожидают исполнителя
+    query = query.where(work_requests.c.status == "ОЖИДАЕТ")
+    # Не показывать пользователю его собственные заявки в общем списке
+    query = query.where(work_requests.c.user_id != current_user["id"])
 
-    # 4. КЛЮЧЕВОЙ ФИЛЬТР: Фильтр по специализации для ИСПОЛНИТЕЛЕЙ
+    # Ключевой фильтр: если пользователь - исполнитель, он видит только свою специализацию
     if current_user["user_type"] == "ИСПОЛНИТЕЛЬ":
         specialization = current_user.get("specialization")
-        
-        # Если специализация Исполнителя установлена, фильтруем
-        if specialization:
-            query = query.where(work_requests.c.specialization == specialization)
-        else:
-            # Если специализация Исполнителя не установлена, 
-            # то ему нечего показывать (или нужно показать ошибку/предупреждение), 
-            # чтобы он заполнил профиль. Возвращаем пустой список, чтобы не показывать нерелевантные заявки.
-            return [] 
+        if not specialization:
+            return [] # У исполнителя нет специализации - он не видит ни одной заявки
+        query = query.where(work_requests.c.specialization == specialization)
             
-    # 5. Исключаем заявки, созданные самим пользователем (даже если он Заказчик, но просматривает список)
-    query = query.where(work_requests.c.user_id != current_user["id"])
-    
-    # 6. Сортировка: Premium заявки выше
     query = query.order_by(work_requests.c.is_premium.desc(), work_requests.c.created_at.desc())
-
     return await database.fetch_all(query)
 
 @api_router.get("/users/me/requests/")
 async def get_my_requests(current_user: dict = Depends(get_current_user)):
+    """ ИСПРАВЛЕНО: Более чистая и правильная логика получения "моих" заявок. """
     user_id = current_user["id"]
-    user_type = current_user["user_type"]
     
-    final_requests = []
-
-    if user_type == "ЗАКАЗЧИК":
-        # Для заказчика логика проста: все заявки, которые он создал
+    if current_user["user_type"] == "ЗАКАЗЧИК":
+        # Заказчик видит все заявки, которые он создал
         query = work_requests.select().where(work_requests.c.user_id == user_id)
-        final_requests = await database.fetch_all(query)
-
-    elif user_type == "ИСПОЛНИТЕЛЬ":
-        # Для исполнителя логика сложнее:
-        # 1. Заявки, где он уже назначен исполнителем
-        assigned_requests_query = work_requests.select().where(work_requests.c.executor_id == user_id)
-        assigned_requests = await database.fetch_all(assigned_requests_query)
+    
+    elif current_user["user_type"] == "ИСПОЛНИТЕЛЬ":
+        # Исполнитель видит и те заявки, где он назначен, и те, на которые он откликнулся
+        assigned_q = select(work_requests.c.id).where(work_requests.c.executor_id == user_id)
+        responded_q = select(work_request_responses.c.work_request_id).where(work_request_responses.c.executor_id == user_id)
         
-        # 2. Заявки, на которые он откликнулся, но они еще в статусе "ОЖИДАЕТ"
-        responded_requests_ids_query = select(work_request_responses.c.work_request_id).where(
-            work_request_responses.c.executor_id == user_id
-        )
-        responded_requests_ids = [row[0] for row in await database.fetch_all(responded_requests_ids_query)]
+        # Объединяем ID заявок без дубликатов
+        all_my_request_ids = assigned_q.union(responded_q)
+        query = work_requests.select().where(work_requests.c.id.in_(all_my_request_ids))
+    else:
+        return []
 
-        # Собираем уникальные ID, чтобы не дублировать
-        all_request_ids = set([req['id'] for req in assigned_requests])
-        all_request_ids.update(responded_requests_ids)
-        
-        if all_request_ids:
-            # Выбираем все уникальные заявки по их ID
-            final_query = work_requests.select().where(work_requests.c.id.in_(all_request_ids))
-            final_requests = await database.fetch_all(final_query)
+    return await database.fetch_all(query.order_by(work_requests.c.created_at.desc()))
 
-    # Сортируем по дате создания
-    return sorted(final_requests, key=lambda x: x["created_at"], reverse=True)
+# --- Новые эндпоинты для системы откликов ---
 
-@api_router.post("/work_requests/{request_id}/respond", status_code=status.HTTP_201_CREATED)
+@api_router.post("/work_requests/{request_id}/respond", status_code=201)
 async def respond_to_work_request(request_id: int, response: ResponseCreate, current_user: dict = Depends(get_current_user)):
-    """ Эндпоинт для Исполнителя, чтобы откликнуться на заявку """
+    """ Исполнитель откликается на заявку. """
     if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
-        raise HTTPException(status_code=403, detail="Только исполнители могут откликаться на заявки.")
+        raise HTTPException(status_code=403, detail="Только исполнители могут откликаться.")
 
-    # Проверяем, что заявка существует и ожидает исполнителя
-    request_query = work_requests.select().where(work_requests.c.id == request_id)
-    work_request = await database.fetch_one(request_query)
-    if not work_request:
-        raise HTTPException(status_code=404, detail="Заявка не найдена.")
-    if work_request["status"] != "ОЖИДАЕТ":
-        raise HTTPException(status_code=400, detail="Откликнуться можно только на заявки со статусом 'ОЖИДАЕТ'.")
-    if work_request["user_id"] == current_user["id"]:
-        raise HTTPException(status_code=400, detail="Вы не можете откликнуться на собственную заявку.")
+    work_req = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
+    if not work_req or work_req["status"] != "ОЖИДАЕТ":
+        raise HTTPException(status_code=400, detail="Нельзя откликнуться на эту заявку (она неактивна).")
 
-    # Создаем отклик
-    insert_query = work_request_responses.insert().values(
-        work_request_id=request_id,
-        executor_id=current_user["id"],
-        comment=response.comment
-    )
     try:
-        last_record_id = await database.execute(insert_query)
-        return {"message": "Вы успешно откликнулись на заявку.", "response_id": last_record_id}
-    except exc.IntegrityError:
-        # Это сработает, если сработает UniqueConstraint в БД (повторный отклик)
+        await database.execute(work_request_responses.insert().values(
+            work_request_id=request_id, executor_id=current_user["id"], comment=response.comment
+        ))
+    except exc.IntegrityError: # Сработает UniqueConstraint, если уже откликался
         raise HTTPException(status_code=400, detail="Вы уже откликались на эту заявку.")
-
+    
+    return {"message": "Вы успешно откликнулись на заявку."}
 
 @api_router.get("/work_requests/{request_id}/responses", response_model=List[ResponseOut])
 async def get_work_request_responses(request_id: int, current_user: dict = Depends(get_current_user)):
-    """ Эндпоинт для Заказчика, чтобы посмотреть отклики на свою заявку """
-    # Проверяем, что заявка существует и принадлежит текущему пользователю
-    request_query = work_requests.select().where(work_requests.c.id == request_id)
-    work_request = await database.fetch_one(request_query)
-    if not work_request:
-        raise HTTPException(status_code=404, detail="Заявка не найдена.")
-    if work_request["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Вы можете просматривать отклики только на свои заявки.")
+    """ Заказчик смотрит отклики на свою заявку. """
+    work_req = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
+    if not work_req or work_req["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Это не ваша заявка.")
 
-    # Получаем всех откликнувшихся исполнителей
     query = work_request_responses.join(users, work_request_responses.c.executor_id == users.c.id).select().with_only_columns([
         users.c.id, users.c.email, users.c.phone_number, users.c.user_type, users.c.specialization,
         users.c.is_premium, users.c.average_rating, users.c.ratings_count,
@@ -482,158 +288,111 @@ async def get_work_request_responses(request_id: int, current_user: dict = Depen
         work_request_responses.c.created_at.label("response_created_at")
     ]).where(work_request_responses.c.work_request_id == request_id)
 
-    executors = await database.fetch_all(query)
-    return executors
-
+    return await database.fetch_all(query)
 
 @api_router.patch("/work_requests/{request_id}/responses/{response_id}/approve")
 async def approve_work_request_response(request_id: int, response_id: int, current_user: dict = Depends(get_current_user)):
-    """ Эндпоинт для Заказчика, чтобы одобрить отклик и назначить исполнителя """
+    """ Заказчик утверждает исполнителя, что меняет статус заявки. """
     async with database.transaction():
-        # Шаг 1: Проверить, что заявка принадлежит заказчику и ожидает исполнителя
-        request_query = work_requests.select().where(work_requests.c.id == request_id)
-        work_request = await database.fetch_one(request_query)
+        work_req = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
+        if not work_req or work_req["user_id"] != current_user["id"] or work_req["status"] != "ОЖИДАЕТ":
+            raise HTTPException(status_code=403, detail="Невозможно назначить исполнителя для этой заявки.")
 
-        if not work_request:
-            raise HTTPException(status_code=404, detail="Заявка не найдена.")
-        if work_request["user_id"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Вы можете одобрять исполнителей только для своих заявок.")
-        if work_request["status"] != "ОЖИДАЕТ":
-            raise HTTPException(status_code=400, detail="Заявка уже в работе или выполнена.")
-
-        # Шаг 2: Найти отклик и убедиться, что он относится к этой заявке
-        response_query = work_request_responses.select().where(work_request_responses.c.id == response_id)
-        response = await database.fetch_one(response_query)
-
+        response = await database.fetch_one(work_request_responses.select().where(work_request_responses.c.id == response_id))
         if not response or response["work_request_id"] != request_id:
-            raise HTTPException(status_code=404, detail="Отклик не найден или не относится к данной заявке.")
+            raise HTTPException(status_code=404, detail="Отклик не найден.")
         
-        approved_executor_id = response["executor_id"]
+        # Обновляем заявку: ставим статус "В РАБОТЕ" и назначаем ID исполнителя
+        await database.execute(work_requests.update().where(work_requests.c.id == request_id).values(
+            status="В РАБОТЕ", executor_id=response["executor_id"]
+        ))
+    return {"message": "Исполнитель успешно назначен."}
 
-        # Шаг 3: Обновить статус заявки, назначить исполнителя
-        update_request_query = work_requests.update().where(work_requests.c.id == request_id).values(
-            status="В РАБОТЕ",
-            executor_id=approved_executor_id
-        )
-        await database.execute(update_request_query)
-
-        # Шаг 4: Обновить статус одобренного отклика
-        update_response_query = work_request_responses.update().where(work_request_responses.c.id == response_id).values(status="APPROVED")
-        await database.execute(update_response_query)
-
-    return {"message": "Исполнитель успешно назначен. Заявка переведена в статус 'В РАБОТЕ'."}
+# --- Управление статусом и рейтинг ---
 
 @api_router.patch("/work_requests/{request_id}/status")
 async def update_work_request_status(request_id: int, new_status: str, current_user: dict = Depends(get_current_user)):
-    query_select = work_requests.select().where(work_requests.c.id == request_id)
-    request_db = await database.fetch_one(query_select)
-
+    """ Заказчик меняет статус своей заявки (например, на ВЫПОЛНЕНА). """
+    request_db = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
     if not request_db:
         raise HTTPException(status_code=404, detail="Заявка не найдена.")
     
     if request_db["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Только заказчик может менять статус этой заявки.")
+        raise HTTPException(status_code=403, detail="У вас нет прав на изменение этой заявки.")
         
-    valid_statuses = ["ВЫПОЛНЕНА", "ОТМЕНЕНА"] # Заказчик не может вернуть в работу
+    valid_statuses = ["ВЫПОЛНЕНА", "ОТМЕНЕНА"]
     if new_status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Недопустимый статус: {new_status}. Разрешены: {', '.join(valid_statuses)}")
+        raise HTTPException(status_code=400, detail="Недопустимый статус.")
 
-    query_update = work_requests.update().where(work_requests.c.id == request_id).values(status=new_status)
-    await database.execute(query_update)
-    
-    return {"message": f"Статус заявки #{request_id} обновлен до '{new_status}'.", "request_id": request_id}
+    await database.execute(work_requests.update().where(work_requests.c.id == request_id).values(status=new_status))
+    return {"message": f"Статус заявки обновлен на '{new_status}'."}
 
-# ===========================================================================
-# НОВЫЙ МАРШРУТ: Оценка выполненной работы (Заказчик -> Исполнителю)
-# ===========================================================================
 @api_router.post("/work_requests/{request_id}/rate")
-async def rate_work_request(
-    request_id: int, 
-    rating_data: RatingIn, 
-    current_user: dict = Depends(get_current_user)
-):
-    # 0. Проверка типа оценки
-    if rating_data.rating_type not in ["TO_EXECUTOR", "TO_CUSTOMER"]:
-        raise HTTPException(status_code=400, detail="Неверный 'rating_type'. Должен быть 'TO_EXECUTOR' или 'TO_CUSTOMER'.")
+async def rate_work_request(request_id: int, rating_data: RatingIn, current_user: dict = Depends(get_current_user)):
+    """ ИСПРАВЛЕНО: Полностью переписанная, безопасная и корректная логика рейтинга. """
+    async with database.transaction():
+        req = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
+        if not req:
+            raise HTTPException(status_code=404, detail="Заявка не найдена.")
+        
+        # Оценить можно только ВЫПОЛНЕННУЮ заявку
+        if req["status"] != "ВЫПОЛНЕНА":
+            raise HTTPException(status_code=400, detail="Оценить можно только выполненную заявку.")
 
-    # 1. Получение данных заявки и назначенного исполнителя
-    work_request_query = select(work_requests).where(work_requests.c.id == request_id)
-    request_record = await database.fetch_one(work_request_query)
-    
-    if not request_record:
-        raise HTTPException(status_code=404, detail="Заявка не найдена.")
-    
-    # Заявка должна быть в статусе "COMPLETED" для оценки
-    if request_record["status"] != "COMPLETED":
-         raise HTTPException(status_code=400, detail="Оценить можно только выполненную заявку.")
+        rater_id = current_user["id"]
+        rated_id = None
 
-    # Находим назначенного исполнителя (предполагаем, что статус APPROVED означает назначенного)
-    executor_id_query = select(work_request_responses.c.executor_id).where(
-        (work_request_responses.c.work_request_id == request_id) & 
-        (work_request_responses.c.status == "APPROVED")
-    )
-    executor_record = await database.fetch_one(executor_id_query)
+        # Определяем, кто кого оценивает
+        if rating_data.rating_type == "TO_EXECUTOR":
+            if rater_id != req["user_id"]: raise HTTPException(status_code=403, detail="Только заказчик может оценить исполнителя.")
+            rated_id = req["executor_id"]
+        elif rating_data.rating_type == "TO_CUSTOMER":
+            if rater_id != req["executor_id"]: raise HTTPException(status_code=403, detail="Только исполнитель может оценить заказчика.")
+            rated_id = req["user_id"]
+        else:
+            raise HTTPException(status_code=400, detail="Неверный тип оценки ('rating_type').")
+        
+        if not rated_id:
+            raise HTTPException(status_code=400, detail="Не удалось определить оцениваемого пользователя.")
 
-    if not executor_record:
-        raise HTTPException(status_code=400, detail="У заявки нет назначенного исполнителя (статус APPROVED).")
-    
-    customer_id = request_record["user_id"]
-    executor_id = executor_record["executor_id"]
-    
-    # 2. Определение Rater (Кто ставит) и Rated (Кому ставят)
-    rater_id = current_user["id"]
-    
-    if rating_data.rating_type == "TO_EXECUTOR":
-        # Оценивает Заказчик (Customer) -> Оценивают Исполнителя (Executor)
-        if rater_id != customer_id:
-            raise HTTPException(status_code=403, detail="Только Заказчик может оценить Исполнителя.")
-        rated_id = executor_id
-    elif rating_data.rating_type == "TO_CUSTOMER": 
-        # Оценивает Исполнитель (Executor) -> Оценивают Заказчика (Customer)
-        if rater_id != executor_id:
-            raise HTTPException(status_code=403, detail="Только назначенный Исполнитель может оценить Заказчика.")
-        rated_id = customer_id
-    
-    # 3. Проверка на дубликат оценки
-    rating_check_query = select(ratings).where(
-        (ratings.c.work_request_id == request_id) &
-        (ratings.c.rater_user_id == rater_id) &
-        (ratings.c.rated_user_id == rated_id)
-    )
-    if await database.fetch_one(rating_check_query):
-        raise HTTPException(status_code=400, detail="Эта оценка уже была выставлена.")
+        # Проверяем, не оставлял ли этот пользователь уже оценку для этой заявки
+        if await database.fetch_one(ratings.select().where(
+            (ratings.c.work_request_id == request_id) & (ratings.c.rater_user_id == rater_id)
+        )):
+            raise HTTPException(status_code=400, detail="Вы уже оставили оценку для этой заявки.")
+        
+        # Вставляем новую оценку в таблицу ratings
+        await database.execute(ratings.insert().values(
+            work_request_id=request_id, rater_user_id=rater_id, rated_user_id=rated_id,
+            rating_type=rating_data.rating_type, rating=rating_data.rating, comment=rating_data.comment
+        ))
 
-    # 4. Вставка новой оценки
-    insert_query = ratings.insert().values(
-        work_request_id=request_id,
-        rater_user_id=rater_id,
-        rated_user_id=rated_id,
-        rating_type=rating_data.rating_type,
-        rating=rating_data.rating,
-        comment=rating_data.comment,
-    )
-    await database.execute(insert_query)
-    
-    # 5. Обновление среднего рейтинга пользователя (rated_id)
-    # Получаем текущее количество оценок и средний рейтинг
-    user_query = select(users.c.ratings_count, users.c.average_rating).where(users.c.id == rated_id)
-    user_record = await database.fetch_one(user_query)
-    
-    current_count = user_record["ratings_count"] or 0
-    current_avg = user_record["average_rating"] or 0.0
-    
-    # Пересчет
-    new_count = current_count + 1
-    old_sum = current_avg * current_count
-    new_sum = old_sum + rating_data.rating
-    new_avg = new_sum / new_count
-    
-    # Обновляем пользователя в базе
-    update_query = users.update().where(users.c.id == rated_id).values(
-        ratings_count=new_count,
-        average_rating=round(new_avg, 2)
-    )
-    await database.execute(update_query)
+        # Пересчитываем средний рейтинг для пользователя, которому поставили оценку
+        # Это более эффективно делать через агрегирующие функции SQL
+        avg_query = select(sa_func.avg(ratings.c.rating), sa_func.count(ratings.c.id)).where(ratings.c.rated_user_id == rated_id)
+        result = await database.fetch_one(avg_query)
+        new_avg = round(float(result[0] or 0), 2)
+        new_count = result[1] or 0
+
+        # Обновляем профиль пользователя
+        await database.execute(users.update().where(users.c.id == rated_id).values(
+            average_rating=new_avg, ratings_count=new_count
+        ))
+
+    return {"message": "Оценка успешно отправлена."}
+
+# --- Справочники (без изменений) ---
+@api_router.get("/cities/", response_model=List[City])
+async def get_cities():
+    return await database.fetch_all(cities.select().order_by(cities.c.name))
+
+
+@api_router.post("/update_specialization/")
+async def update_user_specialization(specialization: str, current_user: dict = Depends(get_current_user)):
+    if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
+        raise HTTPException(status_code=403, detail="Специализацию могут менять только исполнители.")
+    await database.execute(users.update().where(users.c.id == current_user["id"]).values(specialization=specialization))
+    return {"message": "Специализация успешно обновлена."}
 
     return {"message": f"Оценка {rating_data.rating} успешно выставлена пользователю (ID: {rated_id}) за заявку {request_id}."}
 @api_router.get("/specializations/")
