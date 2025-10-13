@@ -344,18 +344,24 @@ async def approve_work_request_response(request_id: int, response_id: int, curre
 # --- Управление статусом и рейтинг ---
 
 @api_router.patch("/work_requests/{request_id}/status")
-async def update_work_request_status(request_id: int, new_status: str, current_user: dict = Depends(get_current_user)):
-    """ Заказчик меняет статус своей заявки (например, на ВЫПОЛНЕНА). """
-    request_db = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id))
+async def update_work_request_status(request_id: int, new_status: str, current_user: dict = Depends(get_current_user)): # В Pydantic модели Body было бы лучше
+    # ... (старые проверки остаются)
     if not request_db:
         raise HTTPException(status_code=404, detail="Заявка не найдена.")
-    
     if request_db["user_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="У вас нет прав на изменение этой заявки.")
         
     valid_statuses = ["ВЫПОЛНЕНА", "ОТМЕНЕНА"]
     if new_status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Недопустимый статус.")
+
+    # ===== НОВАЯ ПРОВЕРКА =====
+    if new_status == "ВЫПОЛНЕНА" and not request_db["executor_id"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя завершить заявку, для которой не назначен исполнитель."
+        )
+    # ==========================
 
     await database.execute(work_requests.update().where(work_requests.c.id == request_id).values(status=new_status))
     return {"message": f"Статус заявки обновлен на '{new_status}'."}
@@ -436,8 +442,8 @@ async def get_machinery_types():
         {"id": 5, "name": "Компрессор"},
     ]
 
-@api_router.get("/tools_list/")
-async def get_tools_list():
+@api_router.get("/tool_names/")
+async def get_tool_names():
     return [
         {"id": 1, "name": "Отбойный молоток"}, {"id": 2, "name": "Бетономешалка"},
         {"id": 3, "name": "Виброплита"}, {"id": 4, "name": "Перфоратор (мощный)"},
