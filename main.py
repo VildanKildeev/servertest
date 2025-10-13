@@ -110,8 +110,8 @@ class UserInDB(BaseModel):
     user_type: str
     specialization: Optional[str] = None
     is_premium: Optional[bool] = False
-    average_rating: float = 0.0
-    ratings_count: int = 0
+    average_rating: Optional[float] = 0.0
+    ratings_count: Optional[int] = 0
     class Config: from_attributes = True
 
 # Обновленная модель для вывода пользователя
@@ -122,8 +122,8 @@ class UserOut(BaseModel):
     user_type: str
     specialization: Optional[str] = None
     is_premium: Optional[bool] = False
-    average_rating: float = 0.0
-    ratings_count: int = 0
+    average_rating: Optional[float] = 0.0 # <- СТАЛО
+    ratings_count: Optional[int] = 0    # <- СТАЛО
     class Config: from_attributes = True
         
 class UserUpdate(BaseModel):
@@ -381,7 +381,7 @@ async def get_my_requests(current_user: dict = Depends(get_current_user)):
         assigned_requests = await database.fetch_all(assigned_requests_query)
         
         # 2. Заявки, на которые он откликнулся, но они еще в статусе "ОЖИДАЕТ"
-        responded_requests_ids_query = select([work_request_responses.c.work_request_id]).where(
+        responded_requests_ids_query = select(work_request_responses.c.work_request_id).where(
             work_request_responses.c.executor_id == user_id
         )
         responded_requests_ids = [row[0] for row in await database.fetch_all(responded_requests_ids_query)]
