@@ -234,6 +234,10 @@ async def create_user(user: UserCreate):
 
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
+    # Устанавливаем значения по умолчанию, если в базе старые записи с NULL
+    # Это предотвратит ошибку валидации ответа.
+    current_user["average_rating"] = current_user.get("average_rating") or 0.0
+    current_user["ratings_count"] = current_user.get("ratings_count") or 0
     return current_user
 
 # --- Основная логика заявок на работу ---
@@ -315,7 +319,10 @@ async def get_work_request_responses(request_id: int, current_user: dict = Depen
 
     query = work_request_responses.join(users, work_request_responses.c.executor_id == users.c.id).select().with_only_columns([
         users.c.id, users.c.email, users.c.phone_number, users.c.user_type, users.c.specialization,
-        users.c.is_premium, users.c.average_rating, users.c.ratings_count,
+        users.c.is_premium,
+        # Используем COALESCE, чтобы заменить NULL на 0.0 или 0 прямо в SQL-запросе
+        sa_func.coalesce(users.c.average_rating, 0.0).label("average_rating"),
+        sa_func.coalesce(users.c.ratings_count, 0).label("ratings_count"),
         work_request_responses.c.id.label("response_id"),
         work_request_responses.c.comment.label("response_comment"),
         work_request_responses.c.created_at.label("response_created_at")
