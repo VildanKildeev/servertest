@@ -122,6 +122,39 @@ class City(BaseModel):
     name: str
     class Config: from_attributes = True
 
+# ДОБАВЛЕНЫ: Модели для спецтехники, инструментов и материалов
+class MachineryRequestIn(BaseModel):
+    machinery_type: str
+    description: str
+    rental_price: float
+    contact_info: str
+    city_id: int
+    is_premium: bool = False
+    rental_date: date
+    min_rental_hours: int = Field(..., ge=1)
+    has_delivery: bool = False
+    delivery_address: Optional[str] = None
+
+class ToolRequestIn(BaseModel):
+    tool_name: str
+    description: str
+    rental_price: float
+    contact_info: str
+    city_id: int
+    count: int = Field(..., ge=1)
+    rental_start_date: date
+    rental_end_date: date
+    has_delivery: bool = False
+    delivery_address: Optional[str] = None
+
+class MaterialAdIn(BaseModel):
+    material_type: str
+    description: str
+    price: float
+    contact_info: str
+    city_id: int
+    is_premium: bool = False
+
 # --- Утилиты для аутентификации и безопасности ---
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -386,15 +419,6 @@ async def rate_work_request(request_id: int, rating_data: RatingIn, current_user
 async def get_cities():
     return await database.fetch_all(cities.select().order_by(cities.c.name))
 
-
-@api_router.post("/update_specialization/")
-async def update_user_specialization(specialization: str, current_user: dict = Depends(get_current_user)):
-    if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
-        raise HTTPException(status_code=403, detail="Специализацию могут менять только исполнители.")
-    await database.execute(users.update().where(users.c.id == current_user["id"]).values(specialization=specialization))
-    return {"message": "Специализация успешно обновлена."}
-
-    return {"message": f"Оценка {rating_data.rating} успешно выставлена пользователю (ID: {rated_id}) за заявку {request_id}."}
 @api_router.get("/specializations/")
 async def get_specializations():
     return [
@@ -428,7 +452,7 @@ async def get_material_types():
         {"id": 5, "name": "Пиломатериалы"},
     ]
 
-# --- Остальные эндпоинты (без изменений) ---
+# --- Остальные эндпоинты (с исправлением) ---
 
 # Создание запроса на спецтехнику
 @api_router.post("/machinery_requests/", status_code=status.HTTP_201_CREATED)
