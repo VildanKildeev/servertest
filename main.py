@@ -163,6 +163,12 @@ class WorkRequestUpdate(BaseModel):
 class ResponseCreate(BaseModel):
     comment: Optional[str] = None
 
+class RatingIn(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = None
+    # НОВОЕ ПОЛЕ для двустороннего рейтинга
+    rating_type: str # Должно быть 'TO_EXECUTOR' или 'TO_CUSTOMER'
+
 class ResponseOut(UserOut): # Наследуем от UserOut, чтобы сразу получить данные исполнителя
     response_id: int
     response_comment: Optional[str] = None
@@ -540,56 +546,96 @@ async def update_work_request_status(request_id: int, new_status: str, current_u
 # ===========================================================================
 # НОВЫЙ МАРШРУТ: Оценка выполненной работы (Заказчик -> Исполнителю)
 # ===========================================================================
-@api_router.post("/work_requests/{request_id}/rate", status_code=status.HTTP_201_CREATED)
-async def rate_work_request(request_id: int, rating: RatingCreate, current_user: dict = Depends(get_current_user)):
-    request_query = work_requests.select().where(work_requests.c.id == request_id)
-    work_request = await database.fetch_one(request_query)
+@api_router.post("/work_requests/{request_id}/rate")
+async def rate_work_request(
+    request_id: int, 
+    rating_data: RatingIn, 
+    current_user: dict = Depends(get_current_user)
+):
+    # 0. Проверка типа оценки
+    if rating_data.rating_type not in ["TO_EXECUTOR", "TO_CUSTOMER"]:
+        raise HTTPException(status_code=400, detail="Неверный 'rating_type'. Должен быть 'TO_EXECUTOR' или 'TO_CUSTOMER'.")
 
-    if not work_request:
+    # 1. Получение данных заявки и назначенного исполнителя
+    work_request_query = select(work_requests).where(work_requests.c.id == request_id)
+    request_record = await database.fetch_one(work_request_query)
+    
+    if not request_record:
         raise HTTPException(status_code=404, detail="Заявка не найдена.")
+    
+    # Заявка должна быть в статусе "COMPLETED" для оценки
+    if request_record["status"] != "COMPLETED":
+         raise HTTPException(status_code=400, detail="Оценить можно только выполненную заявку.")
 
-    if work_request["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Вы не являетесь заказчиком этой работы и не можете ее оценить.")
+    # Находим назначенного исполнителя (предполагаем, что статус APPROVED означает назначенного)
+    executor_id_query = select(work_request_responses.c.executor_id).where(
+        (work_request_responses.c.work_request_id == request_id) & 
+        (work_request_responses.c.status == "APPROVED")
+    )
+    executor_record = await database.fetch_one(executor_id_query)
 
-    if work_request["status"] != "ВЫПОЛНЕНА":
-        raise HTTPException(status_code=400, detail="Оценить можно только выполненные заявки со статусом 'ВЫПОЛНЕНА'.")
-
-    rating_check_query = ratings.select().where(ratings.c.work_request_id == request_id)
+    if not executor_record:
+        raise HTTPException(status_code=400, detail="У заявки нет назначенного исполнителя (статус APPROVED).")
+    
+    customer_id = request_record["user_id"]
+    executor_id = executor_record["executor_id"]
+    
+    # 2. Определение Rater (Кто ставит) и Rated (Кому ставят)
+    rater_id = current_user["id"]
+    
+    if rating_data.rating_type == "TO_EXECUTOR":
+        # Оценивает Заказчик (Customer) -> Оценивают Исполнителя (Executor)
+        if rater_id != customer_id:
+            raise HTTPException(status_code=403, detail="Только Заказчик может оценить Исполнителя.")
+        rated_id = executor_id
+    elif rating_data.rating_type == "TO_CUSTOMER": 
+        # Оценивает Исполнитель (Executor) -> Оценивают Заказчика (Customer)
+        if rater_id != executor_id:
+            raise HTTPException(status_code=403, detail="Только назначенный Исполнитель может оценить Заказчика.")
+        rated_id = customer_id
+    
+    # 3. Проверка на дубликат оценки
+    rating_check_query = select(ratings).where(
+        (ratings.c.work_request_id == request_id) &
+        (ratings.c.rater_user_id == rater_id) &
+        (ratings.c.rated_user_id == rated_id)
+    )
     if await database.fetch_one(rating_check_query):
-        raise HTTPException(status_code=400, detail="Эта заявка уже оценена.")
-        
-    executor_id = work_request["executor_id"]
-    if not executor_id:
-         raise HTTPException(status_code=400, detail="У заявки нет исполнителя для оценки.")
+        raise HTTPException(status_code=400, detail="Эта оценка уже была выставлена.")
 
-    async with database.transaction():
-        insert_rating_query = ratings.insert().values(
-            work_request_id=request_id,
-            rater_id=current_user["id"],
-            rated_id=executor_id,
-            rating_value=rating.rating_value,
-            comment=rating.comment,
-        )
-        await database.execute(insert_rating_query)
-        
-        aggregate_query = select(
-            [sa_func.count(ratings.c.id).label('total_count'), sa_func.sum(ratings.c.rating_value).label('total_sum')]
-        ).where(ratings.c.rated_id == executor_id)
-        
-        result = await database.fetch_one(aggregate_query)
-        
-        total_count = result['total_count'] if result and result['total_count'] is not None else 0
-        total_sum = result['total_sum'] if result and result['total_sum'] is not None else 0
-        new_average = round(total_sum / total_count, 2) if total_count > 0 else 0.0
+    # 4. Вставка новой оценки
+    insert_query = ratings.insert().values(
+        work_request_id=request_id,
+        rater_user_id=rater_id,
+        rated_user_id=rated_id,
+        rating_type=rating_data.rating_type,
+        rating=rating_data.rating,
+        comment=rating_data.comment,
+    )
+    await database.execute(insert_query)
+    
+    # 5. Обновление среднего рейтинга пользователя (rated_id)
+    # Получаем текущее количество оценок и средний рейтинг
+    user_query = select(users.c.ratings_count, users.c.average_rating).where(users.c.id == rated_id)
+    user_record = await database.fetch_one(user_query)
+    
+    current_count = user_record["ratings_count"] or 0
+    current_avg = user_record["average_rating"] or 0.0
+    
+    # Пересчет
+    new_count = current_count + 1
+    old_sum = current_avg * current_count
+    new_sum = old_sum + rating_data.rating
+    new_avg = new_sum / new_count
+    
+    # Обновляем пользователя в базе
+    update_query = users.update().where(users.c.id == rated_id).values(
+        ratings_count=new_count,
+        average_rating=round(new_avg, 2)
+    )
+    await database.execute(update_query)
 
-        update_user_query = users.update().where(users.c.id == executor_id).values(
-            average_rating=new_average,
-            ratings_count=total_count
-        )
-        await database.execute(update_user_query)
-
-    return {"message": "Исполнитель успешно оценен", "average_rating": new_average}
-
+    return {"message": f"Оценка {rating_data.rating} успешно выставлена пользователю (ID: {rated_id}) за заявку {request_id}."}
 @api_router.get("/specializations/")
 async def get_specializations():
     return [

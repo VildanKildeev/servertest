@@ -156,19 +156,28 @@ material_ads = sqlalchemy.Table(
     extend_existing=True,
 )
 
-# =======================================================================
-# 7. Таблица рейтингов (Ratings) <-- НОВАЯ ТАБЛИЦА
+# # =======================================================================
+# 7. Таблица оценок (Ratings) <-- ОБНОВЛЕННАЯ СХЕМА
 # =======================================================================
 ratings = sqlalchemy.Table(
     "ratings",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("work_request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id"), nullable=False, unique=True), # Гарантируем, что на одну заявку только один рейтинг
-    sqlalchemy.Column("rater_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False), # Пользователь, который ставит оценку (Заказчик)
-    sqlalchemy.Column("rated_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False), # Пользователь, которого оценивают (Исполнитель)
-    sqlalchemy.Column("rating_value", sqlalchemy.Integer, nullable=False), # Оценка от 1 до 5
+    # 1. Пользователь, КОТОРОМУ ставят оценку (rated)
+    sqlalchemy.Column("rated_user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    # 2. Пользователь, КОТОРЫЙ ставит оценку (rater)
+    sqlalchemy.Column("rater_user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    # 3. Ссылка на заявку (ФИКСИРУЕТ ОШИБКУ UndefinedColumnError)
+    sqlalchemy.Column("work_request_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("work_requests.id"), nullable=False),
+    # 4. Тип оценки: 'TO_EXECUTOR' (Заказчик оценил Исполнителя) или 'TO_CUSTOMER' (Исполнитель оценил Заказчика)
+    sqlalchemy.Column("rating_type", sqlalchemy.String, nullable=False),
+    
+    sqlalchemy.Column("rating", sqlalchemy.Integer, nullable=False), # Оценка от 1 до 5
     sqlalchemy.Column("comment", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
+    
+    # Уникальное ограничение: Один rater не может оценить другого rated за одну и ту же заявку дважды
+    sqlalchemy.UniqueConstraint('rater_user_id', 'work_request_id', name='uq_rater_request'),
     extend_existing=True,
 )
 
