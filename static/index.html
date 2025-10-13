@@ -845,8 +845,18 @@
             }
 
             try {
-                const res = await fetch(`${API_URL}${endpoint}?city_id=${selectedCityId}${specializationQuery}`);
-                if (!res.ok) throw new Error('Ошибка загрузки');
+                const res = await fetch(`${API_URL}${endpoint}?city_id=${selectedCityId}${specializationQuery}`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        if (!res.ok) {
+            // Если получили ошибку 401, возможно, токен истек. Разлогиниваем.
+            if (res.status === 401) {
+                logout();
+            }
+            throw new Error('Ошибка загрузки');
+        }
                 const items = await res.json();
                 renderRequests(containerId, items, type);
             } catch (error) {
