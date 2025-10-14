@@ -295,18 +295,19 @@
             </div>
         </div>
 
-        <div id="profilePage" class="page">
+<div id="profilePage" class="page">
             <div class="form-container">
                 <h2>Профиль</h2>
                 <div id="profileInfo"></div>
-                <div id="editSpecializationForm" style="display: none;">
+                <div id="editSpecializationForm" style="display: none; margin-top: 15px;">
                     <div class="input-group">
                         <label for="newSpecialization">Новая специализация:</label>
                         <select id="newSpecialization"></select>
                     </div>
                     <button id="saveSpecializationBtn" class="btn-primary">Сохранить</button>
                 </div>
-                <button class="btn-secondary" onclick="showPage('buttonContainer')">Назад</button>
+                <div id="premiumSection"></div>
+                <button class="btn-secondary" onclick="showPage('buttonContainer')" style="margin-top: 20px;">Назад</button>
             </div>
         </div>
 
@@ -577,9 +578,13 @@
             }
         });
         
-        async function fetchProfile() {
+async function fetchProfile() {
             if (!accessToken) { showPage('loginPage'); return; }
             const profileDiv = document.getElementById('profileInfo');
+            const premiumDiv = document.getElementById('premiumSection');
+            profileDiv.innerHTML = 'Загрузка...';
+            premiumDiv.innerHTML = '';
+            
             try {
                 const res = await fetch(`${API_URL}/users/me`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -587,22 +592,55 @@
                 if (!res.ok) { logout(); return; }
                 profile = await res.json();
                 localStorage.setItem('profile', JSON.stringify(profile));
-                let specializationInfo = '';
+                
+                let specializationHTML = '';
                 if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                    specializationInfo = `
-                        <p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'} <button class="btn-link" onclick="toggleEditSpecialization()">Изменить</button></p>
-                        <p><strong>Рейтинг:</strong> ${profile.average_rating ? profile.average_rating.toFixed(2) : 'Нет оценок'} (${profile.ratings_count} оценок)</p>`;
+                    specializationHTML = `<p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'} <button class="btn-link" onclick="toggleEditSpecialization()">Изменить</button></p>`;
                 }
+
                 profileDiv.innerHTML = `
                     <p><strong>Email:</strong> ${profile.email}</p>
                     <p><strong>Телефон:</strong> ${profile.phone_number}</p>
                     <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
-                    ${specializationInfo}
+                    ${specializationHTML}
+                    <p><strong>Ваш рейтинг:</strong> ${profile.average_rating ? profile.average_rating.toFixed(2) : 'Нет оценок'} (${profile.ratings_count} оценок)</p>
                     <p><strong>Статус:</strong> ${profile.is_premium ? '<span class="premium">Премиум ★</span>' : 'Обычный'}</p>
                 `;
+
+                if (!profile.is_premium) {
+                    premiumDiv.innerHTML = `
+                        <div class="premium-offer" style="margin-top: 20px; padding: 15px; border: 1px solid #FF8C00; border-radius: 5px; text-align: center;">
+                            <h4>Получите Премиум-статус!</h4>
+                            <p>Ваши заявки и объявления будут отображаться выше остальных.</p>
+                            <button id="subscribeBtn" class="btn-primary" onclick="subscribeToPremium()">Активировать Премиум</button>
+                        </div>
+                    `;
+                }
+
             } catch (error) {
                 console.error('Error fetching profile:', error);
                 profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>';
+            }
+        }
+
+async function subscribeToPremium() {
+            if (!confirm('Вы уверены, что хотите активировать Премиум-подписку? Это действие нельзя будет отменить.')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/subscribe/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Премиум-подписка успешно активирована!');
+                    fetchProfile(); // Обновляем профиль для отображения нового статуса
+                } else {
+                    throw new Error(data.detail || 'Не удалось активировать подписку');
+                }
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+                console.error('Subscription error:', error);
             }
         }
         
@@ -1028,7 +1066,7 @@
                 rental_price: parseInt(form.machineryRentalPrice.value),
                 contact_info: form.machineryContact.value,
                 rental_date: form.machineryRentalDate.value || null,
-                min_hours: parseInt(form.machineryMinHours.value),
+                min_rental_hours: parseInt(form.machineryMinHours.value),
                 has_delivery: form.machineryHasDelivery.checked,
                 delivery_address: form.machineryDeliveryAddress.value || null,
             };
