@@ -94,6 +94,9 @@ class Token(BaseModel):
 class UpdateStatusIn(BaseModel):
     status: str  # ожидаем "ВЫПОЛНЕНА" или "ОТМЕНЕНА"
 
+class WorkRequestResponseCreate(BaseModel):
+    comment: str | None = None
+
 class TokenData(BaseModel):
     username: Optional[str] = None
 
@@ -320,7 +323,48 @@ async def get_work_requests(
 
     return await database.fetch_all(query)
 
+# --- НОВЫЙ МАРШРУТ ДЛЯ СОЗДАНИЯ ОТКЛИКА ---
+@app.post("/api/work_requests/{request_id}/respond", status_code=201)
+async def create_response(
+    request_id: int, 
+    # response_data: WorkRequestResponseCreate,  # Используйте, если есть Pydantic
+    current_user: dict = Depends(get_current_user) # Зависимость для получения текущего пользователя
+):
+    # 1. Проверка роли (должен быть ИСПОЛНИТЕЛЬ)
+    if current_user.get("user_type") != "ИСПОЛНИТЕЛЬ":
+        raise HTTPException(status_code=403, detail="Только исполнители могут откликаться на заявки.")
 
+    executor_id = current_user.get("id")
+
+    # 2. Проверка, что заявка существует
+    request_query = select(work_requests.c.id).where(work_requests.c.id == request_id)
+    request_exists = await database.fetch_one(request_query)
+    if not request_exists:
+        raise HTTPException(status_code=404, detail="Заявка не найдена.")
+
+    # 3. Попытка вставить отклик в work_request_responses
+    try:
+        response_data = {
+            "work_request_id": request_id,
+            "executor_id": executor_id,
+            # "comment": response_data.comment, # Раскомментировать, если используете Pydantic
+            "comment": "Интересует работа.", # Заглушка, пока нет Pydantic-модели
+            "status": "PENDING",
+            "created_at": datetime.now(),
+        }
+        query = insert(work_request_responses).values(response_data)
+        last_record_id = await database.execute(query)
+        
+        return {"id": last_record_id, "message": "Отклик успешно создан. Ожидайте решения заказчика."}
+    
+    except Exception as e:
+        # 4. Обработка ошибки уникального ограничения (уже откликался)
+        if "UniqueViolationError" in str(e): # Проверка на ошибку БД о дубликате
+            raise HTTPException(status_code=400, detail="Вы уже откликались на эту заявку.")
+        
+        # Другие ошибки
+        print(f"Ошибка при создании отклика: {e}")
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера.")
 
 @api_router.get("/users/me/requests/")
 async def get_my_requests(current_user: dict = Depends(get_current_user)):
