@@ -155,6 +155,9 @@ class MaterialAdIn(BaseModel):
     city_id: int
     is_premium: bool = False
 
+class StatusUpdate(BaseModel):
+    status: str
+
 # --- Утилиты для аутентификации и безопасности ---
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -317,21 +320,38 @@ async def get_my_requests(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     
     if current_user["user_type"] == "ЗАКАЗЧИК":
-        # Заказчик видит все заявки, которые он создал
         query = work_requests.select().where(work_requests.c.user_id == user_id)
-    
     elif current_user["user_type"] == "ИСПОЛНИТЕЛЬ":
-        # Исполнитель видит и те заявки, где он назначен, и те, на которые он откликнулся
         assigned_q = select(work_requests.c.id).where(work_requests.c.executor_id == user_id)
         responded_q = select(work_request_responses.c.work_request_id).where(work_request_responses.c.executor_id == user_id)
-        
-        # Объединяем ID заявок без дубликатов
         all_my_request_ids = assigned_q.union(responded_q)
         query = work_requests.select().where(work_requests.c.id.in_(all_my_request_ids))
     else:
         return []
 
-    return await database.fetch_all(query.order_by(work_requests.c.created_at.desc()))
+    # Сначала получаем все заявки
+    requests_db = await database.fetch_all(query.order_by(work_requests.c.created_at.desc()))
+    
+    # Теперь добавляем флаг has_rated
+    response_requests = []
+    for req in requests_db:
+        # Превращаем неизменяемый объект SQLAlchemy в обычный словарь
+        req_dict = dict(req)
+        req_dict['has_rated'] = False # Устанавливаем значение по умолчанию
+        
+        # Проверяем оценку только для выполненных заявок
+        if req_dict['status'] == 'ВЫПОЛНЕНА':
+            rating_exists_query = ratings.select().where(
+                (ratings.c.work_request_id == req_dict['id']) &
+                (ratings.c.rater_user_id == user_id)
+            )
+            existing_rating = await database.fetch_one(rating_exists_query)
+            if existing_rating:
+                req_dict['has_rated'] = True
+        
+        response_requests.append(req_dict)
+
+    return response_requests
 
 # --- Новые эндпоинты для системы откликов ---
 
@@ -361,7 +381,7 @@ async def get_work_request_responses(request_id: int, current_user: dict = Depen
     if not work_req or work_req["user_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Это не ваша заявка.")
 
-    query = work_request_responses.join(users, work_request_responses.c.executor_id == users.c.id).select().with_only_columns([
+    query = work_request_responses.join(users, work_request_responses.c.executor_id == users.c.id).select().with_only_columns(
         users.c.id, users.c.email, users.c.phone_number, users.c.user_type, users.c.specialization,
         users.c.is_premium,
         # Используем COALESCE, чтобы заменить NULL на 0.0 или 0 прямо в SQL-запросе
@@ -370,7 +390,7 @@ async def get_work_request_responses(request_id: int, current_user: dict = Depen
         work_request_responses.c.id.label("response_id"),
         work_request_responses.c.comment.label("response_comment"),
         work_request_responses.c.created_at.label("response_created_at")
-    ]).where(work_request_responses.c.work_request_id == request_id)
+    ).where(work_request_responses.c.work_request_id == request_id)
 
     return await database.fetch_all(query)
 
@@ -395,27 +415,28 @@ async def approve_work_request_response(request_id: int, response_id: int, curre
 # --- Управление статусом и рейтинг ---
 
 @api_router.patch("/work_requests/{request_id}/status")
-async def update_work_request_status(request_id: int, new_status: str, current_user: dict = Depends(get_current_user)): # В Pydantic модели Body было бы лучше
+async def update_work_request_status(request_id: int, payload: StatusUpdate, current_user: dict = Depends(get_current_user)):
     # ... (старые проверки остаются)
+    request_db = await database.fetch_one(work_requests.select().where(work_requests.c.id == request_id)) # <-- Добавьте эту строку для получения заявки
     if not request_db:
         raise HTTPException(status_code=404, detail="Заявка не найдена.")
-    if request_db["user_id"] != current_user["id"]:
+    if request_db["user_id"] != current_user["id"] and request_db["executor_id"] != current_user["id"]: # <-- Можно улучшить, чтобы и исполнитель мог менять
         raise HTTPException(status_code=403, detail="У вас нет прав на изменение этой заявки.")
         
     valid_statuses = ["ВЫПОЛНЕНА", "ОТМЕНЕНА"]
-    if new_status not in valid_statuses:
+    if payload.status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Недопустимый статус.")
 
     # ===== НОВАЯ ПРОВЕРКА =====
-    if new_status == "ВЫПОЛНЕНА" and not request_db["executor_id"]:
+    if payload.status == "ВЫПОЛНЕНА" and not request_db["executor_id"]:
         raise HTTPException(
             status_code=400,
             detail="Нельзя завершить заявку, для которой не назначен исполнитель."
         )
     # ==========================
 
-    await database.execute(work_requests.update().where(work_requests.c.id == request_id).values(status=new_status))
-    return {"message": f"Статус заявки обновлен на '{new_status}'."}
+    await database.execute(work_requests.update().where(work_requests.c.id == request_id).values(status=payload.status))
+    return {"message": f"Статус заявки обновлен на '{payload.status}'."}
 
 @api_router.post("/work_requests/{request_id}/rate")
 async def rate_work_request(request_id: int, rating_data: RatingIn, current_user: dict = Depends(get_current_user)):
