@@ -1262,6 +1262,52 @@
             document.getElementById('machineryDeliveryAddressGroup').style.display = e.target.checked ? 'block' : 'none';
         });
 
+document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.respond-button').forEach(button => {
+            button.addEventListener('click', async function() {
+                const requestId = this.getAttribute('data-request-id');
+                
+                // Проверка, что пользователь авторизован (проверка на стороне фронтенда)
+                const userTypeElement = document.getElementById('user-type-data');
+                if (!userTypeElement) {
+                     alert('Ошибка: Вы не авторизованы.');
+                     return;
+                }
+
+                // Кнопка должна быть видима только для исполнителей, но проверка обязательна
+                if (userTypeElement.textContent !== 'ИСПОЛНИТЕЛЬ') {
+                     alert('Ошибка: Только исполнители могут откликаться.');
+                     return;
+                }
+                
+                // Запрос к новому API-маршруту
+                try {
+                    const response = await fetch(`/api/work_requests/${requestId}/respond`, {
+                        method: 'POST',
+                        headers: {
+                            // При использовании сессий или куки для авторизации, заголовок не всегда нужен
+                            'Content-Type': 'application/json',
+                        },
+                        // POST-запрос без тела, так как комментарий пока заглушен в main.py
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        alert('Успех: ' + result.message);
+                        window.location.reload(); // Обновляем страницу для отображения изменений
+                    } else {
+                        // Выводим ошибку, пришедшую с сервера (например, "Уже откликался")
+                        alert('Ошибка: ' + (result.detail || 'Не удалось отправить отклик.'));
+                    }
+                } catch (error) {
+                    alert('Произошла ошибка сети при попытке откликнуться.');
+                    console.error('Error:', error);
+                }
+            });
+        });
+    });
+
     </script>
 </body>
 </html>
