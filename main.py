@@ -290,10 +290,12 @@ async def get_work_requests(city_id: int, current_user: dict = Depends(get_curre
             return [] 
         
         # ИСПРАВЛЕННАЯ ЛОГИКА СРАВНЕНИЯ:
-        # Мы используем sa_func.lower() для приведения к нижнему регистру и sa_func.trim() для удаления пробелов.
-        # Это гарантирует, что " Электрик " и "электрик" будут считаться одинаковыми.
+        # Обрабатываем специализацию исполнителя в Python, чтобы получить чистое значение.
+        # Затем сравниваем его с обработанным столбцом заявки в SQL.
+        clean_specialization = specialization.strip().lower() 
+        
         query = query.where(
-            sa_func.lower(sa_func.trim(work_requests.c.specialization)) == sa_func.lower(sa_func.trim(specialization))
+            sa_func.lower(sa_func.trim(work_requests.c.specialization)) == clean_specialization
         )
             
     # Сортируем: сначала премиум, потом по дате создания.
