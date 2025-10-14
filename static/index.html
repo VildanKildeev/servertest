@@ -610,46 +610,44 @@
         document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').addEventListener('click', fetchCompletedRequestsForRating);
         
         async function fetchCompletedRequestsForRating() {
-            if (!accessToken || !profile) { showPage('loginPage'); return; }
-            const requestList = document.getElementById('completedRequestsList');
-            requestList.innerHTML = 'Загрузка выполненных заявок...';
+    if (!accessToken || !profile) { showPage('loginPage'); return; }
+    const requestList = document.getElementById('completedRequestsList');
+    requestList.innerHTML = 'Загрузка выполненных заявок...';
 
-            try {
-                const res = await fetch(`${API_URL}/users/me/requests/`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const allRequests = await res.json();
-                
-                const allRequests = await res.json();
-                
-                // ЗАМЕНИТЕ ВЕСЬ БЛОК .filter НА ЭТУ СТРОКУ
-                const completedRequests = allRequests.filter(req => req.status === 'ВЫПОЛНЕНА' && !req.has_rated);
+    try {
+        const res = await fetch(`${API_URL}/users/me/requests/`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const allRequests = await res.json();
+        
+        // ЗАМЕНИТЕ ВСЮ СТАРУЮ ЛОГИКУ ФИЛЬТРАЦИИ НА ЭТУ ОДНУ СТРОКУ
+        const completedRequests = allRequests.filter(req => req.status === 'ВЫПОЛНЕНА' && !req.has_rated);
 
-                if (completedRequests.length === 0) {
-                    requestList.innerHTML = '<p>Нет работ, ожидающих вашей оценки.</p>';
-                    return;
-                }
-
-                requestList.innerHTML = '';
-                completedRequests.forEach(req => {
-                    const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
-                    const ratingType = profile.user_type === 'ЗАКАЗЧИК' ? 'TO_EXECUTOR' : 'TO_CUSTOMER';
-                    const buttonText = profile.user_type === 'ЗАКАЗЧИК' ? 'Оценить исполнителя' : 'Оценить заказчика';
-
-                    requestList.innerHTML += `
-                        <div class="request-item">
-                            <h4>${req.specialization} (Бюджет: ${req.budget} руб.)</h4>
-                            <p><strong>Город:</strong> ${city}</p>
-                            <p><strong>Описание:</strong> ${req.description}</p>
-                            <button class="btn-primary" onclick="showRatingModal(${req.id}, '${ratingType}')">${buttonText}</button>
-                        </div>`;
-                });
-
-            } catch (error) {
-                console.error("Ошибка загрузки выполненных заявок:", error);
-                requestList.innerHTML = `<p class="message error">Ошибка загрузки выполненных заявок.</p>`;
-            }
+        if (completedRequests.length === 0) {
+            requestList.innerHTML = '<p>Нет работ, ожидающих вашей оценки.</p>';
+            return;
         }
+
+        requestList.innerHTML = '';
+        completedRequests.forEach(req => {
+            const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
+            const ratingType = profile.user_type === 'ЗАКАЗЧИК' ? 'TO_EXECUTOR' : 'TO_CUSTOMER';
+            const buttonText = profile.user_type === 'ЗАКАЗЧИК' ? 'Оценить исполнителя' : 'Оценить заказчика';
+
+            requestList.innerHTML += `
+                <div class="request-item">
+                    <h4>${req.specialization} (Бюджет: ${req.budget} руб.)</h4>
+                    <p><strong>Город:</strong> ${city}</p>
+                    <p><strong>Описание:</strong> ${req.description}</p>
+                    <button class="btn-primary" onclick="showRatingModal(${req.id}, '${ratingType}')">${buttonText}</button>
+                </div>`;
+        });
+
+    } catch (error) {
+        console.error("Ошибка загрузки выполненных заявок:", error);
+        requestList.innerHTML = `<p class="message error">Ошибка загрузки выполненных заявок.</p>`;
+    }
+}
 
         // =======================================================================
         // ИЗМЕНЕНО: Полностью переписанная логика для "Моих заявок"
