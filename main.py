@@ -265,15 +265,17 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
 
 # --- Основная логика заявок на работу ---
 
-@api_router.post("/work_requests/{request_id}/respond", status_code=201)
-async def respond_to_work_request(
-    request_id: int,
-    response: ResponseCreate,
-    current_user: dict = Depends(get_current_user)
-):
+@api_router.post("/work_requests/", status_code=status.HTTP_201_CREATED)
+async def create_work_request(work_request: WorkRequestIn, current_user: dict = Depends(get_current_user)):
+    """ Заказчик создает новую заявку на работу. """
+    if current_user["user_type"] != "ЗАКАЗЧИК":
+        raise HTTPException(status_code=403, detail="Только заказчики могут создавать заявки на работу.")
+    
     query = work_requests.insert().values(user_id=current_user["id"], **work_request.model_dump())
     request_id = await database.execute(query)
-    return {"id": request_id, **work_request.model_dump()}
+    
+    # Для ответа можно выбрать только что созданную запись или вернуть переданные данные + id
+    return {"id": request_id, **work_request.model_dump(), "user_id": current_user["id"], "status": "ОЖИДАЕТ"} 
 
 @api_router.get("/work_requests/")
 async def get_work_requests(
