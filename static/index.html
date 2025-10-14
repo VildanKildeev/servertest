@@ -621,7 +621,7 @@
                 const allRequests = await res.json();
                 
                 const completedRequests = allRequests.filter(req => {
-                    const isCompleted = req.status === 'ВЫПОЛНЕНА';
+                   const completedRequests = allRequests.filter(req => req.status === 'ВЫПОЛНЕНА' && !req.has_rated);
                     if (profile.user_type === 'ЗАКАЗЧИК') {
                         return isCompleted && req.user_id === profile.id && !req.customer_rated_executor;
                     } else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
@@ -690,26 +690,32 @@
                             buttonsHTML = `<p style="color: green;"><strong>Исполнитель назначен (ID: ${req.executor_id})</strong></p>
                                            <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
                                            <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545!important;">Отменить</button>`;
-                        } else if (req.status === 'ВЫПОЛНЕНА' && !req.customer_rated_executor) {
-                            // Кнопка оценки исполнителя
-                            buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                                           <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_EXECUTOR')">Оценить исполнителя</button>`;
-                        }
-                    } 
+                        } else if (req.status === 'ВЫПОЛНЕНА') {
+    // Теперь проверяем флаг has_rated, который пришел с бэкенда
+    if (!req.has_rated) {
+        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                       <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_EXECUTOR')">Оценить исполнителя</button>`;
+    } else {
+        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
+    }
+}
+ 
                     // --- Логика для ИСПОЛНИТЕЛЯ ---
                     else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                        if (req.executor_id === profile.id) { // Если он назначен исполнителем
-                             if (req.status === 'В РАБОТЕ') {
-                                buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
-                             } else if (req.status === 'ВЫПОЛНЕНА' && !req.executor_rated_customer) {
-                                // Кнопка оценки заказчика
-                                buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                                               <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
-                             }
-                        } else { // Если он просто откликнулся
-                            buttonsHTML = `<p style="color: #FF8C00;">Вы откликнулись. Ожидайте решения.</p>`;
-                        }
-                    }
+                        } else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+    if (req.executor_id === profile.id) { // Если он назначен исполнителем
+         if (req.status === 'В РАБОТЕ') {
+            buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
+         } else if (req.status === 'ВЫПОЛНЕНА') {
+            // И здесь тоже проверяем флаг has_rated
+            if (!req.has_rated) {
+                buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                               <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
+            } else {
+                buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
+            }
+         }
+                                              
                     
                     list.innerHTML += `
                         <div class="request-item" id="my-request-${req.id}">
