@@ -620,15 +620,10 @@
                 });
                 const allRequests = await res.json();
                 
-                const completedRequests = allRequests.filter(req => {
-                   const completedRequests = allRequests.filter(req => req.status === 'ВЫПОЛНЕНА' && !req.has_rated);
-                    if (profile.user_type === 'ЗАКАЗЧИК') {
-                        return isCompleted && req.user_id === profile.id && !req.customer_rated_executor;
-                    } else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                        return isCompleted && req.executor_id === profile.id && !req.executor_rated_customer;
-                    }
-                    return false;
-                });
+                const allRequests = await res.json();
+                
+                // ЗАМЕНИТЕ ВЕСЬ БЛОК .filter НА ЭТУ СТРОКУ
+                const completedRequests = allRequests.filter(req => req.status === 'ВЫПОЛНЕНА' && !req.has_rated);
 
                 if (completedRequests.length === 0) {
                     requestList.innerHTML = '<p>Нет работ, ожидающих вашей оценки.</p>';
@@ -660,76 +655,74 @@
         // ИЗМЕНЕНО: Полностью переписанная логика для "Моих заявок"
         // =======================================================================
         async function fetchMyRequests() {
-            if (!accessToken || !profile) { showPage('loginPage'); return; }
-            const list = document.getElementById('myRequestsList');
-            list.innerHTML = 'Загрузка ваших заявок...';
+    if (!accessToken || !profile) { showPage('loginPage'); return; }
+    const list = document.getElementById('myRequestsList');
+    list.innerHTML = 'Загрузка ваших заявок...';
 
-            try {
-                const res = await fetch(`${API_URL}/users/me/requests/`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (!res.ok) throw new Error('Ошибка загрузки');
-                const requests = await res.json();
-                
-                if (requests.length === 0) {
-                    list.innerHTML = '<p>У вас нет активных заявок или откликов.</p>';
-                    return;
+    try {
+        const res = await fetch(`${API_URL}/users/me/requests/`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        const requests = await res.json();
+        
+        if (requests.length === 0) {
+            list.innerHTML = '<p>У вас нет активных заявок или откликов.</p>';
+            return;
+        }
+        
+        list.innerHTML = '';
+        requests.forEach(req => {
+            const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
+            let buttonsHTML = '';
+            
+            // --- Логика для ЗАКАЗЧИКА ---
+            if (profile.user_type === 'ЗАКАЗЧИК' && req.user_id === profile.id) {
+                if (req.status === 'ОЖИДАЕТ') {
+                    buttonsHTML = `<button class="btn-primary" onclick="fetchAndShowResponses(${req.id})">Посмотреть отклики</button>
+                                   <div class="responses-container" id="responses-for-${req.id}"></div>`;
+                } else if (req.status === 'В РАБОТЕ') {
+                    buttonsHTML = `<p style="color: green;"><strong>Исполнитель назначен (ID: ${req.executor_id})</strong></p>
+                                   <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
+                                   <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545!important;">Отменить</button>`;
+                } else if (req.status === 'ВЫПОЛНЕНА') {
+                    if (!req.has_rated) {
+                        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                                       <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_EXECUTOR')">Оценить исполнителя</button>`;
+                    } else {
+                        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
+                    }
                 }
-                
-                list.innerHTML = '';
-                requests.forEach(req => {
-                    const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
-                    let buttonsHTML = '';
-                    
-                    // --- Логика для ЗАКАЗЧИКА ---
-                    if (profile.user_type === 'ЗАКАЗЧИК' && req.user_id === profile.id) {
-                        if (req.status === 'ОЖИДАЕТ') {
-                            buttonsHTML = `<button class="btn-primary" onclick="fetchAndShowResponses(${req.id})">Посмотреть отклики</button>
-                                           <div class="responses-container" id="responses-for-${req.id}"></div>`;
-                        } else if (req.status === 'В РАБОТЕ') {
-                            buttonsHTML = `<p style="color: green;"><strong>Исполнитель назначен (ID: ${req.executor_id})</strong></p>
-                                           <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
-                                           <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545!important;">Отменить</button>`;
-                        } else if (req.status === 'ВЫПОЛНЕНА') {
-    // Теперь проверяем флаг has_rated, который пришел с бэкенда
-    if (!req.has_rated) {
-        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                       <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_EXECUTOR')">Оценить исполнителя</button>`;
-    } else {
-        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
+            } 
+            // --- Логика для ИСПОЛНИТЕЛЯ ---
+            else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+                if (req.executor_id === profile.id) { // Если он назначен исполнителем
+                    if (req.status === 'В РАБОТЕ') {
+                        buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
+                    } else if (req.status === 'ВЫПОЛНЕНА') {
+                        if (!req.has_rated) {
+                            buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                                           <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
+                        } else {
+                            buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
+                        }
+                    }
+                }
+            }
+            
+            list.innerHTML += `
+                <div class="request-item" id="my-request-${req.id}">
+                    <h4>${req.specialization} (Бюджет: ${req.budget} руб.)</h4>
+                    <p><strong>Город:</strong> ${city}</p>
+                    <p><strong>Статус:</strong> ${req.status}</p>
+                    <p><strong>Описание:</strong> ${req.description}</p>
+                    <div style="margin-top: 10px;">${buttonsHTML}</div>
+                </div>`;
+        }); // <-- СКОБКА ИСПРАВЛЕНА
+    } catch (error) { // <-- ТЕПЕРЬ ВСЕ КОРРЕКТНО
+        list.innerHTML = `<p class="message error">Ошибка загрузки заявок.</p>`;
     }
 }
- 
-                    // --- Логика для ИСПОЛНИТЕЛЯ ---
-                    else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                        } else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-    if (req.executor_id === profile.id) { // Если он назначен исполнителем
-         if (req.status === 'В РАБОТЕ') {
-            buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
-         } else if (req.status === 'ВЫПОЛНЕНА') {
-            // И здесь тоже проверяем флаг has_rated
-            if (!req.has_rated) {
-                buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                               <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
-            } else {
-                buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
-            }
-         }
-                                              
-                    
-                    list.innerHTML += `
-                        <div class="request-item" id="my-request-${req.id}">
-                            <h4>${req.specialization} (Бюджет: ${req.budget} руб.)</h4>
-                            <p><strong>Город:</strong> ${city}</p>
-                            <p><strong>Статус:</strong> ${req.status}</p>
-                            <p><strong>Описание:</strong> ${req.description}</p>
-                            <div style="margin-top: 10px;">${buttonsHTML}</div>
-                        </div>`;
-                };
-            } catch (error) {
-                list.innerHTML = `<p class="message error">Ошибка загрузки заявок.</p>`;
-            }
-        }
         
         // =======================================================================
         // НОВАЯ ФУНКЦИЯ: Загрузка и отображение откликов для заказчика
