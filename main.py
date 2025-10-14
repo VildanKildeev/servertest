@@ -91,6 +91,9 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class UpdateStatusIn(BaseModel):
+    status: str  # ожидаем "ВЫПОЛНЕНА" или "ОТМЕНЕНА"
+
 class TokenData(BaseModel):
     username: Optional[str] = None
 
@@ -262,45 +265,60 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
 
 # --- Основная логика заявок на работу ---
 
-@api_router.post("/work_requests/", status_code=status.HTTP_201_CREATED)
-async def create_work_request(work_request: WorkRequestIn, current_user: dict = Depends(get_current_user)):
+@api_router.post("/work_requests/{request_id}/respond", status_code=201)
+async def respond_to_work_request(
+    request_id: int,
+    response: ResponseCreate,
+    current_user: dict = Depends(get_current_user)
+):
     query = work_requests.insert().values(user_id=current_user["id"], **work_request.model_dump())
     request_id = await database.execute(query)
     return {"id": request_id, **work_request.model_dump()}
 
 @api_router.get("/work_requests/")
-async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
-    """ 
-    ИСПРАВЛЕНИЕ: Логика фильтрации сделана нечувствительной к регистру и пробелам.
+async def get_work_requests(
+    city_id: int,
+    specialization: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
     """
-    query = work_requests.select().where(work_requests.c.city_id == city_id)
-    
-    # 1. Показываем только активные заявки, которые ожидают исполнителя.
-    query = query.where(work_requests.c.status == "ОЖИДАЕТ")
-    
-    # 2. Не показываем пользователю его собственные заявки в общем списке.
-    query = query.where(work_requests.c.user_id != current_user["id"])
+    Возвращает заявки по городу со статусом "ОЖИДАЕТ", исключая свои.
+    Если передан query-параметр ?specialization= — фильтруем по нему.
+    Иначе, если пользователь ИСПОЛНИТЕЛЬ и у него в профиле есть specialization — фильтруем по профилю.
+    Иначе (нет specialization ни в query, ни в профиле) — НЕ обрезаем выдачу по специализации (показываем все).
+    """
+    # База: город + только активные + не свои
+    query = work_requests.select().where(
+        (work_requests.c.city_id == city_id) &
+        (work_requests.c.status == "ОЖИДАЕТ") &
+        (work_requests.c.user_id != current_user["id"])
+    )
 
-    # 3. КЛЮЧЕВОЙ ФИЛЬТР: Если пользователь - ИСПОЛНИТЕЛЬ, он видит только свою специализацию.
-    if current_user["user_type"] == "ИСПОЛНИТЕЛЬ":
-        specialization = current_user.get("specialization")
-        
-        # Если у исполнителя не задана специализация в профиле, он не увидит ни одной заявки.
-        if not specialization:
-            return [] 
-        
-        # ИСПРАВЛЕННАЯ ЛОГИКА СРАВНЕНИЯ:
-        # Обрабатываем специализацию исполнителя в Python, чтобы получить чистое значение.
-        # Затем сравниваем его с обработанным столбцом заявки в SQL.
-        clean_specialization = specialization.strip().lower() 
-        
+    # Определяем "эффективную" специализацию для фильтра
+    eff_spec: Optional[str] = None
+
+    if specialization and specialization.strip():
+        eff_spec = specialization.strip().lower()
+    elif current_user["user_type"] == "ИСПОЛНИТЕЛЬ":
+        user_spec = (current_user.get("specialization") or "").strip().lower()
+        if user_spec:
+            eff_spec = user_spec
+        # ВАЖНО: если у исполнителя НЕТ специализации — не возвращаем пусто, а показываем все (без фильтра)
+
+    if eff_spec:
         query = query.where(
-            sa_func.lower(sa_func.trim(work_requests.c.specialization)) == clean_specialization
+            sa_func.lower(sa_func.trim(work_requests.c.specialization)) == eff_spec
         )
-            
-    # Сортируем: сначала премиум, потом по дате создания.
-    query = query.order_by(work_requests.c.is_premium.desc(), work_requests.c.created_at.desc())
+
+    # Сортировка: сначала премиум, потом новые
+    query = query.order_by(
+        work_requests.c.is_premium.desc(),
+        work_requests.c.created_at.desc()
+    )
+
     return await database.fetch_all(query)
+
+
 
 @api_router.get("/users/me/requests/")
 async def get_my_requests(current_user: dict = Depends(get_current_user)):
@@ -386,26 +404,39 @@ async def approve_work_request_response(request_id: int, response_id: int, curre
 # --- Управление статусом и рейтинг ---
 
 @api_router.patch("/work_requests/{request_id}/status")
-async def update_work_request_status(request_id: int, new_status: str, current_user: dict = Depends(get_current_user)): # В Pydantic модели Body было бы лучше
-    # ... (старые проверки остаются)
-    if not request_db:
+async def update_work_request_status(
+    request_id: int,
+    payload: UpdateStatusIn,
+    current_user: dict = Depends(get_current_user)
+):
+    # Читаем заявку из БД
+    req = await database.fetch_one(
+        work_requests.select().where(work_requests.c.id == request_id)
+    )
+    if not req:
         raise HTTPException(status_code=404, detail="Заявка не найдена.")
-    if request_db["user_id"] != current_user["id"]:
+
+    # Разрешаем менять статус только автору заявки
+    if req["user_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="У вас нет прав на изменение этой заявки.")
-        
+
+    new_status = (payload.status or "").strip().upper()
     valid_statuses = ["ВЫПОЛНЕНА", "ОТМЕНЕНА"]
     if new_status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Недопустимый статус.")
 
-    # ===== НОВАЯ ПРОВЕРКА =====
-    if new_status == "ВЫПОЛНЕНА" and not request_db["executor_id"]:
+    # Нельзя завершить, если не назначен исполнитель
+    if new_status == "ВЫПОЛНЕНА" and not req["executor_id"]:
         raise HTTPException(
             status_code=400,
             detail="Нельзя завершить заявку, для которой не назначен исполнитель."
         )
-    # ==========================
 
-    await database.execute(work_requests.update().where(work_requests.c.id == request_id).values(status=new_status))
+    await database.execute(
+        work_requests.update()
+        .where(work_requests.c.id == request_id)
+        .values(status=new_status)
+    )
     return {"message": f"Статус заявки обновлен на '{new_status}'."}
 
 @api_router.post("/work_requests/{request_id}/rate")
