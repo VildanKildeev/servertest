@@ -250,20 +250,33 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
 
 @api_router.get("/work_requests/")
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
-    """ ИСПРАВЛЕНО: Полностью переписанная и стандартизированная логика фильтрации. """
+    """ 
+    ИСПРАВЛЕНИЕ: Логика фильтрации сделана нечувствительной к регистру и пробелам.
+    """
     query = work_requests.select().where(work_requests.c.city_id == city_id)
-    # Показываем только заявки, которые ожидают исполнителя
+    
+    # 1. Показываем только активные заявки, которые ожидают исполнителя.
     query = query.where(work_requests.c.status == "ОЖИДАЕТ")
-    # Не показывать пользователю его собственные заявки в общем списке
+    
+    # 2. Не показываем пользователю его собственные заявки в общем списке.
     query = query.where(work_requests.c.user_id != current_user["id"])
 
-    # Ключевой фильтр: если пользователь - исполнитель, он видит только свою специализацию
+    # 3. КЛЮЧЕВОЙ ФИЛЬТР: Если пользователь - ИСПОЛНИТЕЛЬ, он видит только свою специализацию.
     if current_user["user_type"] == "ИСПОЛНИТЕЛЬ":
         specialization = current_user.get("specialization")
+        
+        # Если у исполнителя не задана специализация в профиле, он не увидит ни одной заявки.
         if not specialization:
-            return [] # У исполнителя нет специализации - он не видит ни одной заявки
-        query = query.where(work_requests.c.specialization == specialization)
+            return [] 
+        
+        # ИСПРАВЛЕННАЯ ЛОГИКА СРАВНЕНИЯ:
+        # Мы используем sa_func.lower() для приведения к нижнему регистру и sa_func.trim() для удаления пробелов.
+        # Это гарантирует, что " Электрик " и "электрик" будут считаться одинаковыми.
+        query = query.where(
+            sa_func.lower(sa_func.trim(work_requests.c.specialization)) == sa_func.lower(sa_func.trim(specialization))
+        )
             
+    # Сортируем: сначала премиум, потом по дате создания.
     query = query.order_by(work_requests.c.is_premium.desc(), work_requests.c.created_at.desc())
     return await database.fetch_all(query)
 
