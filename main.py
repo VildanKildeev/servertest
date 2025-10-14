@@ -264,9 +264,18 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/work_requests/", status_code=status.HTTP_201_CREATED)
 async def create_work_request(work_request: WorkRequestIn, current_user: dict = Depends(get_current_user)):
-    query = work_requests.insert().values(user_id=current_user["id"], **work_request.model_dump())
+    # Явно добавляем статус "ОЖИДАЕТ"
+    request_data = work_request.model_dump()
+    request_data["status"] = "ОЖИДАЕТ" # <-- ДОБАВЛЕНО
+    
+    query = work_requests.insert().values(
+        user_id=current_user["id"], 
+        **request_data
+    )
     request_id = await database.execute(query)
-    return {"id": request_id, **work_request.model_dump()}
+    
+    # Также обновляем ответ, чтобы избежать отображения null на фронте сразу после создания
+    return {"id": request_id, "status": "ОЖИДАЕТ", **work_request.model_dump()} 
 
 @api_router.get("/work_requests/")
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
