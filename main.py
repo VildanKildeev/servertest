@@ -217,6 +217,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+# ИСПРАВЛЕНИЕ: Добавлен код для обработки NULL значений при ответе.
 @api_router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserOut)
 async def create_user(user: UserCreate):
     if await database.fetch_one(users.select().where(users.c.email == user.email)):
@@ -225,12 +226,31 @@ async def create_user(user: UserCreate):
         raise HTTPException(status_code=400, detail="Для 'ИСПОЛНИТЕЛЯ' специализация обязательна.")
     
     hashed_password = get_password_hash(user.password)
+    # Явно указываем значения по умолчанию при создании. Это самая надежная практика.
     query = users.insert().values(
-        email=user.email, hashed_password=hashed_password, phone_number=user.phone_number,
-        user_type=user.user_type, specialization=user.specialization
+        email=user.email, 
+        hashed_password=hashed_password, 
+        phone_number=user.phone_number,
+        user_type=user.user_type, 
+        specialization=user.specialization,
+        is_premium=False,
+        average_rating=0.0,
+        ratings_count=0
     )
     user_id = await database.execute(query)
-    return await database.fetch_one(users.select().where(users.c.id == user_id))
+    
+    # Получаем свежесозданного пользователя для ответа
+    created_user = await database.fetch_one(users.select().where(users.c.id == user_id))
+    
+    # Превращаем результат SQLAlchemy в изменяемый словарь
+    response_data = dict(created_user)
+    
+    # Гарантируем, что ответ не содержит NULL там, где Pydantic их не ожидает
+    response_data["average_rating"] = response_data.get("average_rating") or 0.0
+    response_data["ratings_count"] = response_data.get("ratings_count") or 0
+    response_data["is_premium"] = response_data.get("is_premium") or False
+
+    return response_data
 
 @api_router.get("/users/me", response_model=UserOut)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
