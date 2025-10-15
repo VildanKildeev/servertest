@@ -783,7 +783,7 @@ async function subscribeToPremium() {
                     buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
                 } else if (req.status === 'ВЫПОЛНЕНА' && !req.has_rated) {
                      buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                                   <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
+                                   <button class="btn-primary" onclick="showRatingModal(${req.id}, **'TO_CUSTOMER'**)">Оценить заказчика</button>`;
                 } else if (req.has_rated) {
                      buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
                 }
