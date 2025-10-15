@@ -1248,19 +1248,26 @@ function hideCityModal() {
                 });
                 const data = await response.json();
                 
-                if (response.ok) {
-                    accessToken = data.access_token;
-                    localStorage.setItem('accessToken', accessToken);
-                    await fetchProfile(); // Загружаем профиль и сохраняем его
-                    displayMessage('loginStatus', 'Успешный вход!', true);
-                    showPage('buttonContainer');
-                } else {
-                    displayMessage('loginStatus', data.detail || 'Неверный логин или пароль.', false);
-                }
-            } catch (error) {
-                displayMessage('loginStatus', 'Ошибка соединения с сервером.', false);
-            }
-        });
+                if (endpoint === '/api/token') {
+                    try {
+                        const data = await response.json();
+                        localStorage.setItem('accessToken', data.access_token);
+                        
+                        // Пытаемся получить данные профиля
+                        await fetchProfile(); 
+                        
+                        // Если fetchProfile успешен, только тогда переходим на страницу:
+                        showPage('buttonContainer'); 
+                        displayMessage(statusElementId, successMessage, true);
+
+                    } catch (e) {
+                        // КОНСОЛЬ ПОКАЖЕТ, ЧТО ИМЕННО СЛОМАЛОСЬ!
+                        console.error('Ошибка при обработке входа или загрузке профиля:', e);
+                        
+                        // Сообщаем пользователю об успешном входе, но сбое UI
+                        displayMessage(statusElementId, 'Вход успешен. Ошибка при загрузке данных профиля. Пожалуйста, обновите страницу вручную.', false);
+                    }
+                } 
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
