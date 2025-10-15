@@ -302,7 +302,9 @@ select[multiple] { height: 120px; }
 <div id="profilePage" class="page">
             <div class="form-container">
                 <h2>Профиль</h2>
-               <div id="profileStatus" class="message"></div> <div id="editSpecializationSection" style="display: none; margin-top: 15px;">
+               <div id="profileStatus" class="message"></div>
+<div id="profileInfo" style="text-align: left; margin-bottom: 20px;"></div>
+ <div id="editSpecializationSection" style="display: none; margin-top: 15px;">
     <hr style="margin: 15px 0;">
     <h3>Управление специализациями</h3>
     <div class="input-group">
@@ -758,23 +760,38 @@ async function subscribeToPremium() {
             const city = CITIES.find(c => c.id === req.city_id)?.name || 'Неизвестный город';
             let buttonsHTML = '';
             
-            // --- Логика для ЗАКАЗЧИКА ---
-            if (profile.user_type === 'ЗАКАЗЧИК' && req.user_id === profile.id) {
+            // ПРАВИЛЬНАЯ ЛОГИКА:
+            // 1. Я ЗАКАЗЧИК в этой заявке?
+            if (req.user_id === profile.id) {
                 if (req.status === 'ОЖИДАЕТ') {
                     buttonsHTML = `<button class="btn-primary" onclick="fetchAndShowResponses(${req.id})">Посмотреть отклики</button>
                                    <div class="responses-container" id="responses-for-${req.id}"></div>`;
                 } else if (req.status === 'В РАБОТЕ') {
-                    buttonsHTML = `<p style="color: green;"><strong>Исполнитель назначен (ID: ${req.executor_id})</strong></p>
+                    buttonsHTML = `<p style="color: green;"><strong>Исполнитель назначен</strong></p>
                                    <button class="btn-primary" onclick="changeRequestStatus(${req.id}, 'ВЫПОЛНЕНА')">Отметить как выполненную</button>
                                    <button class="btn-secondary" onclick="changeRequestStatus(${req.id}, 'ОТМЕНЕНА')" style="background-color:#dc3545!important;">Отменить</button>`;
-                } else if (req.status === 'ВЫПОЛНЕНА') {
-                    if (!req.has_rated) {
-                        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                                       <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_EXECUTOR')">Оценить исполнителя</button>`;
-                    } else {
-                        buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
-                    }
+                } else if (req.status === 'ВЫПОЛНЕНА' && !req.has_rated) {
+                    buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                                   <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_EXECUTOR')">Оценить исполнителя</button>`;
+                } else if (req.has_rated) {
+                    buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
                 }
+            } 
+            // 2. Я ИСПОЛНИТЕЛЬ в этой заявке?
+            else if (req.executor_id === profile.id) {
+                if (req.status === 'В РАБОТЕ') {
+                    buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
+                } else if (req.status === 'ВЫПОЛНЕНА' && !req.has_rated) {
+                     buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                                   <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
+                } else if (req.has_rated) {
+                     buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
+                }
+            }
+            // 3. Иначе я просто откликнулся, но меня не выбрали
+            else {
+                buttonsHTML = `<p style="color: #6c757d;">Вы откликнулись на эту заявку. Ожидает выбора заказчиком.</p>`;
+            }
             } 
             // --- Логика для ИСПОЛНИТЕЛЯ ---
             else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
@@ -1226,56 +1243,45 @@ function hideCityModal() {
     handleFormSubmit('machineryRequestForm', '/machinery_requests/', 'machineryRequestStatus', 'Заявка создана!', buildMachineryRequestPayload);
     handleFormSubmit('toolRequestForm', '/tool_requests/', 'toolRequestStatus', 'Заявка создана!', buildToolRequestPayload);
     handleFormSubmit('materialAdForm', '/material_ads/', 'materialAdStatus', 'Объявление создано!', buildMaterialAdPayload);
-
-            // Привязка обработчиков для создания заявок
-            handleFormSubmit('workRequestForm', '/work_requests/', 'workRequestStatus', 'Заявка на работу создана!', buildWorkRequestPayload);
-            handleFormSubmit('machineryRequestForm', '/machinery_requests/', 'machineryRequestStatus', 'Заявка на технику создана!', buildMachineryRequestPayload);
-            handleFormSubmit('toolRequestForm', '/tool_requests/', 'toolRequestStatus', 'Заявка на инструмент создана!', buildToolRequestPayload);
-            handleFormSubmit('materialAdForm', '/material_ads/', 'materialAdStatus', 'Объявление создано!', buildMaterialAdPayload);
         });
 
         // Обработчики форм (login, register)
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            try {
-    const response = await fetch(`${API_URL}/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
-    });
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const statusElementId = 'loginStatus'; // ID для сообщений об ошибках
 
-    // 1. ПРОВЕРКА СТАТУСА (response.ok)
-    if (response.ok) {
-        if (endpoint === '/api/token') {
-            try {
-                // 2. ОДИН РАЗ ЧИТАЕМ JSON И ПАРСИМ
-                const data = await response.json();
-                localStorage.setItem('accessToken', data.access_token);
-                
-                // Пытаемся получить данные профиля
-                await fetchProfile(); 
-                
-                // Если fetchProfile успешен, только тогда переходим на страницу:
-                showPage('buttonContainer'); 
-                displayMessage(statusElementId, successMessage, true);
-            } catch (e) {
-                // ... Ваш обработчик ошибок ...
-                console.error('Ошибка при обработке входа или загрузке профиля:', e);
-                displayMessage(statusElementId, 'Вход успешен. Ошибка при загрузке данных профиля. Пожалуйста, обновите страницу вручную.', false);
-            }
+    try {
+        const response = await fetch(`${API_URL}/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+        });
+
+        // Если ответ не 'ok' (например, статус 401), сразу переходим к обработке ошибки
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Неверный логин или пароль.');
         }
-    } else {
-        // 3. ОБРАБОТКА ОШИБКИ 400/401/и т.д.
-        const errorData = await response.json();
-        displayMessage(statusElementId, errorData.detail || 'Неверный логин или пароль.', false);
+
+        // Если всё в порядке, получаем токен
+        const data = await response.json();
+        accessToken = data.access_token;
+        localStorage.setItem('accessToken', accessToken);
+
+        // Сразу после успешного входа загружаем профиль
+        await fetchProfile();
+
+        // И только после этого переходим на главный экран
+        showPage('buttonContainer');
+
+    } catch (error) {
+        // Отображаем любую ошибку (сетевую или от сервера)
+        console.error('Ошибка входа:', error);
+        displayMessage(statusElementId, error.message, false);
     }
-} catch (error) {
-    // ... Ваш обработчик сетевых ошибок ...
-    displayMessage(statusElementId, 'Сетевая ошибка. Невозможно подключиться к серверу.', false);
-} 
+});
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
