@@ -103,7 +103,7 @@ class PerformerSpecializationOut(Specialization):
 
 class UserSpecializationsUpdate(BaseModel):
     specialization_codes: List[str]
-    primary_code: str
+    primary_code: Optional[str] = None # Сделаем необязательным, так как будем его игнорировать
 
 class SubscriptionStatus(BaseModel):
     is_premium: bool
@@ -453,37 +453,47 @@ async def get_my_specializations(current_user: dict = Depends(get_current_user))
     query = select(specializations.c.code, specializations.c.name, performer_specializations.c.is_primary).select_from(join).where(performer_specializations.c.user_id == current_user["id"])
     return await database.fetch_all(query)
 
-@api_router.post("/me/specializations", status_code=200)
+api_router.post("/me/specializations", status_code=200)
 async def update_me_specializations(data: UserSpecializationsUpdate, current_user: dict = Depends(get_current_user)):
     if current_user["user_type"] != "ИСПОЛНИТЕЛЬ":
         raise HTTPException(status_code=403, detail="Только исполнители могут управлять специализациями.")
-    if data.primary_code not in data.specialization_codes:
-        raise HTTPException(status_code=400, detail="Основная специализация должна быть в списке выбранных.")
     
     async with database.transaction():
-        # 1. Удаляем старые
+        # 1. Получаем НЕИЗМЕНЯЕМУЮ основную специализацию
+        primary_spec_query = select(performer_specializations.c.specialization_code).where(
+            and_(
+                performer_specializations.c.user_id == current_user["id"],
+                performer_specializations.c.is_primary == True
+            )
+        )
+        existing_primary_code = await database.fetch_val(primary_spec_query)
+
+        if not existing_primary_code:
+            raise HTTPException(status_code=404, detail="Основная специализация не найдена. Обратитесь в поддержку.")
+
+        # 2. Формируем новый список кодов: основная + выбранные дополнительные.
+        # Убеждаемся, что основная специализация всегда присутствует.
+        final_codes = set(data.specialization_codes)
+        final_codes.add(existing_primary_code)
+        
+        # 3. Удаляем все старые связи
         delete_query = performer_specializations.delete().where(performer_specializations.c.user_id == current_user["id"])
         await database.execute(delete_query)
         
-        # 2. Вставляем новые
+        # 4. Вставляем новые на основе итогового списка
         values_to_insert = []
-        for code in data.specialization_codes:
+        for code in final_codes:
             values_to_insert.append({
                 "user_id": current_user["id"],
                 "specialization_code": code,
-                "is_primary": code == data.primary_code
+                "is_primary": code == existing_primary_code # Флаг is_primary устанавливается только для исходной основной
             })
         
         if values_to_insert:
             insert_query = performer_specializations.insert()
             await database.execute_many(insert_query, values_to_insert)
 
-        # 3. Обновляем поле-зеркало в users для обратной совместимости
-        primary_spec_name = await database.fetch_val(select(specializations.c.name).where(specializations.c.code == data.primary_code))
-        update_user_query = users.update().where(users.c.id == current_user["id"]).values(specialization=primary_spec_name)
-        await database.execute(update_user_query)
-
-    return {"message": "Специализации успешно обновлены."}
+    return {"message": "Дополнительные специализации успешно обновлены."}
 
 @api_router.get("/me/subscription", response_model=SubscriptionStatus)
 async def get_my_subscription(current_user: dict = Depends(get_current_user)):
