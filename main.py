@@ -105,9 +105,9 @@ class UserSpecializationsUpdate(BaseModel):
     specialization_codes: List[str]
     primary_code: Optional[str] = None # Сделаем необязательным, так как будем его игнорировать
 
-class SpecializationUpdate(BaseModel):
-    primary_code: str = Field(..., description="Код основной специализации")
-    additional_codes: List[str] = Field(..., description="Список кодов всех выбранных специализаций")
+class AdditionalSpecializationUpdate(BaseModel):
+    """Модель для обновления только дополнительных специализаций."""
+    additional_codes: List[str] = Field(..., description="Список кодов дополнительных специализаций")
 
 class SubscriptionStatus(BaseModel):
     is_premium: bool
