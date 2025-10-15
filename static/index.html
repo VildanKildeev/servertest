@@ -987,12 +987,22 @@ async function subscribeToPremium() {
         // --- ЛОГИКА ГОРОДОВ ---
 
         function showCityModal() {
-            document.getElementById('cityModal').classList.add('active');
-        }
+    // Получаем элемент модального окна
+    const modal = document.getElementById('cityModal');
+    
+    // Проверяем, существует ли он, и делаем его видимым
+    if (modal) {
+        modal.style.display = 'flex'; // или 'block'
+    }
+}
 
-        function hideCityModal() {
-            document.getElementById('cityModal').classList.remove('active');
-        }
+// Определение функции для скрытия модального окна (если нужно)
+function hideCityModal() {
+    const modal = document.getElementById('cityModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
 
         async function fetchCities() {
             try {
