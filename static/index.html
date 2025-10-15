@@ -776,39 +776,30 @@ async function subscribeToPremium() {
                 } else if (req.has_rated) {
                     buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
                 }
-            } 
-            // 2. Я ИСПОЛНИТЕЛЬ в этой заявке?
+            }
+            // 2. ИЛИ Я ИСПОЛНИТЕЛЬ в этой заявке?
             else if (req.executor_id === profile.id) {
                 if (req.status === 'В РАБОТЕ') {
                     buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
                 } else if (req.status === 'ВЫПОЛНЕНА' && !req.has_rated) {
-                     buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                                   <button class="btn-primary" onclick="showRatingModal(${req.id}, **'TO_CUSTOMER'**)">Оценить заказчика</button>`;
+                    buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
+                                   <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
                 } else if (req.has_rated) {
-                     buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
+                    buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
                 }
             }
-            // 3. Иначе я просто откликнулся, но меня не выбрали
+            // 3. Иначе я просто откликнулся, но меня не выбрали (или другая роль)
             else {
                 buttonsHTML = `<p style="color: #6c757d;">Вы откликнулись на эту заявку. Ожидает выбора заказчиком.</p>`;
             }
-            } 
-            // --- Логика для ИСПОЛНИТЕЛЯ ---
-            else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                if (req.executor_id === profile.id) { // Если он назначен исполнителем
-                    if (req.status === 'В РАБОТЕ') {
-                        buttonsHTML = `<p style="color: green;">Вы — назначенный Исполнитель.</p>`;
-                    } else if (req.status === 'ВЫПОЛНЕНА') {
-                        if (!req.has_rated) {
-                            buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅</p>
-                                           <button class="btn-primary" onclick="showRatingModal(${req.id}, 'TO_CUSTOMER')">Оценить заказчика</button>`;
-                        } else {
-                            buttonsHTML = `<p><strong>Статус:</strong> ${req.status} ✅ (Вы уже оставили оценку)</p>`;
-                        }
-                    }
-                }
-            }
             
+            // Здесь должна быть проверка user_type, если она нужна:
+            /* else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+                // ... другая логика для исполнителей, если он не был назначен на эту заявку
+            }
+            */
+
+            // ГЕНЕРАЦИЯ HTML-ЭЛЕМЕНТА ЗАЯВКИ (БЕЗ ИЗМЕНЕНИЙ)
             list.innerHTML += `
                 <div class="request-item" id="my-request-${req.id}">
                     <h4>${req.specialization} (Бюджет: ${req.budget} руб.)</h4>
@@ -817,8 +808,8 @@ async function subscribeToPremium() {
                     <p><strong>Описание:</strong> ${req.description}</p>
                     <div style="margin-top: 10px;">${buttonsHTML}</div>
                 </div>`;
-        }); // <-- СКОБКА ИСПРАВЛЕНА
-    } catch (error) { // <-- ТЕПЕРЬ ВСЕ КОРРЕКТНО
+        });
+    } catch (error) {
         list.innerHTML = `<p class="message error">Ошибка загрузки заявок.</p>`;
     }
 }
