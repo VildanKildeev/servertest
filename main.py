@@ -105,6 +105,10 @@ class UserSpecializationsUpdate(BaseModel):
     specialization_codes: List[str]
     primary_code: Optional[str] = None # Сделаем необязательным, так как будем его игнорировать
 
+class SpecializationUpdate(BaseModel):
+    primary_code: str = Field(..., description="Код основной специализации")
+    additional_codes: List[str] = Field(..., description="Список кодов всех выбранных специализаций")
+
 class SubscriptionStatus(BaseModel):
     is_premium: bool
     premium_until: Optional[datetime] = None
@@ -683,6 +687,73 @@ async def rate_work_request(request_id: int, rating_data: RatingIn, current_user
         await database.execute(users.update().where(users.c.id == rated_id).values(average_rating=new_avg, ratings_count=new_count))
     return {"message": "Оценка успешно отправлена."}
 
+@api_router.patch("/me/specializations/")
+async def update_user_specializations(
+    data: AdditionalSpecializationUpdate, 
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = current_user['id']
+    new_additional_codes = set(data.additional_codes)
+    
+    # 1. Запуск транзакции
+    async with database.transaction():
+        # 2. Получение текущей Основной специализации
+        # Предполагаем, что у пользователя всегда есть одна основная специализация
+        primary_spec_query = select([performer_specializations.c.specialization_code]).where(
+            and_(
+                performer_specializations.c.user_id == user_id,
+                performer_specializations.c.is_primary == True
+            )
+        )
+        primary_spec_result = await database.fetch_one(primary_spec_query)
+        
+        if not primary_spec_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Основная специализация пользователя не найдена."
+            )
+        
+        primary_code = primary_spec_result['specialization_code']
+
+        # Проверка: основная специализация НЕ должна быть в списке дополнительных
+        if primary_code in new_additional_codes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Основная специализация не может быть выбрана как дополнительная."
+            )
+            
+        # 3. Удаление ВСЕХ старых специализаций (и Основной, и Дополнительных)
+        # Это самый простой способ, чтобы затем вставить их заново.
+        delete_query = performer_specializations.delete().where(
+            performer_specializations.c.user_id == user_id
+        )
+        await database.execute(delete_query)
+        
+        # 4. Подготовка данных для вставки
+        specialization_data = []
+        
+        # Добавляем Основную специализацию
+        specialization_data.append({
+            "user_id": user_id,
+            "specialization_code": primary_code,
+            "is_primary": True
+        })
+        
+        # Добавляем Дополнительные специализации
+        for code in new_additional_codes:
+            specialization_data.append({
+                "user_id": user_id,
+                "specialization_code": code,
+                "is_primary": False
+            })
+            
+        # 5. Вставка новых специализаций
+        if specialization_data:
+            insert_query = performer_specializations.insert().values(specialization_data)
+            await database.execute(insert_query)
+            
+    return {"message": "Дополнительные специализации успешно обновлены."}
+
 # ... (Остальные CRUD эндпоинты)
 @api_router.post("/machinery_requests/", status_code=status.HTTP_201_CREATED)
 async def create_machinery_request(machinery_request: MachineryRequestIn, current_user: dict = Depends(get_current_user)):
@@ -728,6 +799,48 @@ async def get_material_ads(city_id: Optional[int] = None):
 @api_router.post("/update_specialization/") # Этот эндпоинт теперь не нужен, но оставим для совместимости. Логика переехала.
 async def update_user_specialization(specialization: str, current_user: dict = Depends(get_current_user)):
      raise HTTPException(status_code=410, detail="Этот метод устарел. Используйте /api/me/specializations")
+
+@api_router.get("/work_requests/me/")
+async def get_work_requests_for_me(current_user: dict = Depends(get_current_user)):
+    user_id = current_user['id']
+    user_city_id = current_user.get('city_id')
+    user_is_premium = current_user.get('is_premium', False) 
+
+    # 1. Получаем все специализации пользователя
+    spec_query = select([
+        performer_specializations.c.specialization_code,
+        performer_specializations.c.is_primary
+    ]).where(performer_specializations.c.user_id == user_id)
+    
+    user_specs = await database.fetch_all(spec_query)
+
+    if not user_specs: return []
+
+    # 2. Определяем список кодов специализаций, по которым разрешен просмотр
+    allowed_codes = set()
+    
+    for spec in user_specs:
+        spec_code = spec['specialization_code']
+        is_primary = spec['is_primary']
+        
+        if is_primary:
+            # Всегда разрешаем Основную
+            allowed_codes.add(spec_code)
+        elif user_is_premium:
+            # Дополнительные разрешаем только при Premium-подписке
+            allowed_codes.add(spec_code)
+            
+    if not allowed_codes: return []
+
+    # 3. Формируем запрос на заявки: фильтр по городу и разрешенным специализациям
+    work_query = work_requests.select().where(
+        and_(
+            work_requests.c.specialization_code.in_(allowed_codes),
+            work_requests.c.city_id == user_city_id
+        )
+    )
+
+    return await database.fetch_all(work_query.order_by(work_requests.c.created_at.desc()))
 
 
 app.include_router(api_router)
