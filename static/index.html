@@ -139,6 +139,10 @@
         .message { padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; display: none; }
         .message.success { background-color: #d4edda; color: #155724; }
         .message.error { background-color: #f8d7da; color: #721c24; }
+
+select[multiple] { height: 120px; }
+/* И добавьте стиль для контейнера радио-кнопок */
+#primary-spec-selector div { margin-bottom: 5px; }
         
         /* =======================================
            СТИЛИ МОДАЛЬНЫХ ОКОН
@@ -266,7 +270,7 @@
                         </select>
                     </div>
                     <div class="input-group" id="specializationGroup" style="display: none;">
-                        <label for="registerSpecialization">Специализация:</label> <select id="registerSpecialization"></select>
+                        <label for="registerSpecialization">Ваша основная специализация:</label> <select id="registerSpecialization"></select>
                     </div>
                     <button type="submit" class="btn-primary">Зарегистрироваться</button>
                     <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
@@ -298,14 +302,20 @@
 <div id="profilePage" class="page">
             <div class="form-container">
                 <h2>Профиль</h2>
-                <div id="profileInfo"></div>
-                <div id="editSpecializationForm" style="display: none; margin-top: 15px;">
-                    <div class="input-group">
-                        <label for="newSpecialization">Новая специализация:</label>
-                        <select id="newSpecialization"></select>
-                    </div>
-                    <button id="saveSpecializationBtn" class="btn-primary">Сохранить</button>
-                </div>
+               <div id="profileStatus" class="message"></div> <div id="editSpecializationSection" style="display: none; margin-top: 15px;">
+    <hr style="margin: 15px 0;">
+    <h3>Управление специализациями</h3>
+    <div class="input-group">
+        <label for="multiSpecializationSelect">Выберите ваши специализации (можно несколько):</label>
+        <select id="multiSpecializationSelect" multiple></select>
+    </div>
+    <div id="primary-spec-choice" class="input-group" style="display: none;">
+        <label>Выберите основную специализацию:</label>
+        <div id="primary-spec-selector">
+            </div>
+    </div>
+    <button id="saveSpecializationBtn" class="btn-primary">Сохранить специализации</button>
+</div>
                 <div id="premiumSection"></div>
                 <button class="btn-secondary" onclick="showPage('buttonContainer')" style="margin-top: 20px;">Назад</button>
             </div>
@@ -501,7 +511,8 @@
         // const API_URL = "http://127.0.0.1:8000/api"; // Для локального теста
         const API_URL = "/api"; // Для продакшена
         let CITIES = [];
-        let profile = null; 
+        let profile = null;
+let ALL_SPECS = []; // Справочник всех специализаций 
         let accessToken = null;
         let selectedCityId = localStorage.getItem('selectedCityId') || null;
         let selectedCityName = localStorage.getItem('selectedCityName') || "Выберите город";
@@ -553,96 +564,131 @@
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
 
-        document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
-            const newSpec = document.getElementById('newSpecialization').value;
-            if (!newSpec) {
-                alert('Пожалуйста, выберите новую специализацию.');
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_URL}/update_specialization/?specialization=${encodeURIComponent(newSpec)}`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    alert('Специализация успешно обновлена!');
-                    toggleEditSpecialization(); // Скрываем форму
-                    fetchProfile(); // Обновляем информацию в профиле
-                } else {
-                    alert(`Ошибка: ${data.detail}`);
-                }
-            } catch (error) {
-                alert('Сетевая ошибка при обновлении специализации.');
-            }
-        });
-        
+               
 async function fetchProfile() {
-            if (!accessToken) { showPage('loginPage'); return; }
-            const profileDiv = document.getElementById('profileInfo');
-            const premiumDiv = document.getElementById('premiumSection');
-            profileDiv.innerHTML = 'Загрузка...';
-            premiumDiv.innerHTML = '';
-            
-            try {
-                const res = await fetch(`${API_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (!res.ok) { logout(); return; }
-                profile = await res.json();
-                localStorage.setItem('profile', JSON.stringify(profile));
-                
-                let specializationHTML = '';
-                if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                    specializationHTML = `<p><strong>Специализация:</strong> ${profile.specialization || 'Не указана'} <button class="btn-link" onclick="toggleEditSpecialization()">Изменить</button></p>`;
-                }
+    if (!accessToken) { showPage('loginPage'); return; }
+    const profileDiv = document.getElementById('profileInfo');
+    const premiumDiv = document.getElementById('premiumSection');
+    const specSection = document.getElementById('editSpecializationSection');
+    profileDiv.innerHTML = 'Загрузка...'; premiumDiv.innerHTML = ''; specSection.style.display = 'none';
 
-                profileDiv.innerHTML = `
-                    <p><strong>Email:</strong> ${profile.email}</p>
-                    <p><strong>Телефон:</strong> ${profile.phone_number}</p>
-                    <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
-                    ${specializationHTML}
-                    <p><strong>Ваш рейтинг:</strong> ${profile.average_rating ? profile.average_rating.toFixed(2) : 'Нет оценок'} (${profile.ratings_count} оценок)</p>
-                    <p><strong>Статус:</strong> ${profile.is_premium ? '<span class="premium">Премиум ★</span>' : 'Обычный'}</p>
-                `;
+    try {
+        const res = await fetch(`${API_URL}/users/me`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        if (!res.ok) { logout(); return; }
+        profile = await res.json();
+        localStorage.setItem('profile', JSON.stringify(profile));
 
-                if (!profile.is_premium) {
-                    premiumDiv.innerHTML = `
-                        <div class="premium-offer" style="margin-top: 20px; padding: 15px; border: 1px solid #FF8C00; border-radius: 5px; text-align: center;">
-                            <h4>Получите Премиум-статус!</h4>
-                            <p>Ваши заявки и объявления будут отображаться выше остальных.</p>
-                            <button id="subscribeBtn" class="btn-primary" onclick="subscribeToPremium()">Активировать Премиум</button>
-                        </div>
-                    `;
-                }
-
-            } catch (error) {
-                console.error('Error fetching profile:', error);
-                profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>';
-            }
+        let specializationHTML = '';
+        if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+            specSection.style.display = 'block';
+            const specsList = profile.specializations.map(s => `${s.name} ${s.is_primary ? '<strong>(основная)</strong>' : ''}`).join(', ') || 'Не выбраны';
+            specializationHTML = `<p><strong>Специализации:</strong> ${specsList}</p>`;
+            // Заполняем форму редактирования
+            populateSpecializationForm();
         }
+
+        profileDiv.innerHTML = `
+            <p><strong>Email:</strong> ${profile.email}</p>
+            <p><strong>Телефон:</strong> ${profile.phone_number}</p>
+            <p><strong>Тип аккаунта:</strong> ${profile.user_type}</p>
+            ${specializationHTML}
+            <p><strong>Ваш рейтинг:</strong> ${profile.average_rating ? profile.average_rating.toFixed(2) : 'Нет оценок'} (${profile.ratings_count} оценок)</p>
+            <p><strong>Статус:</strong> ${profile.is_premium ? `<span class="premium">Премиум ★ (до ${new Date(profile.premium_until).toLocaleDateString()})</span>` : 'Обычный'}</p>
+        `;
+
+        if (!profile.is_premium) {
+            premiumDiv.innerHTML = `<div class="premium-offer" style="margin-top: 20px; padding: 15px; border: 1px solid #FF8C00; border-radius: 5px; text-align: center;"><h4>Получите Премиум-статус!</h4><p>Ваши заявки будут выше, и вы сможете видеть все заказы по вашим специализациям.</p><button id="subscribeBtn" class="btn-primary">Активировать Премиум</button></div>`;
+            document.getElementById('subscribeBtn').addEventListener('click', subscribeToPremium);
+        }
+    } catch (error) { console.error('Error fetching profile:', error); profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>'; }
+}
+
+function populateSpecializationForm() {
+    const multiSelect = document.getElementById('multiSpecializationSelect');
+    multiSelect.innerHTML = '';
+    const mySpecCodes = profile.specializations.map(s => s.code);
+    const primarySpec = profile.specializations.find(s => s.is_primary);
+
+    ALL_SPECS.forEach(spec => {
+        const option = document.createElement('option');
+        option.value = spec.code;
+        option.textContent = spec.name;
+        if (mySpecCodes.includes(spec.code)) {
+            option.selected = true;
+        }
+        multiSelect.appendChild(option);
+    });
+    updatePrimarySelector(primarySpec ? primarySpec.code : null);
+}
+
+function updatePrimarySelector(primaryCode) {
+    const selectorDiv = document.getElementById('primary-spec-selector');
+    const choiceContainer = document.getElementById('primary-spec-choice');
+    const selectedOptions = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions);
+
+    selectorDiv.innerHTML = '';
+    if (selectedOptions.length > 0) {
+        choiceContainer.style.display = 'block';
+        selectedOptions.forEach(opt => {
+            const isChecked = opt.value === primaryCode || (selectedOptions.length === 1 && !primaryCode);
+            selectorDiv.innerHTML += `<div><label><input type="radio" name="primary_spec" value="${opt.value}" ${isChecked ? 'checked' : ''}> ${opt.textContent}</label></div>`;
+        });
+    } else {
+        choiceContainer.style.display = 'none';
+    }
+}
+
+document.getElementById('multiSpecializationSelect').addEventListener('change', () => {
+    const currentPrimary = document.querySelector('input[name="primary_spec"]:checked');
+    updatePrimarySelector(currentPrimary ? currentPrimary.value : null);
+});
+
+document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
+    const selectedCodes = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions).map(o => o.value);
+    const primaryRadio = document.querySelector('input[name="primary_spec"]:checked');
+
+    if (selectedCodes.length > 0 && !primaryRadio) {
+        displayMessage('profileStatus', 'Пожалуйста, выберите основную специализацию.', false);
+        return;
+    }
+
+    const payload = {
+        specialization_codes: selectedCodes,
+        primary_code: primaryRadio ? primaryRadio.value : ''
+    };
+
+    try {
+        const res = await fetch(`${API_URL}/me/specializations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+        displayMessage('profileStatus', 'Специализации успешно обновлены!', true);
+        fetchProfile(); // Обновить информацию на странице
+    } catch (error) {
+        displayMessage('profileStatus', `Ошибка: ${error.message}`, false);
+    }
+});
 
 async function subscribeToPremium() {
-            if (!confirm('Вы уверены, что хотите активировать Премиум-подписку? Это действие нельзя будет отменить.')) return;
+    try {
+        const res = await fetch(`${API_URL}/subscribe/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Не удалось начать процесс оплаты');
 
-            try {
-                const res = await fetch(`${API_URL}/subscribe/`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    alert('Премиум-подписка успешно активирована!');
-                    fetchProfile(); // Обновляем профиль для отображения нового статуса
-                } else {
-                    throw new Error(data.detail || 'Не удалось активировать подписку');
-                }
-            } catch (error) {
-                alert(`Ошибка: ${error.message}`);
-                console.error('Subscription error:', error);
-            }
+        if (data.checkout_url) { // Ветка Stripe
+            window.location.href = data.checkout_url;
+        } else if (data.activated) { // DEV-ветка
+            alert('Премиум-подписка успешно активирована (DEV-режим)!');
+            fetchProfile();
         }
+    } catch (error) { alert(`Ошибка: ${error.message}`); console.error('Subscription error:', error); }
+}
         
         // Добавим вызов этой функции на странице "Мои выполненные заявки"
         document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').addEventListener('click', fetchCompletedRequestsForRating);
@@ -1127,48 +1173,50 @@ async function subscribeToPremium() {
         
         // --- ИНИЦИАЛИЗАЦИЯ И ОБРАБОТЧИКИ ФОРМ ---
         
-        async function fetchOptions(selectId, endpoint) {
-            try {
-                const res = await fetch(`${API_URL}${endpoint}`);
-                const options = await res.json();
-                const select = document.getElementById(selectId);
-                select.innerHTML = '';
-                options.forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt.name;
-                    option.textContent = opt.name;
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error(`Error fetching options for ${selectId}:`, error);
-            }
-        }
+        async function fetchOptions(selectId, endpoint, isMulti=false) {
+    try {
+        const res = await fetch(`${API_URL}${endpoint}`); const options = await res.json();
+        if(endpoint === '/specializations/') ALL_SPECS = options; // Сохраняем справочник
+        const select = document.getElementById(selectId); if(!select) return; select.innerHTML = '';
+        options.forEach(opt => { 
+            const option = document.createElement('option'); 
+            option.value = isMulti ? opt.code : opt.name; // <--- Исправлено
+            option.textContent = opt.name; 
+            select.appendChild(option); 
+        });
+    } catch (error) { console.error(`Error fetching for ${selectId}:`, error); }
+}
         
         // Инициализация при загрузке страницы
         window.addEventListener('DOMContentLoaded', async () => {
-            accessToken = localStorage.getItem('accessToken');
-            const storedProfile = localStorage.getItem('profile');
-            if (storedProfile) {
-                profile = JSON.parse(storedProfile);
-            }
+    accessToken = localStorage.getItem('accessToken');
+    const storedProfile = localStorage.getItem('profile'); if (storedProfile) { profile = JSON.parse(storedProfile); }
 
-            // Загрузка городов
-            await fetchCities();
-            selectCity(true); 
+    // Проверяем URL на предмет успешной оплаты
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment') === 'success') {
+        alert('Оплата прошла успешно! Ваш премиум-статус активирован.');
+        // Очищаем параметры из URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
-            // Загрузка опций для форм
-            fetchOptions('registerSpecialization', '/specializations/');
-            fetchOptions('newSpecialization', '/specializations/');
-            fetchOptions('workSpecialization', '/specializations/');
-            fetchOptions('machineryType', '/machinery_types/');
-            fetchOptions('toolName', '/tool_names/');
-            
-            // Определяем начальную страницу
-            if (accessToken) {
-                showPage('buttonContainer');
-            } else {
-                showPage('loginPage');
-            }
+    await fetchCities();
+    selectCity(true); 
+
+    // Загрузка справочников
+    await fetchOptions('registerSpecialization', '/specializations/');
+    await fetchOptions('workSpecialization', '/specializations/');
+    await fetchOptions('multiSpecializationSelect', '/specializations/', true); // <--- Изменено
+    await fetchOptions('machineryType', '/machinery_types/');
+    await fetchOptions('toolName', '/tool_names/');
+
+    if (accessToken) { showPage('buttonContainer'); } else { showPage('loginPage'); }
+
+    handleFormSubmit('workRequestForm', '/work_requests/', 'workRequestStatus', 'Заявка создана!', buildWorkRequestPayload);
+    handleFormSubmit('machineryRequestForm', '/machinery_requests/', 'machineryRequestStatus', 'Заявка создана!', buildMachineryRequestPayload);
+    handleFormSubmit('toolRequestForm', '/tool_requests/', 'toolRequestStatus', 'Заявка создана!', buildToolRequestPayload);
+    handleFormSubmit('materialAdForm', '/material_ads/', 'materialAdStatus', 'Объявление создано!', buildMaterialAdPayload);
+});
 
             // Привязка обработчиков для создания заявок
             handleFormSubmit('workRequestForm', '/work_requests/', 'workRequestStatus', 'Заявка на работу создана!', buildWorkRequestPayload);
