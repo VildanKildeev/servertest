@@ -642,17 +642,6 @@ function populateSpecializationForm() {
 document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
     // Получаем только список кодов из multi-select
     const selectedCodes = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions).map(o => o.value);
-
-function updatePrimarySelector(primaryCode) {
-    const selectorDiv = document.getElementById('primary-spec-selector');
-    const choiceContainer = document.getElementById('primary-spec-choice');
-    const selectedOptions = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions);
-
-}
-
-document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
-    // Получаем только список кодов из multi-select
-    const selectedCodes = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions).map(o => o.value);
     
     // Формируем payload. Поле primary_code будет проигнорировано бэкендом,
     // но отправляем его для соответствия модели Pydantic.
