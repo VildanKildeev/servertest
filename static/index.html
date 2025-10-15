@@ -521,6 +521,27 @@ let ALL_SPECS = []; // Справочник всех специализаций
         let selectedCityId = localStorage.getItem('selectedCityId') || null;
         let selectedCityName = localStorage.getItem('selectedCityName') || "Выберите город";
 
+let ALL_SPECIALIZATIONS_CACHE = null;
+async function fetchAllSpecializations() {
+    if (ALL_SPECIALIZATIONS_CACHE && ALL_SPECIALIZATIONS_CACHE.length > 0) {
+        return ALL_SPECIALIZATIONS_CACHE;
+    }
+    try {
+        const res = await fetch(`${API_URL}/specializations/`);
+        if (res.ok) {
+            ALL_SPECIALIZATIONS_CACHE = await res.json();
+            // Обновляем старую глобальную переменную ALL_SPECS для совместимости с другими формами
+            ALL_SPECS = ALL_SPECIALIZATIONS_CACHE;
+            return ALL_SPECIALIZATIONS_CACHE;
+        }
+    } catch (e) {
+        console.error("Не удалось загрузить справочник специализаций:", e);
+    }
+    return [];
+}
+// -----------------------------------------------------------------
+
+
         // --- ОСНОВНЫЕ ФУНКЦИИ ---
 
         function showPage(pageId) {
@@ -583,13 +604,13 @@ async function fetchProfile() {
         localStorage.setItem('profile', JSON.stringify(profile));
 
         let specializationHTML = '';
-        if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-            specSection.style.display = 'block';
-            const specsList = profile.specializations.map(s => `${s.name} ${s.is_primary ? '<strong>(основная)</strong>' : ''}`).join(', ') || 'Не выбраны';
-            specializationHTML = `<p><strong>Специализации:</strong> ${specsList}</p>`;
-            // Заполняем форму редактирования
-            populateSpecializationForm();
-        }
+    if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
+        specSection.style.display = 'block';
+        const specsList = profile.specializations.map(s => `${s.name} ${s.is_primary ? '<strong>(основная)</strong>' : ''}`).join(', ') || 'Не выбраны';
+        specializationHTML = `<p><strong>Специализации:</strong> ${specsList}</p>`;
+        // Заполняем форму редактирования
+        await populateSpecializationForm(); // <-- ДОБАВЬТЕ await ЗДЕСЬ
+    }
 
         profileDiv.innerHTML = `
             <p><strong>Email:</strong> ${profile.email}</p>
@@ -607,63 +628,53 @@ async function fetchProfile() {
     } catch (error) { console.error('Error fetching profile:', error); profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>'; }
 }
 
-function populateSpecializationForm() {
+async function populateSpecializationForm() {
     const multiSelect = document.getElementById('multiSpecializationSelect');
-    const primaryDisplayContainer = document.getElementById('primary-spec-display');
     const primaryNameEl = document.getElementById('primary-spec-name');
+    multiSelect.innerHTML = ''; // Очистка
+    primaryNameEl.textContent = 'Не выбрана'; // Значение по умолчанию
     
-    multiSelect.innerHTML = '';
-    
-    const mySpecCodes = profile.specializations.map(s => s.code);
-    const primarySpec = profile.specializations.find(s => s.is_primary);
+    // Получаем все возможные специализации (асинхронно)
+    const allSpecializations = await fetchAllSpecializations(); 
 
-    // 1. Заполняем multi-select всеми доступными специализациями
-    ALL_SPECS.forEach(spec => {
+    if (!profile.specializations || profile.specializations.length === 0) {
+        return;
+    }
+
+    // Находим текущие Основную и Дополнительные
+    const primarySpec = profile.specializations.find(s => s.is_primary);
+    // Получаем коды только дополнительных специализаций
+    const additionalSpecs = profile.specializations
+        .filter(s => !s.is_primary)
+        .map(s => s.specialization_code);
+    
+    // 1. Отображаем Основную специализацию
+    if (primarySpec) {
+        const primarySpecName = allSpecializations.find(
+            s => s.code === primarySpec.specialization_code
+        )?.name || primarySpec.specialization_code;
+        
+        primaryNameEl.textContent = primarySpecName;
+    }
+
+    // 2. Заполняем мульти-селект
+    allSpecializations.forEach(spec => {
+        // Основная специализация не должна быть доступна для выбора в "Дополнительных"
+        if (primarySpec && spec.code === primarySpec.specialization_code) {
+            return; // Пропускаем
+        }
+        
         const option = document.createElement('option');
         option.value = spec.code;
         option.textContent = spec.name;
-        if (mySpecCodes.includes(spec.code)) {
+        
+        // Выбираем те, которые уже являются дополнительными
+        if (additionalSpecs.includes(spec.code)) {
             option.selected = true;
         }
         multiSelect.appendChild(option);
     });
-    
-    // 2. Отображаем основную специализацию как статичный текст
-    if (primarySpec) {
-        primaryDisplayContainer.style.display = 'block';
-        primaryNameEl.textContent = primarySpec.name;
-    } else {
-        primaryDisplayContainer.style.display = 'none';
-    }
 }
-
-// THE "updatePrimarySelector" FUNCTION THAT WAS HERE IS NOW GONE.
-
-document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
-    // Получаем только список кодов из multi-select
-    const selectedCodes = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions).map(o => o.value);
-    
-    // Формируем payload. Поле primary_code будет проигнорировано бэкендом,
-    // но отправляем его для соответствия модели Pydantic.
-    const payload = {
-        specialization_codes: selectedCodes,
-        primary_code: "" // Это поле больше не используется для изменения
-    };
-
-    try {
-        const res = await fetch(`${API_URL}/me/specializations`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail);
-        displayMessage('profileStatus', data.message || 'Специализации успешно обновлены!', true);
-        fetchProfile(); // Обновить информацию на странице
-    } catch (error) {
-        displayMessage('profileStatus', `Ошибка: ${error.message}`, false);
-    }
-});
 
 async function subscribeToPremium() {
     try {
@@ -1196,6 +1207,51 @@ function hideCityModal() {
     } catch (error) { console.error(`Error fetching for ${selectId}:`, error); }
 }
         
+// --- НОВЫЙ ОБРАБОТЧИК ДЛЯ saveSpecializationBtn ---
+document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
+    // 1. Получаем только список кодов из multi-select (это теперь только дополнительные)
+    const additionalCodes = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions).map(o => o.value);
+    
+    // Не нужно проверять primarySpecName, так как primary_code не отправляется,
+    // но нужна базовая проверка
+    if (!profile || profile.user_type !== 'ИСПОЛНИТЕЛЬ') {
+         displayMessage('profileStatus', 'Профиль не загружен или вы не исполнитель.', false);
+         return;
+    }
+    
+    const payload = {
+        additional_codes: additionalCodes 
+    };
+    
+    try {
+        const accessToken = localStorage.getItem('accessToken');
+        const res = await fetch(`${API_URL}/me/specializations/`, { 
+            method: 'PATCH', // Используем PATCH
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${accessToken}` 
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            displayMessage('profileStatus', data.message || 'Дополнительные специализации успешно сохранены!', true);
+            // Обновляем профиль и заявки после успешного сохранения
+            // Сначала перелогиниваем профиль, чтобы получить обновленные данные
+            await fetchProfile(); 
+            // Затем обновляем заявки
+            fetchWorkRequests();
+        } else {
+            displayMessage('profileStatus', data.detail || 'Ошибка сохранения специализаций.', false);
+        }
+    } catch (error) {
+        displayMessage('profileStatus', 'Ошибка соединения с сервером.', false);
+    }
+});
+
+
         // Инициализация при загрузке страницы
         window.addEventListener('DOMContentLoaded', async () => {
     accessToken = localStorage.getItem('accessToken');
