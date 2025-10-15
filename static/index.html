@@ -1241,33 +1241,41 @@ function hideCityModal() {
             const password = document.getElementById('loginPassword').value;
             
             try {
-                const response = await fetch(`${API_URL}/token`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
-                });
-                const data = await response.json();
-                
-                if (endpoint === '/api/token') {
-                    try {
-                        const data = await response.json();
-                        localStorage.setItem('accessToken', data.access_token);
-                        
-                        // Пытаемся получить данные профиля
-                        await fetchProfile(); 
-                        
-                        // Если fetchProfile успешен, только тогда переходим на страницу:
-                        showPage('buttonContainer'); 
-                        displayMessage(statusElementId, successMessage, true);
+    const response = await fetch(`${API_URL}/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+    });
 
-                    } catch (e) {
-                        // КОНСОЛЬ ПОКАЖЕТ, ЧТО ИМЕННО СЛОМАЛОСЬ!
-                        console.error('Ошибка при обработке входа или загрузке профиля:', e);
-                        
-                        // Сообщаем пользователю об успешном входе, но сбое UI
-                        displayMessage(statusElementId, 'Вход успешен. Ошибка при загрузке данных профиля. Пожалуйста, обновите страницу вручную.', false);
-                    }
-                } 
+    // 1. ПРОВЕРКА СТАТУСА (response.ok)
+    if (response.ok) {
+        if (endpoint === '/api/token') {
+            try {
+                // 2. ОДИН РАЗ ЧИТАЕМ JSON И ПАРСИМ
+                const data = await response.json();
+                localStorage.setItem('accessToken', data.access_token);
+                
+                // Пытаемся получить данные профиля
+                await fetchProfile(); 
+                
+                // Если fetchProfile успешен, только тогда переходим на страницу:
+                showPage('buttonContainer'); 
+                displayMessage(statusElementId, successMessage, true);
+            } catch (e) {
+                // ... Ваш обработчик ошибок ...
+                console.error('Ошибка при обработке входа или загрузке профиля:', e);
+                displayMessage(statusElementId, 'Вход успешен. Ошибка при загрузке данных профиля. Пожалуйста, обновите страницу вручную.', false);
+            }
+        }
+    } else {
+        // 3. ОБРАБОТКА ОШИБКИ 400/401/и т.д.
+        const errorData = await response.json();
+        displayMessage(statusElementId, errorData.detail || 'Неверный логин или пароль.', false);
+    }
+} catch (error) {
+    // ... Ваш обработчик сетевых ошибок ...
+    displayMessage(statusElementId, 'Сетевая ошибка. Невозможно подключиться к серверу.', false);
+} 
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
