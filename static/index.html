@@ -897,30 +897,47 @@ async function subscribeToPremium() {
 
         // --- ОТОБРАЖЕНИЕ СПИСКОВ ЗАЯВОК (work, machinery, etc.) ---
         function renderRequests(containerId, items, type) {
-            const container = document.getElementById(containerId);
-            if (!items || items.length === 0) {
-                container.innerHTML = '<p>В вашем городе по этой специализации пока нет заявок.</p>';
-                return;
-            }
-            container.innerHTML = '';
-            items.forEach(req => {
-                const item = document.createElement('div');
-                item.className = 'request-item';
-                
-                // ИСПРАВЛЕНО: Кнопка "Откликнуться" для исполнителей
-                let actionBtn = '';
-                if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ') {
-                    actionBtn = `<button class="take-btn" onclick="respondToRequest(${req.id})">Откликнуться</button>`;
-                }
+    const container = document.getElementById(containerId);
+    if (!items || items.length === 0) {
+        container.innerHTML = '<p>В вашем городе по этой специализации пока нет заявок.</p>';
+        return;
+    }
+    container.innerHTML = '';
+    items.forEach(req => {
+        const item = document.createElement('div');
+        item.className = 'request-item';
+        
+        let actionHTML = ''; // Переименуем переменную для ясности
 
-                item.innerHTML = `
-                    <h4>${req.specialization || req.machinery_type || req.tool_name || req.material_type}</h4>
-                    <p>${req.description}</p>
-                    <p><strong>Бюджет/Цена:</strong> ${req.budget || req.rental_price || req.price} руб.</p>
+        // --- ИСПРАВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ ---
+        if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ') {
+            // Если заявка замаскирована (это доп. специализация для обычного юзера)
+            if (req.is_masked_for_user) {
+                actionHTML = `
                     <p><strong>Контакт:</strong> ${req.contact_info}</p>
-                    ${actionBtn}`;
-                container.appendChild(item);
-            });
+                    <div style="background-color: #fff8e1; border: 1px solid #ffecb3; padding: 10px; border-radius: 5px; margin-top: 10px; text-align: center;">
+                        Чтобы откликнуться и увидеть контакты, <a href="#" onclick="showPage('profilePage')">активируйте Премиум</a>.
+                    </div>
+                `;
+            } else {
+                // Обычная заявка по основной специализации
+                actionHTML = `
+                    <p><strong>Контакт:</strong> ${req.contact_info}</p>
+                    <button class="take-btn" onclick="respondToRequest(${req.id})">Откликнуться</button>
+                `;
+            }
+        } else {
+            // Для всех остальных случаев (заказчик, другие типы заявок)
+            actionHTML = `<p><strong>Контакт:</strong> ${req.contact_info}</p>`;
+        }
+
+        item.innerHTML = `
+            <h4>${req.specialization || req.machinery_type || req.tool_name || req.material_type}</h4>
+            <p>${req.description}</p>
+            <p><strong>Бюджет/Цена:</strong> ${req.budget || req.rental_price || req.price} руб.</p>
+            ${actionHTML}`; // Вставляем подготовленный HTML-блок
+        container.appendChild(item);
+    });
         }
         
         async function fetchAndRenderGeneric(endpoint, containerId, type) {
