@@ -32,15 +32,15 @@
         }
 
         .background-video { 
-            display: none; 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            z-index: -2; 
-        }
+    display: block; /* ИЗМЕНЕНО: Видео теперь будет отображаться */
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; /* Растягивает видео на весь экран без искажений */
+    z-index: -2; /* Размещает видео позади всего контента */
+}
 
         h1 { font-size: 20px; text-align: center; color: #333; margin-bottom: 20px; }
         .form-container h2, .button-container h2, .list-container h2 { color: #333; }
