@@ -88,6 +88,31 @@
             text-decoration: underline;
             width: auto;
         }
+#editSpecializationSection {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0; /* Более чистый разделитель */
+}
+
+/* Стиль для серой плашки с основной специализацией */
+.primary-spec-plate {
+    padding: 12px 15px;
+    background-color: #e9ecef; /* Приятный серый цвет */
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-weight: bold;
+    color: #495057; /* Контрастный текст */
+    margin-top: 5px;
+    text-align: center;
+}
+
+/* Поясняющий текст под заголовком */
+#editSpecializationSection small {
+    display: block;
+    margin-bottom: 8px;
+    color: #6c757d;
+    font-size: 12px;
+}
 
         /* =======================================
            КОНТЕЙНЕРЫ, ФОРМЫ, СПИСКИ
@@ -111,11 +136,14 @@
         .button-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 15px;
         }
         .button-grid .btn-primary {
             margin-bottom: 0; 
         }
+.button-container .btn-secondary {
+    margin-top: 15px;
+}
         
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; margin-bottom: 5px; }
