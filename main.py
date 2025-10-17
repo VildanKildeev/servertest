@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 import re
 import stripe # <-- НОВЫЙ ИМПОРТ
+from datetime import datetime, date
 
 # --- Database setup ---
 # Импортируем все таблицы, включая новые, из файла database.py
@@ -237,13 +238,30 @@ def is_user_premium(user: dict) -> bool:
     """Проверяет, активен ли премиум-статус у пользователя."""
     if not user:
         return False
-    # Проверяем и флаг, и дату окончания
+
     is_active = user.get("is_premium", False)
     premium_until = user.get("premium_until")
-    if is_active and premium_until and premium_until < datetime.utcnow():
-        # TODO: В продакшене здесь можно добавить фоновую задачу для снятия флага is_premium
+
+    if not is_active or not premium_until:
         return False
-    return is_active
+
+    # --- ИСПРАВЛЕННАЯ ЛОГИКА ---
+    # 1. Получаем текущую дату (без времени)
+    today = date.today()
+
+    # 2. Преобразуем premium_until в объект date, если это datetime
+    premium_until_date = premium_until
+    if isinstance(premium_until, datetime):
+        premium_until_date = premium_until.date()
+
+    # 3. Теперь сравнение безопасно, так как мы сравниваем date с date.
+    # Если подписка истекла (т.е. дата окончания стала меньше сегодняшней),
+    # то премиум неактивен.
+    if premium_until_date < today:
+        # TODO: Здесь можно добавить фоновую задачу для снятия флага is_premium в базе.
+        return False
+
+    return True
 
 def mask_contact(contact_info: str) -> str:
     """Маскирует контактную информацию."""
@@ -367,52 +385,58 @@ async def create_work_request(work_request: WorkRequestIn, current_user: dict = 
 
 @api_router.get("/work_requests/")
 async def get_work_requests(city_id: int, current_user: dict = Depends(get_current_user)):
-    # ПРАВИЛО 1: Заказчикам запрещен доступ к общей ленте
+    # ПРАВИЛО 1: Заказчикам запрещен доступ
     if current_user["user_type"] == "ЗАКАЗЧИК":
         raise HTTPException(status_code=403, detail="Только исполнители могут просматривать общую ленту заявок.")
 
-    # Базовый запрос
-    query = work_requests.select().where(
-        work_requests.c.city_id == city_id,
-        work_requests.c.status == "ОЖИДАЕТ",
-        work_requests.c.user_id != current_user["id"]
-    )
+    # --- ИСПРАВЛЕННАЯ ЛОГИКА ---
 
-    # Получаем специализации исполнителя
+    # 1. Получаем все специализации исполнителя (и основную, и дополнительные)
     join = performer_specializations.join(specializations, performer_specializations.c.specialization_code == specializations.c.code)
     specs_query = select(specializations.c.name, performer_specializations.c.is_primary).select_from(join).where(performer_specializations.c.user_id == current_user["id"])
     user_specs_records = await database.fetch_all(specs_query)
 
-    user_is_premium = is_user_premium(current_user)
-
     if not user_specs_records:
-        return [] # У исполнителя нет специализаций - он ничего не увидит
+        return [] # Если у исполнителя нет специализаций, он ничего не увидит
 
-    # ПРАВИЛО 2 и 3: Фильтрация по специализациям
+    # 2. Составляем список всех его специализаций и отдельно запоминаем основную
+    all_user_spec_names = [s['name'] for s in user_specs_records]
+    primary_spec_name = next((s['name'] for s in user_specs_records if s['is_primary']), None)
+
+    # 3. Делаем ОДИН запрос в базу, чтобы получить ВСЕ заявки по ВСЕМ специализациям пользователя
+    query = work_requests.select().where(
+        work_requests.c.city_id == city_id,
+        work_requests.c.status == "ОЖИДАЕТ",
+        work_requests.c.user_id != current_user["id"],
+        work_requests.c.specialization.in_(all_user_spec_names) # <-- Фильтруем по всем
+    ).order_by(work_requests.c.is_premium.desc(), work_requests.c.created_at.desc())
+
+    all_requests = await database.fetch_all(query)
+
+    # 4. Теперь обрабатываем результаты в зависимости от статуса премиум
+    user_is_premium = is_user_premium(current_user)
+    
     if user_is_premium:
-        all_spec_names = [s['name'] for s in user_specs_records]
-        query = query.where(work_requests.c.specialization.in_(all_spec_names))
-    else: # Обычный исполнитель
-        primary_spec_name = next((s['name'] for s in user_specs_records if s['is_primary']), None)
-        if not primary_spec_name:
-            return [] # Нет основной специализации
-        query = query.where(work_requests.c.specialization == primary_spec_name)
+        # Премиум-пользователь видит всё как есть.
+        return all_requests
 
-    # Сортировка
-    query = query.order_by(work_requests.c.is_premium.desc(), work_requests.c.created_at.desc())
+    # 5. Для обычного пользователя применяем маскировку выборочно
+    processed_requests = []
+    for request in all_requests:
+        request_dict = dict(request) # Преобразуем в изменяемый словарь
 
-    results = await database.fetch_all(query)
+        # Если специализация заявки НЕ является основной для пользователя
+        if request_dict["specialization"] != primary_spec_name:
+            # Маскируем контакты и добавляем флаг для фронтенда
+            request_dict["contact_info"] = mask_contact(request_dict["contact_info"])
+            request_dict["is_masked_for_user"] = True # <-- Новый флаг для фронтенда
+        else:
+            # Это заявка по основной специализации, ничего не маскируем
+            request_dict["is_masked_for_user"] = False
 
-    # ПРАВИЛО 4: Маскирование контактов для не-премиум
-    if not user_is_premium:
-        masked_results = []
-        for row in results:
-            row_dict = dict(row)
-            row_dict["contact_info"] = mask_contact(row_dict["contact_info"])
-            masked_results.append(row_dict)
-        return masked_results
+        processed_requests.append(request_dict)
 
-    return results
+    return processed_requests
 
 @api_router.post("/work_requests/{request_id}/respond", status_code=201)
 async def respond_to_work_request(request_id: int, response: ResponseCreate, current_user: dict = Depends(get_current_user)):
