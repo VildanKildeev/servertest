@@ -32,19 +32,16 @@ load_dotenv()
 base_path = Path(__file__).parent
 static_path = base_path / "static"
 
-# --- Настройки ---
-# --- НОВЫЕ НАСТРОЙКИ ДЛЯ YOOKASSA ---
 YOOKASSA_SHOP_ID = os.environ.get("YOOKASSA_SHOP_ID")
 YOOKASSA_SECRET_KEY = os.environ.get("YOOKASSA_SECRET_KEY")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
-# Настраиваем SDK YooKassa
+# V-- ДОБАВЬТЕ ЭТИ 3 СТРОКИ --V
+SECRET_KEY = os.environ.get("SECRET_KEY", "c723f5b8a5aff5f8f596f265f833503d25e36f3c178a48b32c6913c3e601c0d4")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 120 # Время жизни токена в минутах
+
 if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
-    Configuration.account_id = YOOKASSA_SHOP_ID
-    Configuration.secret_key = YOOKASSA_SECRET_KEY
-    print("YooKassa configured.")
-else:
-    print("YooKassa credentials not found. Payment system (PROD) disabled.")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
