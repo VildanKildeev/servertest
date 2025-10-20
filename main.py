@@ -21,7 +21,6 @@ from dotenv import load_dotenv
 from pathlib import Path
 import re
 from yookassa import Configuration, Payment
-from yookassa.domain.notification import NotificationEventType
 from datetime import datetime, date
 
 # --- Database setup ---
@@ -538,39 +537,94 @@ async def create_checkout_session(current_user: dict = Depends(get_current_user)
         print(f"Ошибка YooKassa: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка создания платежа: {str(e)}")
 
+
 @api_router.post("/payments/webhook")
-async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
-    if not STRIPE_WEBHOOK_SECRET:
-        raise HTTPException(status_code=500, detail="Webhook secret не настроен на сервере.")
+async def yookassa_webhook(request: Request):
+    """
+    Обрабатывает POST-уведомления (веб-хуки) от YooKassa.
+    Активирует премиум-статус при успешной оплате.
+    """
+    
+    # 1. Проверяем, настроена ли YooKassa (избегаем сбоя, если нет)
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        print("Webhook (YooKassa): Вызван, но система не настроена.")
+        # Все равно возвращаем 200, чтобы YooKassa не повторяла запрос
+        return {"status": "ignored_not_configured"}
 
-    payload = await request.body()
     try:
-        event = stripe.Webhook.construct_event(
-            payload=payload, sig_header=stripe_signature, secret=STRIPE_WEBHOOK_SECRET
+        # Получаем JSON-уведомление от YooKassa
+        data = await request.json()
+    except Exception:
+        print("Webhook (YooKassa) Error: Получен невалидный JSON")
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # 2. Нас интересует только событие успешного платежа
+    event_type = data.get("event")
+    payment_object = data.get("object", {})
+    
+    if event_type != "payment.succeeded":
+        return {"status": "ignored_event_type"}
+
+    # 3. ВЕРИФИКАЦИЯ (Обязательно для безопасности)
+    # Получаем ID платежа из уведомления и запрашиваем его у YooKassa,
+    # чтобы убедиться, что он настоящий и действительно 'succeeded'.
+    
+    payment_id = payment_object.get("id")
+    if not payment_id:
+        print("Webhook (YooKassa) Error: В уведомлении нет payment_id")
+        raise HTTPException(status_code=400, detail="No payment ID in object")
+        
+    try:
+        # Этот вызов API использует 'Configuration', настроенный при старте
+        payment_info = Payment.find_one(payment_id)
+        
+        if payment_info.status != 'succeeded':
+            # Странная ситуация: уведомление "succeeded", а API говорит "нет".
+            print(f"Webhook (YooKassa) Warning: Event {payment_id} is '{event_type}' but API status is '{payment_info.status}'")
+            return {"status": "ignored_status_mismatch"}
+
+        # Теперь мы уверены, что платеж прошел.
+        # Используем `payment_info` (из API) как источник правды.
+        metadata = payment_info.metadata
+        user_id_str = metadata.get("user_id")
+        
+        if not user_id_str:
+            print(f"Webhook (YooKassa) Error: Payment {payment_id} succeeded but has no user_id in metadata.")
+            return {"status": "error_no_metadata"}
+            
+    except Exception as e:
+        # Ошибка при запросе к API YooKassa (например, нет связи)
+        print(f"Webhook (YooKassa) Error: Не удалось проверить платеж {payment_id}. Error: {e}")
+        # Возвращаем 503, чтобы YooKassa попробовала прислать уведомление позже
+        raise HTTPException(status_code=503, detail="Payment verification failed")
+
+
+    # 4. АКТИВАЦИЯ ПРЕМИУМА (Бизнес-логика)
+    try:
+        user_id = int(user_id_str)
+        # Устанавливаем срок действия премиума (как в старом коде Stripe)
+        premium_until_date = datetime.utcnow() + timedelta(days=30)
+        
+        query = users.update().where(users.c.id == user_id).values(
+            is_premium=True,
+            premium_until=premium_until_date
         )
-    except ValueError as e: # Неверный payload
-        raise HTTPException(status_code=400, detail=str(e))
-    except stripe.error.SignatureVerificationError as e: # Неверная подпись
-        raise HTTPException(status_code=400, detail=str(e))
+        await database.execute(query)
+        
+        print(f"Webhook (YooKassa) Success: Premium activated for user {user_id} until {premium_until_date}")
 
-    # Обработка события
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        user_id = session.get('client_reference_id')
+    except ValueError:
+        print(f"Webhook (YooKassa) Error: Неверный user_id в metadata: {user_id_str}")
+        # Это постоянная ошибка, не нужно повторять
+        return {"status": "error_invalid_user_id"}
+    except Exception as e:
+        # Ошибка базы данных
+        print(f"Webhook (YooKassa) DB Error: Не удалось обновить user {user_id}. Error: {e}")
+        # Возвращаем 500, чтобы YooKassa повторила попытку
+        raise HTTPException(status_code=500, detail="Database update failed")
 
-        if user_id:
-            # Идемпотентность: можно проверять по session.id в таблице платежей,
-            # но для простоты просто активируем подписку
-            premium_until_date = datetime.utcnow() + timedelta(days=30)
-            query = users.update().where(users.c.id == int(user_id)).values(
-                is_premium=True,
-                premium_until=premium_until_date
-            )
-            await database.execute(query)
-            print(f"Premium activated for user {user_id} until {premium_until_date}")
-
+    # 5. Сообщаем YooKassa, что все в порядке (HTTP 200)
     return {"status": "success"}
-
 
 # --- Справочники ---
 @api_router.get("/cities/", response_model=List[City])
