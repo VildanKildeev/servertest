@@ -42,6 +42,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120 # Время жизни токена в минутах
 
 if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
+Configuration.account_id = YOOKASSA_SHOP_ID # <-- Добавить Configuration.secret_key = YOOKASSA_SECRET_KEY # <-- Добавить
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
