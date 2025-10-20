@@ -42,7 +42,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120 # Время жизни токена в минутах
 
 if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
-Configuration.account_id = YOOKASSA_SHOP_ID # <-- Добавить Configuration.secret_key = YOOKASSA_SECRET_KEY # <-- Добавить
+    # Обязательно 4 пробела (или 1 Tab) отступа!
+    Configuration.account_id = YOOKASSA_SHOP_ID
+    Configuration.secret_key = YOOKASSA_SECRET_KEY
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
@@ -328,6 +330,7 @@ async def create_user(user: UserCreate):
         user_id = await database.execute(query)
 
         # Если это исполнитель, добавляем его стартовую специализацию как основную
+
         if user.user_type == "ИСПОЛНИТЕЛЬ":
             spec_query = select(specializations.c.code).where(specializations.c.name == user.specialization)
             spec_code = await database.fetch_val(spec_query)
