@@ -20,7 +20,8 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 import re
-import stripe # <-- НОВЫЙ ИМПОРТ
+from yookassa import Configuration, Payment
+from yookassa.domain.models import NotificationEventType
 from datetime import datetime, date
 
 # --- Database setup ---
@@ -33,18 +34,18 @@ base_path = Path(__file__).parent
 static_path = base_path / "static"
 
 # --- Настройки ---
-SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key-that-is-long")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
-
-# --- НОВЫЕ НАСТРОЙКИ ДЛЯ STRIPE ---
-STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
-STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
+# --- НОВЫЕ НАСТРОЙКИ ДЛЯ YOOKASSA ---
+YOOKASSA_SHOP_ID = os.environ.get("YOOKASSA_SHOP_ID")
+YOOKASSA_SECRET_KEY = os.environ.get("YOOKASSA_SECRET_KEY")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
-if STRIPE_SECRET_KEY:
-    stripe.api_key = STRIPE_SECRET_KEY
+# Настраиваем SDK YooKassa
+if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
+    Configuration.account_id = YOOKASSA_SHOP_ID
+    Configuration.secret_key = YOOKASSA_SECRET_KEY
+    print("YooKassa configured.")
+else:
+    print("YooKassa credentials not found. Payment system (PROD) disabled.")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
@@ -496,25 +497,46 @@ async def get_my_subscription(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/subscribe/", response_model=CheckoutSession)
 async def create_checkout_session(current_user: dict = Depends(get_current_user)):
-    # DEV-ВЕТКА: Если Stripe не настроен
-    if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
+    
+    # DEV-ВЕТКА: Если YooKassa не настроена
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        print("DEV-MODE PAYMENT: Activating premium...")
         premium_until_date = datetime.utcnow() + timedelta(days=30)
         query = users.update().where(users.c.id == current_user["id"]).values(is_premium=True, premium_until=premium_until_date)
         await database.execute(query)
         return {"activated": True}
 
-    # PROD-ВЕТКА: Создание сессии Stripe
+    # PROD-ВЕТКА: Создание платежа YooKassa
     try:
-        checkout_session = stripe.checkout.Session.create(
-            line_items=[{'price': STRIPE_PRICE_ID, 'quantity': 1}],
-            mode='payment',
-            success_url=f"{APP_BASE_URL}/?payment=success",
-            cancel_url=f"{APP_BASE_URL}/?payment=cancel",
-            client_reference_id=str(current_user['id']) # ВАЖНО для вебхука
-        )
-        return {"checkout_url": checkout_session.url}
+        # Уникальный ключ для идемпотентности (YooKassa требует)
+        # Можно использовать, например, f"{current_user['id']}_{int(datetime.now().timestamp())}"
+        import uuid
+        idempotence_key = str(uuid.uuid4())
+
+        payment = Payment.create({
+            "amount": {
+                "value": "100.00", # Установите свою цену за 30 дней
+                "currency": "RUB"
+            },
+            "confirmation": {
+                "type": "redirect",
+                # URL, куда вернется пользователь
+                "return_url": f"{APP_BASE_URL}/?payment=success" 
+            },
+            "capture": True, # Автоматически принять платеж
+            "description": "Премиум-подписка СМЗ.РФ на 30 дней",
+            "metadata": {
+                # ВАЖНО: Передаем ID пользователя, как делали в Stripe
+                "user_id": str(current_user['id']) 
+            }
+        }, idempotence_key) # Ключ идемпотентности
+
+        # Вместо checkout_session.url, у YooKassa это payment.confirmation.confirmation_url
+        return {"checkout_url": payment.confirmation.confirmation_url}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка Stripe: {str(e)}")
+        print(f"Ошибка YooKassa: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка создания платежа: {str(e)}")
 
 @api_router.post("/payments/webhook")
 async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
