@@ -1313,6 +1313,10 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
+// V-- ДОБАВЬТЕ ЭТУ СТРОКУ --V
+    document.getElementById('cityName').textContent = selectedCityName;
+    // ^-- ДОБАВЬТЕ ЭТУ СТРОКУ --^
+
     await fetchCities();
     selectCity(true); 
 
