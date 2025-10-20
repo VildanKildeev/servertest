@@ -1242,18 +1242,42 @@ function hideCityModal() {
         // --- ИНИЦИАЛИЗАЦИЯ И ОБРАБОТЧИКИ ФОРМ ---
         
         async function fetchOptions(selectId, endpoint, isMulti=false) {
-    try {
-        const res = await fetch(`${API_URL}${endpoint}`); const options = await res.json();
-        if(endpoint === '/specializations/') ALL_SPECS = options; // Сохраняем справочник
-        const select = document.getElementById(selectId); if(!select) return; select.innerHTML = '';
-        options.forEach(opt => { 
-            const option = document.createElement('option'); 
-            option.value = isMulti ? opt.code : opt.name; // <--- Исправлено
-            option.textContent = opt.name; 
-            select.appendChild(option); 
-        });
-    } catch (error) { console.error(`Error fetching for ${selectId}:`, error); }
-}
+            try {
+                const res = await fetch(`${API_URL}${endpoint}`); const options = await res.json();
+                if(endpoint === '/specializations/') ALL_SPECS = options; // Сохраняем справочник
+                const select = document.getElementById(selectId); if(!select) return; select.innerHTML = '';
+
+                // === НАЧАЛО ИЗМЕНЕНИЯ ===
+                // Проверяем, является ли это сгруппированным списком (как у техники)
+                if (options.length > 0 && options[0].group && Array.isArray(options[0].items)) {
+                    
+                    options.forEach(group => {
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = group.group; // Например: '🟡 1. ЭКСКАВАТОРЫ'
+                        
+                        // Добавляем опции из подмассива items
+                        group.items.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.name; // Например: 'ЭКСКАВАТОР: Гусеничные'
+                            option.textContent = opt.name; 
+                            optgroup.appendChild(option);
+                        });
+                        select.appendChild(optgroup);
+                    });
+
+                } else {
+                    // Старая логика для плоских списков (specializations, tool_names)
+                    options.forEach(opt => { 
+                        const option = document.createElement('option'); 
+                        option.value = isMulti ? opt.code : opt.name; // Оставляем как было
+                        option.textContent = opt.name; 
+                        select.appendChild(option); 
+                    });
+                }
+                // === КОНЕЦ ИЗМЕНЕНИЯ ===
+
+            } catch (error) { console.error(`Error fetching for ${selectId}:`, error); }
+        }
         
 // --- НОВЫЙ ОБРАБОТЧИК ДЛЯ saveSpecializationBtn ---
 document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
