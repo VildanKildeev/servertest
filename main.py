@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 import re
 from yookassa import Configuration, Payment
-from yookassa.domain.models import NotificationEventType
+from yookassa.domain.notification import NotificationEventType
 from datetime import datetime, date
 
 # --- Database setup ---
