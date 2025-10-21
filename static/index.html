@@ -780,7 +780,18 @@ async function subscribeToPremium() {
         const res = await fetch(`${API_URL}/users/me/requests/`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-        if (!res.ok) throw new Error('Ошибка загрузки');
+        if (!res.ok) {
+                    // Если токен истек или невалиден
+                    if (res.status === 401) {
+                        // Вызываем принудительный выход (разлогин)
+                        logout(); 
+                        // Прерываем выполнение, чтобы не показывать ошибку
+                        return; 
+                    }
+                    // Для всех других ошибок (500 и т.д.)
+                    throw new Error('Ошибка загрузки');
+                }
+
         const requests = await res.json();
         
         if (requests.length === 0) {
@@ -1037,6 +1048,7 @@ async function subscribeToPremium() {
 
                 displayMessage('takeOrderStatus', 'Вы успешно откликнулись!', true);
                 fetchMyRequests(); // Обновить мои заявки, чтобы увидеть отклик
+fetchWorkRequests();
             } catch (error) {
                 displayMessage('takeOrderStatus', error.message || 'Не удалось откликнуться.', false);
             }
