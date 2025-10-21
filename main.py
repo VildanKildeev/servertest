@@ -432,14 +432,21 @@ async def get_work_requests(city_id: int, current_user: dict = Depends(get_curre
     all_user_spec_names = [s['name'] for s in user_specs_records]
     primary_spec_name = next((s['name'] for s in user_specs_records if s['is_primary']), None)
 
-    # 3. Делаем ОДИН запрос в базу, чтобы получить ВСЕ заявки по ВСЕМ специализациям пользователя
+    responded_requests_query = select(work_request_responses.c.work_request_id).where(
+        work_request_responses.c.executor_id == current_user["id"]
+    )
+    responded_request_ids = {row['work_request_id'] for row in await database.fetch_all(responded_requests_query)}
+
+    # 4. Делаем ОДИН запрос в базу, чтобы получить ВСЕ заявки по ВСЕМ специализациям,
+    #    ИСКЛЮЧАЯ те, на которые уже был отклик.
     query = work_requests.select().where(
         work_requests.c.city_id == city_id,
         work_requests.c.status == "ОЖИДАЕТ",
         work_requests.c.user_id != current_user["id"],
-        work_requests.c.specialization.in_(all_user_spec_names) # <-- Фильтруем по всем
+        work_requests.c.specialization.in_(all_user_spec_names),
+        work_requests.c.id.notin_(responded_request_ids)  # <-- ДОБАВЛЕН ЭТОТ ФИЛЬТР
     ).order_by(work_requests.c.is_premium.desc(), work_requests.c.created_at.desc())
-
+    
     all_requests = await database.fetch_all(query)
 
     # 4. Теперь обрабатываем результаты в зависимости от статуса премиум
