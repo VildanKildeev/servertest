@@ -65,7 +65,7 @@ app.mount("/static", StaticFiles(directory=static_path), name="static")
 @app.on_event("startup")
 async def startup():
     await database.connect()
-    # metadata.create_all(engine) # Для продакшена лучше управлять миграциями отдельно
+    metadata.create_all(engine)
     print("Database connected.")
 
     # Заполняем справочник специализаций, если он пуст
