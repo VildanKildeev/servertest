@@ -161,7 +161,7 @@ text-align: center; /* <-- Добавьте эту строку */
         }
         
         .request-item { 
-            background-color: #f7f7f7; 
+            background-color: #f7f7ff; 
             color: #333;
             padding: 15px; 
             margin-bottom: 10px; 
@@ -272,6 +272,13 @@ select[multiple] { height: 120px; }
                     <div class="input-group">
                         <label for="loginPassword">Пароль:</label> <input type="password" id="loginPassword" required>
                     </div>
+                    
+                    <div class="input-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="rememberMe" style="width: auto; height: auto; margin: 0;">
+                            Запомнить меня
+                        </label>
+                    </div>
                     <button type="submit" class="btn-primary">Войти</button>
                     <button type="button" class="btn-link" onclick="showPage('registerPage')">Создать аккаунт</button>
                 </form>
@@ -323,9 +330,8 @@ select[multiple] { height: 120px; }
                     <button class="btn-primary" onclick="showPage('materialAdsPage')">Найти материалы</button>
                 </div>
                 <button class="btn-secondary" onclick="showPage('myRequestsPage')">Мои заявки</button>
-                <button class="btn-secondary" onclick="showPage('myRequestsPage')">Мои активные заявки</button>
-<button class="btn-secondary" onclick="showPage('completedRequestsPage')">Заявки для оценки</button>
-<button class="btn-secondary" onclick="showPage('profilePage')">Профиль</button>
+                <button class="btn-secondary" onclick="showPage('completedRequestsPage')">Заявки для оценки</button>
+                <button class="btn-secondary" onclick="showPage('profilePage')">Профиль</button>
                 <button class="btn-link" onclick="logout()">Выйти</button>
             </div>
         </div>
@@ -542,34 +548,131 @@ select[multiple] { height: 120px; }
       </a>
     </div>
 
-   <script>
+<script>
         // const API_URL = "https://servertest2-0.onrender.com/api";
         const API_URL = "/api"; // Для продакшена
         let CITIES = [];
         let profile = null;
-let ALL_SPECS = []; // Справочник всех специализаций 
+        let ALL_SPECS = []; // Справочник всех специализаций 
+        
+        // --- НОВЫЕ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+        // Мы больше не храним accessToken в localStorage, только в памяти.
         let accessToken = null;
+        // refreshToken мы будем хранить либо в localStorage, либо в sessionStorage
+        let refreshToken = null; 
+        
         let selectedCityId = localStorage.getItem('selectedCityId') || null;
         let selectedCityName = localStorage.getItem('selectedCityName') || "Выберите город";
 
-let ALL_SPECIALIZATIONS_CACHE = null;
-async function fetchAllSpecializations() {
-    if (ALL_SPECIALIZATIONS_CACHE && ALL_SPECIALIZATIONS_CACHE.length > 0) {
-        return ALL_SPECIALIZATIONS_CACHE;
-    }
-    try {
-        const res = await fetch(`${API_URL}/specializations/`);
-        if (res.ok) {
-            ALL_SPECIALIZATIONS_CACHE = await res.json();
-            // Обновляем старую глобальную переменную ALL_SPECS для совместимости с другими формами
-            ALL_SPECS = ALL_SPECIALIZATIONS_CACHE;
-            return ALL_SPECIALIZATIONS_CACHE;
+        let ALL_SPECIALIZATIONS_CACHE = null;
+
+        // --- НОВАЯ "УМНАЯ" ФУНКЦИЯ ДЛЯ ЗАПРОСОВ ---
+        /**
+         * Обертка для fetch, которая автоматически добавляет Authorization 
+         * и обрабатывает обновление токена (401-retry).
+         */
+        async function secureFetch(url, options = {}) {
+            // 1. Добавляем текущий access_token в заголовки
+            if (!options.headers) {
+                options.headers = {};
+            }
+            // Добавляем токен, только если он есть (не для логина/регистрации)
+            if (accessToken) {
+                options.headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+
+            // 2. Делаем первый запрос
+            let response = await fetch(url, options);
+
+            // 3. Если токен истек (401) и у нас есть refresh_token
+            if (response.status === 401 && refreshToken) {
+                console.log("Access token истек. Запускаю обновление...");
+                
+                // 4. Пытаемся обновить токен
+                const refreshed = await tryRefreshToken(refreshToken);
+                
+                if (refreshed) {
+                    // 5. Если удалось, обновляем заголовок и повторяем запрос
+                    console.log("Повторяю оригинальный запрос с новым токеном...");
+                    // Обновляем заголовок с НОВЫМ accessToken
+                    options.headers['Authorization'] = `Bearer ${accessToken}`; 
+                    response = await fetch(url, options);
+                } else {
+                    // 6. Если не удалось обновить (refresh_token тоже мертв),
+                    // выбрасываем ошибку, чтобы прервать выполнение.
+                    // (tryRefreshToken уже вызвал logout() и показал loginPage)
+                    throw new Error('Session expired. Please log in again.');
+                }
+            }
+            
+            // 7. Возвращаем успешный ответ (первый или второй)
+            return response;
         }
-    } catch (e) {
-        console.error("Не удалось загрузить справочник специализаций:", e);
-    }
-    return [];
-}
+        
+        // --- НОВАЯ ФУНКЦИЯ ОБНОВЛЕНИЯ ТОКЕНА ---
+        /**
+         * Пытается обновить access_token, используя refresh_token.
+         * @param {string} token - Refresh-токен.
+         * @returns {boolean} - true, если обновление прошло успешно, иначе false.
+         */
+        async function tryRefreshToken(token) {
+            console.log("Пытаюсь обновить токен...");
+            try {
+                // Используем обычный fetch, а не secureFetch, чтобы избежать рекурсии
+                const res = await fetch(`${API_URL}/token/refresh`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    // Если refresh-токен тоже истек или отозван, разлогиниваем
+                    throw new Error('Refresh failed');
+                }
+
+                const data = await res.json();
+                
+                // 1. Обновляем глобальные переменные
+                accessToken = data.access_token;
+                refreshToken = data.refresh_token;
+
+                // 2. Пересохраняем НОВЫЙ refresh_token туда, где был старый
+                if (localStorage.getItem('refreshToken')) {
+                    localStorage.setItem('refreshToken', refreshToken);
+                } else if (sessionStorage.getItem('refreshToken')) {
+                    sessionStorage.setItem('refreshToken', refreshToken);
+                }
+                
+                // 3. Загружаем профиль с новым токеном
+                await fetchProfile(); 
+                console.log("Токен успешно обновлен.");
+                return true;
+
+            } catch (error) {
+                console.error('Обновление токена не удалось:', error.message);
+                // Если не удалось обновить (токен невалиден), чистим все
+                logout(); 
+                return false;
+            }
+        }
+        
+        async function fetchAllSpecializations() {
+            if (ALL_SPECIALIZATIONS_CACHE && ALL_SPECIALIZATIONS_CACHE.length > 0) {
+                return ALL_SPECIALIZATIONS_CACHE;
+            }
+            try {
+                // Используем обычный fetch, т.к. этот запрос не требует авторизации
+                const res = await fetch(`${API_URL}/specializations/`);
+                if (res.ok) {
+                    ALL_SPECIALIZATIONS_CACHE = await res.json();
+                    // Обновляем старую глобальную переменную ALL_SPECS для совместимости с другими формами
+                    ALL_SPECS = ALL_SPECIALIZATIONS_CACHE;
+                    return ALL_SPECIALIZATIONS_CACHE;
+                }
+            } catch (e) {
+                console.error("Не удалось загрузить справочник специализаций:", e);
+            }
+            return [];
+        }
 // -----------------------------------------------------------------
 
 
@@ -579,7 +682,9 @@ async function fetchAllSpecializations() {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             const page = document.getElementById(pageId);
             if (page) page.classList.add('active');
-
+            
+            // ИЗМЕНЕНА ЛОГИКА ПРОВЕРКИ:
+            // Теперь мы проверяем accessToken (в памяти), а не localStorage
             if (!accessToken && !['loginPage', 'registerPage'].includes(pageId)) {
                 showPage('loginPage');
                 return;
@@ -593,14 +698,35 @@ async function fetchAllSpecializations() {
                 case 'materialAdsPage': fetchMaterialAds(); break;
                 case 'myRequestsPage': fetchMyRequests(); break;
                 case 'profilePage': fetchProfile(); break;
+                case 'completedRequestsPage': fetchCompletedRequestsForRating(); break;
             }
         }
         
+        // --- ОБНОВЛЕННАЯ ФУНКЦИЯ LOGOUT ---
         function logout() {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('profile');
+            // 1. Попытаться найти refresh_token (в памяти, сессии или localStorage)
+            const tokenToInvalidate = refreshToken || sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
+            
+            // 2. Если нашли, отправляем запрос на сервер для отзыва
+            if (tokenToInvalidate) {
+                // Используем обычный fetch, "fire-and-forget", нам не важен результат
+                fetch(`${API_URL}/logout`, {
+                    method: 'POST', // Добавим метод POST, как в main.py
+                    headers: { 'Authorization': `Bearer ${tokenToInvalidate}` }
+                }).catch(err => console.error("Logout API call failed:", err));
+            }
+            
+            // 3. Очищаем все локальные данные сессии
             accessToken = null;
+            refreshToken = null;
             profile = null;
+            
+            // 4. Очищаем хранилища
+            localStorage.removeItem('refreshToken');
+            sessionStorage.removeItem('refreshToken');
+            localStorage.removeItem('profile'); // Также чистим кэш профиля
+            
+            // 5. Показываем страницу входа
             showPage('loginPage');
         }
         
@@ -622,15 +748,24 @@ async function fetchAllSpecializations() {
 
                
 async function fetchProfile() {
-    if (!accessToken) { showPage('loginPage'); return; }
+    // Эта проверка осталась, но теперь accessToken будет получен через tryRefreshToken
+    if (!accessToken) { showPage('loginPage'); return; } 
+    
     const profileDiv = document.getElementById('profileInfo');
     const premiumDiv = document.getElementById('premiumSection');
     const specSection = document.getElementById('editSpecializationSection');
     profileDiv.innerHTML = 'Загрузка...'; premiumDiv.innerHTML = ''; specSection.style.display = 'none';
 
     try {
-        const res = await fetch(`${API_URL}/users/me`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-        if (!res.ok) { logout(); return; }
+        // ИСПОЛЬЗУЕМ SECUREFETCH
+        const res = await secureFetch(`${API_URL}/users/me`);
+        
+        if (!res.ok) { 
+            // secureFetch должен был обработать 401,
+            // но если пришла другая ошибка, разлогиниваем
+            logout(); 
+            return; 
+        }
         profile = await res.json();
         localStorage.setItem('profile', JSON.stringify(profile));
 
@@ -640,7 +775,7 @@ async function fetchProfile() {
         const specsList = profile.specializations.map(s => `${s.name} ${s.is_primary ? '<strong>(основная)</strong>' : ''}`).join(', ') || 'Не выбраны';
         specializationHTML = `<p><strong>Специализации:</strong> ${specsList}</p>`;
         // Заполняем форму редактирования
-        await populateSpecializationForm(); // <-- ДОБАВЬТЕ await ЗДЕСЬ
+        await populateSpecializationForm(); // <-- await здесь
     }
 
         profileDiv.innerHTML = `
@@ -656,7 +791,11 @@ async function fetchProfile() {
             premiumDiv.innerHTML = `<div class="premium-offer" style="margin-top: 20px; padding: 15px; border: 1px solid #FF8C00; border-radius: 5px; text-align: center;"><h4>Получите Премиум-статус!</h4><p>Ваши заявки будут выше, и вы сможете видеть все заказы по вашим специализациям.</p><button id="subscribeBtn" class="btn-primary">Активировать Премиум</button></div>`;
             document.getElementById('subscribeBtn').addEventListener('click', subscribeToPremium);
         }
-    } catch (error) { console.error('Error fetching profile:', error); profileDiv.innerHTML = '<p class="message error">Не удалось загрузить профиль.</p>'; }
+    } catch (error) { 
+        // Эта ошибка сработает, если secureFetch не смог обновить токен
+        console.error('Error fetching profile:', error); 
+        // logout() уже был вызван в secureFetch/tryRefreshToken
+    }
 }
 
 async function populateSpecializationForm() {
@@ -665,41 +804,33 @@ async function populateSpecializationForm() {
     multiSelect.innerHTML = ''; // Очистка
     primaryNameEl.textContent = 'Не выбрана'; // Значение по умолчанию
     
-    // Получаем все возможные специализации (асинхронно)
     const allSpecializations = await fetchAllSpecializations(); 
 
-    if (!profile.specializations || profile.specializations.length === 0) {
+    if (!profile || !profile.specializations || profile.specializations.length === 0) {
         return;
     }
 
-    // Находим текущие Основную и Дополнительные
     const primarySpec = profile.specializations.find(s => s.is_primary);
-    // Получаем коды только дополнительных специализаций
     const additionalSpecs = profile.specializations
         .filter(s => !s.is_primary)
-        .map(s => s.specialization_code);
+        .map(s => s.specialization_code); // Используем code
     
-    // 1. Отображаем Основную специализацию
     if (primarySpec) {
-        const primarySpecName = allSpecializations.find(
+        // Ищем имя по code в кеше
+        primaryNameEl.textContent = allSpecializations.find(
             s => s.code === primarySpec.specialization_code
         )?.name || primarySpec.specialization_code;
-        
-        primaryNameEl.textContent = primarySpecName;
     }
 
-    // 2. Заполняем мульти-селект
     allSpecializations.forEach(spec => {
-        // Основная специализация не должна быть доступна для выбора в "Дополнительных"
         if (primarySpec && spec.code === primarySpec.specialization_code) {
-            return; // Пропускаем
+            return; // Пропускаем основную
         }
         
         const option = document.createElement('option');
-        option.value = spec.code;
+        option.value = spec.code; // value должен быть code
         option.textContent = spec.name;
         
-        // Выбираем те, которые уже являются дополнительными
         if (additionalSpecs.includes(spec.code)) {
             option.selected = true;
         }
@@ -709,14 +840,14 @@ async function populateSpecializationForm() {
 
 async function subscribeToPremium() {
     try {
-        const res = await fetch(`${API_URL}/subscribe/`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}` }
+        // ИСПОЛЬЗУЕМ SECUREFETCH
+        const res = await secureFetch(`${API_URL}/subscribe/`, {
+            method: 'POST'
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Не удалось начать процесс оплаты');
 
-        if (data.checkout_url) { // Ветка Stripe
+        if (data.checkout_url) { // Ветка Stripe/Yookassa
             window.location.href = data.checkout_url;
         } else if (data.activated) { // DEV-ветка
             alert('Премиум-подписка успешно активирована (DEV-режим)!');
@@ -725,8 +856,8 @@ async function subscribeToPremium() {
     } catch (error) { alert(`Ошибка: ${error.message}`); console.error('Subscription error:', error); }
 }
         
-        // Добавим вызов этой функции на странице "Мои выполненные заявки"
-        document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').addEventListener('click', fetchCompletedRequestsForRating);
+        // Эта привязка была сломана, теперь она в DOMContentLoaded
+        // document.querySelector('button[onclick="showPage(\'completedRequestsPage\')"]').addEventListener('click', fetchCompletedRequestsForRating);
         
         async function fetchCompletedRequestsForRating() {
     if (!accessToken || !profile) { showPage('loginPage'); return; }
@@ -734,12 +865,15 @@ async function subscribeToPremium() {
     requestList.innerHTML = 'Загрузка выполненных заявок...';
 
     try {
-        const res = await fetch(`${API_URL}/users/me/requests/`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
+        // ИСПОЛЬЗУЕМ SECUREFETCH
+        const res = await secureFetch(`${API_URL}/users/me/requests/`);
+        
+        if (!res.ok) {
+            throw new Error('Ошибка загрузки выполненных заявок');
+        }
+        
         const allRequests = await res.json();
         
-        // ЗАМЕНИТЕ ВСЮ СТАРУЮ ЛОГИКУ ФИЛЬТРАЦИИ НА ЭТУ ОДНУ СТРОКУ
         const completedRequests = allRequests.filter(req => req.status === 'ВЫПОЛНЕНА' && !req.has_rated);
 
         if (completedRequests.length === 0) {
@@ -777,20 +911,13 @@ async function subscribeToPremium() {
     list.innerHTML = 'Загрузка ваших заявок...';
 
     try {
-        const res = await fetch(`${API_URL}/users/me/requests/`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
+        // ИСПОЛЬЗУЕМ SECUREFETCH
+        const res = await secureFetch(`${API_URL}/users/me/requests/`);
+        
         if (!res.ok) {
-                    // Если токен истек или невалиден
-                    if (res.status === 401) {
-                        // Вызываем принудительный выход (разлогин)
-                        logout(); 
-                        // Прерываем выполнение, чтобы не показывать ошибку
-                        return; 
-                    }
-                    // Для всех других ошибок (500 и т.д.)
-                    throw new Error('Ошибка загрузки');
-                }
+            // secureFetch должен был обработать 401
+            throw new Error('Ошибка загрузки');
+        }
 
         const requests = await res.json();
         
@@ -836,12 +963,6 @@ async function subscribeToPremium() {
             else {
                 buttonsHTML = `<p style="color: #6c757d;">Вы откликнулись на эту заявку. Ожидает выбора заказчиком.</p>`;
             }
-            
-            // Здесь должна быть проверка user_type, если она нужна:
-            /* else if (profile.user_type === 'ИСПОЛНИТЕЛЬ') {
-                // ... другая логика для исполнителей, если он не был назначен на эту заявку
-            }
-            */
 
             // ГЕНЕРАЦИЯ HTML-ЭЛЕМЕНТА ЗАЯВКИ (БЕЗ ИЗМЕНЕНИЙ)
             list.innerHTML += `
@@ -866,9 +987,9 @@ async function subscribeToPremium() {
             container.innerHTML = `<p>Загрузка откликов...</p>`;
 
             try {
-                const res = await fetch(`${API_URL}/work_requests/${requestId}/responses`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                // ИСПОЛЬЗУЕМ SECUREFETCH
+                const res = await secureFetch(`${API_URL}/work_requests/${requestId}/responses`);
+                
                 if (!res.ok) throw new Error((await res.json()).detail);
                 const responses = await res.json();
                 
@@ -881,7 +1002,7 @@ async function subscribeToPremium() {
                 responses.forEach(resp => {
                     const rating = resp.average_rating ? `${resp.average_rating.toFixed(1)} ★` : 'Нет оценок';
                     responsesHTML += `
-                        <div class="response-item">
+                        <div class="response-item" style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
                             <p><strong>Исполнитель:</strong> ${resp.email}</p>
                             <p><strong>Рейтинг:</strong> ${rating} (${resp.ratings_count} оценок)</p>
                             <p><strong>Комментарий:</strong> ${resp.response_comment || 'Без комментария'}</p>
@@ -902,9 +1023,9 @@ async function subscribeToPremium() {
             if (!confirm('Вы уверены, что хотите назначить этого исполнителя?')) return;
 
             try {
-                const res = await fetch(`${API_URL}/work_requests/${requestId}/responses/${responseId}/approve`, {
-                    method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                // ИСПОЛЬЗУЕМ SECUREFETCH
+                const res = await secureFetch(`${API_URL}/work_requests/${requestId}/responses/${responseId}/approve`, {
+                    method: 'PATCH'
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail);
@@ -921,9 +1042,10 @@ async function subscribeToPremium() {
             if (!confirm(`Вы уверены, что хотите изменить статус заявки #${requestId} на "${newStatus}"?`)) return;
 
             try {
-                const res = await fetch(`${API_URL}/work_requests/${requestId}/status`, {
+                // ИСПОЛЬЗУЕМ SECUREFETCH
+                const res = await secureFetch(`${API_URL}/work_requests/${requestId}/status`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: newStatus })
                 });
                 const data = await res.json();
@@ -931,7 +1053,7 @@ async function subscribeToPremium() {
 
                 alert(`Статус заявки #${requestId} изменен на ${newStatus}.`);
                 fetchMyRequests(); // Обновляем список
-                fetchCompletedRequestsForRating();
+                fetchCompletedRequestsForRating(); // Обновляем список для оценки
             } catch (error) {
                 alert(`Ошибка: ${error.message}`);
             }
@@ -949,7 +1071,7 @@ async function subscribeToPremium() {
         const item = document.createElement('div');
         item.className = 'request-item';
         
-        let actionHTML = ''; // Переименуем переменную для ясности
+        let actionHTML = ''; 
 
         // --- ИСПРАВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ ---
         if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ') {
@@ -972,11 +1094,22 @@ async function subscribeToPremium() {
             // Для всех остальных случаев (заказчик, другие типы заявок)
             actionHTML = `<p><strong>Контакт:</strong> ${req.contact_info}</p>`;
         }
+        
+        // Определение цены
+        let priceText = 'Н/Д';
+        if (req.budget) {
+            priceText = `${req.budget} руб.`;
+        } else if (req.rental_price) {
+            priceText = `${req.rental_price} руб.`;
+            if (type === 'machinery') priceText += "/час";
+        } else if (req.price) {
+            priceText = `${req.price} руб.`;
+        }
 
         item.innerHTML = `
             <h4>${req.specialization || req.machinery_type || req.tool_name || req.material_type}</h4>
             <p>${req.description}</p>
-            <p><strong>Бюджет/Цена:</strong> ${req.budget || req.rental_price || req.price} руб.</p>
+            <p><strong>Бюджет/Цена:</strong> ${priceText}</p>
             ${actionHTML}`; // Вставляем подготовленный HTML-блок
         container.appendChild(item);
     });
@@ -990,23 +1123,20 @@ async function subscribeToPremium() {
             document.getElementById(containerId).innerHTML = 'Загрузка...';
 
             let specializationQuery = '';
-            if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ' && profile.specialization) {
-                specializationQuery = `&specialization=${encodeURIComponent(profile.specialization)}`;
-            }
+            // Эта логика не нужна, т.к. specializationQuery не используется в URL
+            // if (type === 'work' && profile?.user_type === 'ИСПОЛНИТЕЛЬ' && profile.specialization) {
+            //     specializationQuery = `&specialization=${encodeURIComponent(profile.specialization)}`;
+            // }
 
             try {
-                const res = await fetch(`${API_URL}${endpoint}?city_id=${selectedCityId}${specializationQuery}`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
-        if (!res.ok) {
-            // Если получили ошибку 401, возможно, токен истек. Разлогиниваем.
-            if (res.status === 401) {
-                logout();
-            }
-            throw new Error('Ошибка загрузки');
-        }
+                // ИСПОЛЬЗУЕМ SECUREFETCH
+                // Убираем specializationQuery, т.к. бэкенд сам фильтрует по специализациям юзера
+                const res = await secureFetch(`${API_URL}${endpoint}?city_id=${selectedCityId}`);
+        
+                if (!res.ok) {
+                    // secureFetch уже должен был обработать 401
+                    throw new Error('Ошибка загрузки');
+                }
                 const items = await res.json();
                 renderRequests(containerId, items, type);
             } catch (error) {
@@ -1038,9 +1168,10 @@ async function subscribeToPremium() {
             if (comment === null) return; // Пользователь нажал "Отмена"
 
             try {
-                const response = await fetch(`${API_URL}/work_requests/${requestId}/respond`, {
+                // ИСПОЛЬЗУЕМ SECUREFETCH
+                const response = await secureFetch(`${API_URL}/work_requests/${requestId}/respond`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comment: comment })
                 });
                 const data = await response.json();
@@ -1048,7 +1179,7 @@ async function subscribeToPremium() {
 
                 displayMessage('takeOrderStatus', 'Вы успешно откликнулись!', true);
                 fetchMyRequests(); // Обновить мои заявки, чтобы увидеть отклик
-fetchWorkRequests();
+                fetchWorkRequests(); // Обновить ленту (чтобы заявка исчезла)
             } catch (error) {
                 displayMessage('takeOrderStatus', error.message || 'Не удалось откликнуться.', false);
             }
@@ -1057,25 +1188,22 @@ fetchWorkRequests();
         // --- ЛОГИКА ГОРОДОВ ---
 
         function showCityModal() {
-    // Получаем элемент модального окна
-    const modal = document.getElementById('cityModal');
-    
-    // Проверяем, существует ли он, и делаем его видимым
-    if (modal) {
-        modal.style.display = 'flex'; // или 'block'
-    }
-}
+            const modal = document.getElementById('cityModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
 
-// Определение функции для скрытия модального окна (если нужно)
-function hideCityModal() {
-    const modal = document.getElementById('cityModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
+        function hideCityModal() {
+            const modal = document.getElementById('cityModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
 
         async function fetchCities() {
             try {
+                // Не требует авторизации
                 const res = await fetch(`${API_URL}/cities/`);
                 CITIES = await res.json();
                 const select = document.getElementById('citySelect');
@@ -1093,7 +1221,6 @@ function hideCityModal() {
                     select.appendChild(option);
                 });
                 
-                // Предварительный выбор текущего города
                 if (selectedCityId) {
                     select.value = selectedCityId;
                 }
@@ -1105,6 +1232,11 @@ function hideCityModal() {
         function selectCity(isInitial = false) {
             const select = document.getElementById('citySelect');
             const newCityId = select.value;
+            // Проверка, что select.options[select.selectedIndex] существует
+            if (!select.options[select.selectedIndex]) {
+                if (!isInitial) hideCityModal();
+                return;
+            }
             const newCityName = select.options[select.selectedIndex].textContent;
 
             if (newCityId && newCityId !== selectedCityId) {
@@ -1132,7 +1264,13 @@ function hideCityModal() {
         // --- ЛОГИКА ФОРМ (Создание заявок) ---
 
         async function handleFormSubmit(formId, endpoint, statusElementId, successMessage, payloadBuilder) {
-            document.getElementById(formId).addEventListener('submit', async (e) => {
+            const formElement = document.getElementById(formId);
+            if (!formElement) {
+                console.error(`Форма с ID ${formId} не найдена.`);
+                return;
+            }
+            
+            formElement.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const form = e.target;
                 const statusElement = document.getElementById(statusElementId);
@@ -1151,11 +1289,12 @@ function hideCityModal() {
                 const payload = payloadBuilder(form, selectedCityId);
 
                 try {
-                    const response = await fetch(`${API_URL}${endpoint}`, {
+                    // ИСПОЛЬЗУЕМ SECUREFETCH
+                    const response = await secureFetch(`${API_URL}${endpoint}`, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json', 
-                            'Authorization': `Bearer ${accessToken}` 
+                            // 'Authorization' добавит secureFetch
                         },
                         body: JSON.stringify(payload)
                     });
@@ -1167,6 +1306,10 @@ function hideCityModal() {
 
                     displayMessage(statusElementId, successMessage, true);
                     form.reset();
+                    // После создания заявки на работу, обновим "Мои заявки"
+                    if (formId === 'workRequestForm') {
+                        fetchMyRequests();
+                    }
                 } catch (error) {
                     displayMessage(statusElementId, `Ошибка: ${error.message}`, false);
                 }
@@ -1224,12 +1367,9 @@ function hideCityModal() {
         }
 
         // --- ЛОГИКА РЕЙТИНГА ---
-        // =======================================================================
-        // ИСПРАВЛЕНО: Логика рейтинга (Show/Hide/Update)
-        // =======================================================================
         function showRatingModal(requestId, ratingType) {
             document.getElementById('ratingRequestId').value = requestId;
-            document.getElementById('ratingTypeHidden').value = ratingType; // Сохраняем тип
+            document.getElementById('ratingTypeHidden').value = ratingType; 
             
             const title = document.getElementById('ratingModalTitle');
             title.textContent = ratingType === 'TO_EXECUTOR' ? 'Оценить Исполнителя' : 'Оценить Заказчика';
@@ -1255,49 +1395,42 @@ function hideCityModal() {
         
         async function fetchOptions(selectId, endpoint, isMulti=false) {
             try {
-                const res = await fetch(`${API_URL}${endpoint}`); const options = await res.json();
-                if(endpoint === '/specializations/') ALL_SPECS = options; // Сохраняем справочник
+                // Не требует авторизации
+                const res = await fetch(`${API_URL}${endpoint}`); 
+                const options = await res.json();
+                
+                // Это не нужно, т.к. fetchAllSpecializations() делает то же самое
+                // if(endpoint === '/specializations/') ALL_SPECS = options; 
+                
                 const select = document.getElementById(selectId); if(!select) return; select.innerHTML = '';
 
-                // === НАЧАЛО ИЗМЕНЕНИЯ ===
-                // Проверяем, является ли это сгруппированным списком (как у техники)
                 if (options.length > 0 && options[0].group && Array.isArray(options[0].items)) {
-                    
                     options.forEach(group => {
                         const optgroup = document.createElement('optgroup');
-                        optgroup.label = group.group; // Например: '🟡 1. ЭКСКАВАТОРЫ'
-                        
-                        // Добавляем опции из подмассива items
+                        optgroup.label = group.group; 
                         group.items.forEach(opt => {
                             const option = document.createElement('option');
-                            option.value = opt.name; // Например: 'ЭКСКАВАТОР: Гусеничные'
+                            option.value = opt.name; 
                             option.textContent = opt.name; 
                             optgroup.appendChild(option);
                         });
                         select.appendChild(optgroup);
                     });
-
                 } else {
-                    // Старая логика для плоских списков (specializations, tool_names)
                     options.forEach(opt => { 
                         const option = document.createElement('option'); 
-                        option.value = isMulti ? opt.code : opt.name; // Оставляем как было
+                        option.value = isMulti ? opt.code : opt.name; // Для multi-select нужен code
                         option.textContent = opt.name; 
                         select.appendChild(option); 
                     });
                 }
-                // === КОНЕЦ ИЗМЕНЕНИЯ ===
-
             } catch (error) { console.error(`Error fetching for ${selectId}:`, error); }
         }
         
 // --- НОВЫЙ ОБРАБОТЧИК ДЛЯ saveSpecializationBtn ---
 document.getElementById('saveSpecializationBtn').addEventListener('click', async () => {
-    // 1. Получаем только список кодов из multi-select (это теперь только дополнительные)
     const additionalCodes = Array.from(document.getElementById('multiSpecializationSelect').selectedOptions).map(o => o.value);
     
-    // Не нужно проверять primarySpecName, так как primary_code не отправляется,
-    // но нужна базовая проверка
     if (!profile || profile.user_type !== 'ИСПОЛНИТЕЛЬ') {
          displayMessage('profileStatus', 'Профиль не загружен или вы не исполнитель.', false);
          return;
@@ -1308,12 +1441,12 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
     };
     
     try {
-        const accessToken = localStorage.getItem('accessToken');
-        const res = await fetch(`${API_URL}/me/specializations/`, { 
-            method: 'PATCH', // Используем PATCH
+        // ИСПОЛЬЗУЕМ SECUREFETCH
+        const res = await secureFetch(`${API_URL}/me/specializations/`, { 
+            method: 'PATCH', 
             headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${accessToken}` 
+                'Content-Type': 'application/json'
+                // 'Authorization' добавит secureFetch
             },
             body: JSON.stringify(payload)
         });
@@ -1322,11 +1455,8 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
         
         if (res.ok) {
             displayMessage('profileStatus', data.message || 'Дополнительные специализации успешно сохранены!', true);
-            // Обновляем профиль и заявки после успешного сохранения
-            // Сначала перелогиниваем профиль, чтобы получить обновленные данные
-            await fetchProfile(); 
-            // Затем обновляем заявки
-            fetchWorkRequests();
+            await fetchProfile(); // Обновляем профиль (чтобы profile.specializations был свежим)
+            fetchWorkRequests(); // Обновляем ленту заявок
         } else {
             displayMessage('profileStatus', data.detail || 'Ошибка сохранения специализаций.', false);
         }
@@ -1336,79 +1466,121 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
 });
 
 
-        // Инициализация при загрузке страницы
+        // =======================================================================
+        // --- ОБНОВЛЕННЫЙ ЗАПУСК СТРАНИЦЫ (DOMCONTENTLOADED) ---
+        // =======================================================================
         window.addEventListener('DOMContentLoaded', async () => {
-    accessToken = localStorage.getItem('accessToken');
-    const storedProfile = localStorage.getItem('profile'); if (storedProfile) { profile = JSON.parse(storedProfile); }
+            
+            // 1. Очищаем старые переменные
+            accessToken = null; 
+            const storedProfile = localStorage.getItem('profile'); 
+            if (storedProfile) { 
+                profile = JSON.parse(storedProfile); 
+            }
+            
+            // 2. Ищем refreshToken в сессии (короткая сессия), затем в localStorage (долгая)
+            refreshToken = sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
 
-    // Проверяем URL на предмет успешной оплаты
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('payment') === 'success') {
-        alert('Оплата прошла успешно! Ваш премиум-статус активирован.');
-        // Очищаем параметры из URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
+            // 3. Проверяем URL на предмет успешной оплаты
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('payment') === 'success') {
+                alert('Оплата прошла успешно! Ваш премиум-статус активирован.');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
 
-// V-- ДОБАВЬТЕ ЭТУ СТРОКУ --V
-    document.getElementById('cityName').textContent = selectedCityName;
-    // ^-- ДОБАВЬТЕ ЭТУ СТРОКУ --^
+            // 4. Устанавливаем город
+            document.getElementById('cityName').textContent = selectedCityName;
+            await fetchCities();
+            selectCity(true); // Выбираем город при загрузке
 
-    await fetchCities();
-    selectCity(true); 
+            // 5. Загрузка справочников (не требует авторизации)
+            await fetchAllSpecializations(); // Сначала кешируем все специализации
+            await fetchOptions('registerSpecialization', '/specializations/');
+            await fetchOptions('workSpecialization', '/specializations/');
+            await fetchOptions('multiSpecializationSelect', '/specializations/', true); // true = использовать 'code' в value
+            await fetchOptions('machineryType', '/machinery_types/');
+            await fetchOptions('toolName', '/tool_names/');
 
-    // Загрузка справочников
-    await fetchOptions('registerSpecialization', '/specializations/');
-    await fetchOptions('workSpecialization', '/specializations/');
-    await fetchOptions('multiSpecializationSelect', '/specializations/', true); // <--- Изменено
-    await fetchOptions('machineryType', '/machinery_types/');
-    await fetchOptions('toolName', '/tool_names/');
+            // 6. --- НОВАЯ ЛОГИКА ВХОДА ---
+            if (refreshToken) {
+                // Если токен есть, пытаемся войти
+                const success = await tryRefreshToken(refreshToken);
+                if (success) {
+                    showPage('buttonContainer'); // Успешно, показываем меню
+                }
+                // Если !success, tryRefreshToken сам вызовет logout() и покажет loginPage
+            } else {
+                // Токена нет, показываем страницу входа
+                showPage('loginPage');
+            }
+            // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
 
-    if (accessToken) { showPage('buttonContainer'); } else { showPage('loginPage'); }
-
-    handleFormSubmit('workRequestForm', '/work_requests/', 'workRequestStatus', 'Заявка создана!', buildWorkRequestPayload);
-    handleFormSubmit('machineryRequestForm', '/machinery_requests/', 'machineryRequestStatus', 'Заявка создана!', buildMachineryRequestPayload);
-    handleFormSubmit('toolRequestForm', '/tool_requests/', 'toolRequestStatus', 'Заявка создана!', buildToolRequestPayload);
-    handleFormSubmit('materialAdForm', '/material_ads/', 'materialAdStatus', 'Объявление создано!', buildMaterialAdPayload);
+            // 7. Привязка обработчиков форм (остается в конце)
+            handleFormSubmit('workRequestForm', '/work_requests/', 'workRequestStatus', 'Заявка создана!', buildWorkRequestPayload);
+            handleFormSubmit('machineryRequestForm', '/machinery_requests/', 'machineryRequestStatus', 'Заявка создана!', buildMachineryRequestPayload);
+            handleFormSubmit('toolRequestForm', '/tool_requests/', 'toolRequestStatus', 'Заявка создана!', buildToolRequestPayload);
+            handleFormSubmit('materialAdForm', '/material_ads/', 'materialAdStatus', 'Объявление создано!', buildMaterialAdPayload);
         });
 
-        // Обработчики форм (login, register)
+        // =======================================================================
+        // --- ОБНОВЛЕННЫЙ ОБРАБОТЧИК LOGINFORM ---
+        // =======================================================================
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const statusElementId = 'loginStatus'; // ID для сообщений об ошибках
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const statusElementId = 'loginStatus'; 
 
-    try {
-        const response = await fetch(`${API_URL}/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+            try {
+                // Используем обычный fetch, т.к. токена еще нет
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Неверный логин или пароль.');
+                }
+
+                const data = await response.json();
+                
+                // 1. Сохраняем токены в глобальные переменные
+                accessToken = data.access_token;
+                refreshToken = data.refresh_token; 
+                
+                // 2. Проверяем галочку "Запомнить меня"
+                const remember = document.getElementById('rememberMe').checked;
+
+                // 3. Очищаем старые токены из хранилищ
+                localStorage.removeItem('refreshToken');
+                sessionStorage.removeItem('refreshToken');
+                
+                // 4. Сохраняем НОВЫЙ refresh_token в нужное место
+                if (remember) {
+                    // "Запомнить меня" = храним долго
+                    localStorage.setItem('refreshToken', refreshToken);
+                } else {
+                    // "Не помнить" = храним, пока открыта вкладка
+                    sessionStorage.setItem('refreshToken', refreshToken);
+                }
+
+                // 5. Загружаем профиль (теперь у нас есть accessToken)
+                await fetchProfile(); 
+                
+                // 6. Переходим на главный экран
+                showPage('buttonContainer');
+
+            } catch (error) {
+                console.error('Ошибка входа:', error);
+                displayMessage(statusElementId, error.message, false);
+            }
         });
 
-        // Если ответ не 'ok' (например, статус 401), сразу переходим к обработке ошибки
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Неверный логин или пароль.');
-        }
-
-        // Если всё в порядке, получаем токен
-        const data = await response.json();
-        accessToken = data.access_token;
-        localStorage.setItem('accessToken', accessToken);
-
-        // Сразу после успешного входа загружаем профиль
-        await fetchProfile();
-
-        // И только после этого переходим на главный экран
-        showPage('buttonContainer');
-
-    } catch (error) {
-        // Отображаем любую ошибку (сетевую или от сервера)
-        console.error('Ошибка входа:', error);
-        displayMessage(statusElementId, error.message, false);
-    }
-});
-
+        // =======================================================================
+        // --- ОБРАБОТЧИК REGISTERFORM (Без изменений) ---
+        // =======================================================================
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('registerEmail').value;
@@ -1424,6 +1596,7 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
             }
 
             try {
+                // Используем обычный fetch
                 const response = await fetch(`${API_URL}/register`, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1436,7 +1609,16 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
                     document.getElementById('registerForm').reset();
                     showPage('loginPage');
                 } else {
-                    displayMessage('registerStatus', data.detail[0].msg || data.detail || 'Ошибка регистрации.', false);
+                    // Попытка извлечь более детальную ошибку
+                    let errorMsg = 'Ошибка регистрации.';
+                    if (data.detail) {
+                        if (Array.isArray(data.detail) && data.detail[0].msg) {
+                            errorMsg = data.detail[0].msg;
+                        } else if (typeof data.detail === 'string') {
+                            errorMsg = data.detail;
+                        }
+                    }
+                    displayMessage('registerStatus', errorMsg, false);
                 }
             } catch (error) {
                 displayMessage('registerStatus', 'Ошибка соединения с сервером.', false);
@@ -1444,7 +1626,7 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
         });
 
         // =======================================================================
-        // ИСПРАВЛЕНО: Обработчик формы рейтинга
+        // --- ОБНОВЛЕННЫЙ ОБРАБОТЧИК RATINGFORM ---
         // =======================================================================
         document.getElementById('ratingForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1457,14 +1639,15 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
             const payload = {
                 rating: parseInt(ratingElement.value),
                 comment: document.getElementById('ratingComment').value,
-                rating_type: document.getElementById('ratingTypeHidden').value // <-- Отправляем тип!
+                rating_type: document.getElementById('ratingTypeHidden').value
             };
             const requestId = document.getElementById('ratingRequestId').value;
 
             try {
-                const res = await fetch(`${API_URL}/work_requests/${requestId}/rate`, {
+                // ИСПОЛЬЗУЕМ SECUREFETCH
+                const res = await secureFetch(`${API_URL}/work_requests/${requestId}/rate`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const result = await res.json();
@@ -1473,7 +1656,7 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
                 displayMessage('ratingStatus', 'Оценка успешно отправлена!', true);
                 setTimeout(() => {
                     hideRatingModal();
-                    fetchMyRequests(); // Обновляем список, чтобы скрыть кнопку
+                    fetchMyRequests(); 
                     fetchCompletedRequestsForRating();
                 }, 2000);
             } catch(error) {
@@ -1481,7 +1664,9 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
             }
         });
         
-        // Дополнительные обработчики для UI (specializationGroup, star rating click, delivery address)
+        // =======================================================================
+        // --- ДОПОЛНИТЕЛЬНЫЕ ОБРАБОТЧИКИ UI (Без изменений) ---
+        // =======================================================================
         document.getElementById('registerUserType').addEventListener('change', (e) => {
             document.getElementById('specializationGroup').style.display = e.target.value === 'ИСПОЛНИТЕЛЬ' ? 'block' : 'none';
         });
@@ -1493,7 +1678,6 @@ document.getElementById('saveSpecializationBtn').addEventListener('click', async
             });
         });
 
-        // Переключение видимости полей адреса доставки
         document.getElementById('hasDelivery').addEventListener('change', (e) => {
             document.getElementById('deliveryAddressGroup').style.display = e.target.checked ? 'block' : 'none';
         });
