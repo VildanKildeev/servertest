@@ -79,6 +79,23 @@ performer_specializations = sqlalchemy.Table(
     sqlalchemy.Column("is_primary", sqlalchemy.Boolean, default=False, nullable=False),
 )
 
+# V-- НОВАЯ ТАБЛИЦА ДЛЯ REFRESH-ТОКЕНОВ --V
+# =======================================================================
+# НОВАЯ ТАБЛИЦА: 5. Сессии (Refresh Tokens)
+# =======================================================================
+refresh_tokens = sqlalchemy.Table(
+    "refresh_tokens",
+    metadata,
+    # Мы не храним сам токен, а только его уникальный идентификатор (jti)
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    # jti = JWT ID, уникальный идентификатор токена
+    sqlalchemy.Column("jti", sqlalchemy.String, nullable=False, unique=True),
+    sqlalchemy.Column("expires_at", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=func.now()),
+)
+
+
 # =======================================================================
 # 5. Таблица заявок на работу (Work Requests) - БЕЗ ИЗМЕНЕНИЙ
 # =======================================================================
