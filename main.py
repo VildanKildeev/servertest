@@ -5,7 +5,6 @@ import databases
 import asyncpg
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, date
-import uuid
 from passlib.context import CryptContext
 from fastapi import FastAPI, HTTPException, status, Depends, APIRouter, File, UploadFile, Request, BackgroundTasks, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,7 +25,7 @@ from datetime import datetime, date
 
 # --- Database setup ---
 # Импортируем все таблицы, включая новые, из файла database.py
-from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, ratings, work_request_responses, specializations, performer_specializations, refresh_tokens
+from database import metadata, engine, users, work_requests, machinery_requests, tool_requests, material_ads, cities, database, ratings, work_request_responses, specializations, performer_specializations
 
 load_dotenv()
 
@@ -40,8 +39,7 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 # V-- ДОБАВЬТЕ ЭТИ 3 СТРОКИ --V
 SECRET_KEY = os.environ.get("SECRET_KEY", "c723f5b8a5aff5f8f596f265f833503d25e36f3c178a48b32c6913c3e601c0d4")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440 # Время жизни токена в минутах
-REFRESH_TOKEN_EXPIRE_DAYS = 30 # V-- НОВОЕ --V (30 дней)
+ACCESS_TOKEN_EXPIRE_MINUTES = 120 # Время жизни токена в минутах
 
 if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
     # Обязательно 4 пробела (или 1 Tab) отступа!
@@ -174,13 +172,10 @@ class UserCreate(BaseModel):
 
 class Token(BaseModel):
     access_token: str
-refresh_token: Optional[str] = None # V-- НОВОЕ ПОЛЕ --V
-    token_type: str
     token_type: str
 
 class TokenData(BaseModel):
     username: Optional[str] = None
-token_type: Optional[str] = "access" # 'access' или 'refresh'
 
 class WorkRequestIn(BaseModel):
     description: str
@@ -255,33 +250,11 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-async def _create_token(data: dict, expires_delta: timedelta, token_type: str) -> (str, str, datetime):
-    """Общая утилита для создания JWT токена."""
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire, "jti": str(uuid.uuid4()), "token_type": token_type})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt, to_encode["jti"], expire
-
-async def create_access_token(data: dict):
-    """Создает короткоживущий Access Token."""
-    expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    token, jti, expire = await _create_token(data, expires_delta, "access")
-    return token
-
-async def create_refresh_token(data: dict, user_id: int):
-    """Создает долгоживущий Refresh Token и сохраняет его JTI в базу."""
-    expires_delta = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    token, jti, expire = await _create_token(data, expires_delta, "refresh")
-    
-    # Сохраняем JTI в базу данных, чтобы токен можно было отозвать
-    query = refresh_tokens.insert().values(
-        user_id=user_id,
-        jti=jti,
-        expires_at=expire
-    )
-    await database.execute(query)
-    return token
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def authenticate_user(username: str, password: str):
     user_db = await database.fetch_one(users.select().where(users.c.email == username))
@@ -329,10 +302,6 @@ def mask_contact(contact_info: str) -> str:
     return masked
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """
-    Проверяет Access Token. 
-    НЕ ПРОВЕРЯЕТ Refresh Token (для этого будет отдельная логика).
-    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Не удалось проверить учетные данные",
@@ -341,21 +310,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        token_type: str = payload.get("token_type")
-
         if email is None:
             raise credentials_exception
-        # Этот эндпоинт должен принимать ТОЛЬКО access токены
-        if token_type != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Предоставлен неверный тип токена (ожидался 'access')",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
     except JWTError:
-        # JWTError может означать, что токен ИСТЕК (ExpiredSignatureError)
-        # Фронтенд должен будет поймать этот 401 и использовать refresh-токен
         raise credentials_exception
 
     user_db = await database.fetch_one(users.select().where(users.c.email == email))
@@ -381,112 +338,8 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     user_db = await authenticate_user(form_data.username, form_data.password)
     if not user_db:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль")
-    
-    token_data = {"sub": user_db["email"]}
-    
-    # 1. Создаем Access Token (короткий)
-    access_token = await create_access_token(data=token_data)
-    
-    # 2. Создаем Refresh Token (длинный) и сохраняем его в БД
-    refresh_token = await create_refresh_token(data=token_data, user_id=user_db["id"])
-
-    # 3. Возвращаем ОБА токена
-    return {
-        "access_token": access_token, 
-        "refresh_token": refresh_token, 
-        "token_type": "bearer"
-    }
-
-@api_router.post("/token/refresh", response_model=Token)
-async def refresh_access_token(token: str = Depends(oauth2_scheme)):
-    """
-    Принимает Refresh Token и (если он валиден) возвращает
-    новый Access Token и новый Refresh Token (Ротация токенов).
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Невалидный refresh-токен",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        token_type: str = payload.get("token_type")
-        jti: str = payload.get("jti")
-
-        if not email or not jti or token_type != "refresh":
-            raise credentials_exception
-
-    except JWTError:
-        # Истекший или невалидный токен
-        raise credentials_exception
-
-    # 1. Найти пользователя по email
-    user_db = await database.fetch_one(users.select().where(users.c.email == email))
-    if user_db is None:
-        raise credentials_exception
-
-    # 2. Проверить, что jti этого токена есть в нашей базе (т.е. он не отозван)
-    jti_query = select(refresh_tokens.c.jti).where(
-        refresh_tokens.c.jti == jti,
-        refresh_tokens.c.user_id == user_db["id"],
-        refresh_tokens.c.expires_at > datetime.utcnow() # Доп. проверка, хотя JWT decode уже проверил
-    )
-    valid_jti = await database.fetch_one(jti_query)
-    
-    if not valid_jti:
-        # Токен был отозван (удалили jti) или не найден
-        raise credentials_exception
-
-    # 3. РОТАЦИЯ: Токен валиден. Мы должны отозвать его (удалить jti)
-    # и выпустить новую пару токенов.
-    async with database.transaction():
-        # Удаляем старый jti
-        await database.execute(refresh_tokens.delete().where(refresh_tokens.c.jti == jti))
-
-        # Создаем новые токены
-        token_data = {"sub": user_db["email"]}
-        new_access_token = await create_access_token(data=token_data)
-        new_refresh_token = await create_refresh_token(data=token_data, user_id=user_db["id"])
-    
-    return {
-        "access_token": new_access_token,
-        "refresh_token": new_refresh_token,
-        "token_type": "bearer"
-    }
-# ^-- НОВЫЙ ЭНДПОИНТ /token/refresh --^
-
-
-# V-- НОВЫЙ ЭНДПОИНТ /logout --V
-@api_router.post("/logout")
-async def logout(token: str = Depends(oauth2_scheme)):
-    """
-    Принимает Refresh Token и отзывает его (удаляет jti из базы).
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Невалидный refresh-токен",
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        token_type: str = payload.get("token_type")
-        jti: str = payload.get("jti")
-        
-        # Этот эндпоинт принимает только refresh-токены для отзыва
-        if token_type != "refresh" or not jti:
-            raise credentials_exception
-
-        # Удаляем jti из базы, если он там есть
-        await database.execute(refresh_tokens.delete().where(refresh_tokens.c.jti == jti))
-
-    except JWTError:
-        # Если токен уже истек или невалиден, ничего страшного.
-        # Просто игнорируем, цель (разлогин) достигнута.
-        pass
-        
-    return {"message": "Вы успешно вышли из системы"}
-# ^-- НОВЫЙ ЭНДПОИНТ /logout --^
+    access_token = create_access_token({"sub": user_db["email"]}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @api_router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserOut)
 async def create_user(user: UserCreate):
