@@ -3,6 +3,7 @@ import json
 import uvicorn
 import databases
 import asyncpg
+import httpx
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, date
 from passlib.context import CryptContext
@@ -20,7 +21,6 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 import re
-from yookassa import Configuration, Payment
 from datetime import datetime, date
 
 # --- Database setup ---
@@ -32,19 +32,13 @@ load_dotenv()
 base_path = Path(__file__).parent
 static_path = base_path / "static"
 
-YOOKASSA_SHOP_ID = os.environ.get("YOOKASSA_SHOP_ID")
-YOOKASSA_SECRET_KEY = os.environ.get("YOOKASSA_SECRET_KEY")
-APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
+RUSTORE_COMPANY_ID = os.environ.get("RUSTORE_COMPANY_ID")
+RUSTORE_SERVICE_KEY = os.environ.get("RUSTORE_SERVICE_KEY")
 
 # V-- ДОБАВЬТЕ ЭТИ 3 СТРОКИ --V
 SECRET_KEY = os.environ.get("SECRET_KEY", "c723f5b8a5aff5f8f596f265f833503d25e36f3c178a48b32c6913c3e601c0d4")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120 # Время жизни токена в минутах
-
-if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
-    # Обязательно 4 пробела (или 1 Tab) отступа!
-    Configuration.account_id = YOOKASSA_SHOP_ID
-    Configuration.secret_key = YOOKASSA_SECRET_KEY
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
@@ -137,6 +131,9 @@ class UserSpecializationsUpdate(BaseModel):
 class AdditionalSpecializationUpdate(BaseModel):
     """Модель для обновления только дополнительных специализаций."""
     additional_codes: List[str] = Field(..., description="Список кодов дополнительных специализаций")
+
+class RuStoreVerificationRequest(BaseModel):
+    invoiceId: str # Получаем ID счета от приложения
 
 class SubscriptionStatus(BaseModel):
     is_premium: bool
@@ -330,6 +327,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def serve_index(): return FileResponse(static_path / "index.html")
+
+@app.get("/privacy", response_class=FileResponse, include_in_schema=False)
+async def serve_privacy_policy():
+    """
+    Отдает страницу 'Политика конфиденциальности'.
+    """
+    return FileResponse(static_path / "privacy_policy.html")
+
+@app.get("/terms", response_class=FileResponse, include_in_schema=False)
+async def serve_user_agreement():
+    """
+    Отдает страницу 'Пользовательское соглашение'.
+    """
+    return FileResponse(static_path / "user_agreement.html")
 
 # --- Регистрация, логин, профиль ---
 
@@ -530,137 +541,88 @@ async def get_my_subscription(current_user: dict = Depends(get_current_user)):
         "premium_until": current_user.get("premium_until")
     }
 
-@api_router.post("/subscribe/", response_model=CheckoutSession)
-async def create_checkout_session(current_user: dict = Depends(get_current_user)):
-    
-    # DEV-ВЕТКА: Если YooKassa не настроена
-    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
-        print("DEV-MODE PAYMENT: Activating premium...")
-        premium_until_date = datetime.utcnow() + timedelta(days=30)
-        query = users.update().where(users.c.id == current_user["id"]).values(is_premium=True, premium_until=premium_until_date)
-        await database.execute(query)
-        return {"activated": True}
-
-    # PROD-ВЕТКА: Создание платежа YooKassa
-    try:
-        # Уникальный ключ для идемпотентности (YooKassa требует)
-        # Можно использовать, например, f"{current_user['id']}_{int(datetime.now().timestamp())}"
-        import uuid
-        idempotence_key = str(uuid.uuid4())
-
-        payment = Payment.create({
-            "amount": {
-                "value": "100.00", # Установите свою цену за 30 дней
-                "currency": "RUB"
-            },
-            "confirmation": {
-                "type": "redirect",
-                # URL, куда вернется пользователь
-                "return_url": f"{APP_BASE_URL}/?payment=success" 
-            },
-            "capture": True, # Автоматически принять платеж
-            "description": "Премиум-подписка СМЗ.РФ на 30 дней",
-            "metadata": {
-                # ВАЖНО: Передаем ID пользователя, как делали в Stripe
-                "user_id": str(current_user['id']) 
-            }
-        }, idempotence_key) # Ключ идемпотентности
-
-        # Вместо checkout_session.url, у YooKassa это payment.confirmation.confirmation_url
-        return {"checkout_url": payment.confirmation.confirmation_url}
-
-    except Exception as e:
-        print(f"Ошибка YooKassa: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка создания платежа: {str(e)}")
-
-
-@api_router.post("/payments/webhook")
-async def yookassa_webhook(request: Request):
+@api_router.post("/verify/rustore", response_model=SubscriptionStatus)
+async def verify_rustore_purchase(
+    data: RuStoreVerificationRequest, 
+    current_user: dict = Depends(get_current_user)
+):
     """
-    Обрабатывает POST-уведомления (веб-хуки) от YooKassa.
-    Активирует премиум-статус при успешной оплате.
+    Проверяет чек (invoiceId) на стороне сервера RuStore.
     """
     
-    # 1. Проверяем, настроена ли YooKassa (избегаем сбоя, если нет)
-    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
-        print("Webhook (YooKassa): Вызван, но система не настроена.")
-        # Все равно возвращаем 200, чтобы YooKassa не повторяла запрос
-        return {"status": "ignored_not_configured"}
-
-    try:
-        # Получаем JSON-уведомление от YooKassa
-        data = await request.json()
-    except Exception:
-        print("Webhook (YooKassa) Error: Получен невалидный JSON")
-        raise HTTPException(status_code=400, detail="Invalid JSON")
-
-    # 2. Нас интересует только событие успешного платежа
-    event_type = data.get("event")
-    payment_object = data.get("object", {})
-    
-    if event_type != "payment.succeeded":
-        return {"status": "ignored_event_type"}
-
-    # 3. ВЕРИФИКАЦИЯ (Обязательно для безопасности)
-    # Получаем ID платежа из уведомления и запрашиваем его у YooKassa,
-    # чтобы убедиться, что он настоящий и действительно 'succeeded'.
-    
-    payment_id = payment_object.get("id")
-    if not payment_id:
-        print("Webhook (YooKassa) Error: В уведомлении нет payment_id")
-        raise HTTPException(status_code=400, detail="No payment ID in object")
-        
-    try:
-        # Этот вызов API использует 'Configuration', настроенный при старте
-        payment_info = Payment.find_one(payment_id)
-        
-        if payment_info.status != 'succeeded':
-            # Странная ситуация: уведомление "succeeded", а API говорит "нет".
-            print(f"Webhook (YooKassa) Warning: Event {payment_id} is '{event_type}' but API status is '{payment_info.status}'")
-            return {"status": "ignored_status_mismatch"}
-
-        # Теперь мы уверены, что платеж прошел.
-        # Используем `payment_info` (из API) как источник правды.
-        metadata = payment_info.metadata
-        user_id_str = metadata.get("user_id")
-        
-        if not user_id_str:
-            print(f"Webhook (YooKassa) Error: Payment {payment_id} succeeded but has no user_id in metadata.")
-            return {"status": "error_no_metadata"}
-            
-    except Exception as e:
-        # Ошибка при запросе к API YooKassa (например, нет связи)
-        print(f"Webhook (YooKassa) Error: Не удалось проверить платеж {payment_id}. Error: {e}")
-        # Возвращаем 503, чтобы YooKassa попробовала прислать уведомление позже
-        raise HTTPException(status_code=503, detail="Payment verification failed")
-
-
-    # 4. АКТИВАЦИЯ ПРЕМИУМА (Бизнес-логика)
-    try:
-        user_id = int(user_id_str)
-        # Устанавливаем срок действия премиума (как в старом коде Stripe)
-        premium_until_date = datetime.utcnow() + timedelta(days=30)
-        
-        query = users.update().where(users.c.id == user_id).values(
-            is_premium=True,
-            premium_until=premium_until_date
+    # 1. Проверяем, что ключи для RuStore API настроены на сервере
+    if not RUSTORE_COMPANY_ID or not RUSTORE_SERVICE_KEY:
+        print("Ошибка: Переменные RUSTORE_COMPANY_ID или RUSTORE_SERVICE_KEY не установлены.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Сервис оплаты временно недоступен."
         )
-        await database.execute(query)
+
+    # 2. Формируем URL для API RuStore
+    # (Вам нужно уточнить URL в документации RuStore API для проверки чека)
+    # Это *предполагаемый* URL на основе API v1
+    RUSTORE_VERIFY_URL = f"https://api.rustore.ru/public/v1/payment/company/{RUSTORE_COMPANY_ID}/invoice/{data.invoiceId}"
+    
+    headers = {
+        "Authorization": f"Bearer {RUSTORE_SERVICE_KEY}"
+    }
+
+    try:
+        # 3. Делаем асинхронный запрос к RuStore
+        async with httpx.AsyncClient() as client:
+            response = await client.get(RUSTORE_VERIFY_URL, headers=headers)
         
-        print(f"Webhook (YooKassa) Success: Premium activated for user {user_id} until {premium_until_date}")
+        # 4. Анализируем ответ
+        if response.status_code == 404:
+            raise HTTPException(status_code=400, detail="Платеж не найден (404).")
+        
+        # Пробрасываем другие ошибки
+        response.raise_for_status() 
+        
+        payment_data = response.json()
+        
+        # 5. ВАЖНАЯ ПРОВЕРКА: Убеждаемся, что статус "PAID" или "CONFIRMED"
+        # (Используйте точный статус из документации RuStore)
+        payment_status = payment_data.get("body", {}).get("invoiceStatus")
+        
+        if payment_status not in ["PAID", "CONFIRMED"]: # Уточните эти статусы
+             raise HTTPException(
+                status_code=400, 
+                detail=f"Платеж не подтвержден. Статус: {payment_status}"
+            )
 
-    except ValueError:
-        print(f"Webhook (YooKassa) Error: Неверный user_id в metadata: {user_id_str}")
-        # Это постоянная ошибка, не нужно повторять
-        return {"status": "error_invalid_user_id"}
+        # TODO: Дополнительная проверка. 
+        # Убедитесь, что `productId` в `payment_data`
+        # соответствует 'premium_30_days' и что сумма верная.
+
+    except httpx.HTTPStatusError as e:
+        print(f"Ошибка HTTP при проверке RuStore: {e.response.text}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Ошибка при обращении к сервису оплаты: {e.response.status_code}"
+        )
     except Exception as e:
-        # Ошибка базы данных
-        print(f"Webhook (YooKassa) DB Error: Не удалось обновить user {user_id}. Error: {e}")
-        # Возвращаем 500, чтобы YooKassa повторила попытку
-        raise HTTPException(status_code=500, detail="Database update failed")
+        print(f"Неизвестная ошибка при проверке RuStore: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервиса оплаты."
+        )
 
-    # 5. Сообщаем YooKassa, что все в порядке (HTTP 200)
-    return {"status": "success"}
+    # 6. Все в порядке! Платеж подтвержден. Активируем премиум.
+    premium_until_date = datetime.utcnow() + timedelta(days=30)
+    
+    query = users.update().where(users.c.id == current_user["id"]).values(
+        is_premium=True,
+        premium_until=premium_until_date
+    )
+    await database.execute(query)
+    
+    print(f"RuStore: Премиум успешно активирован для пользователя {current_user['id']}")
+
+    return {
+        "is_premium": True,
+        "premium_until": premium_until_date
+    }
 
 # --- Справочники ---
 @api_router.get("/cities/", response_model=List[City])
