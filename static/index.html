@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>СМЗ.РФ - Рабочие и спецтехника</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-<link rel="manifest" href="/manifest.json">
     
     <style>
         /* =======================================
@@ -304,7 +303,16 @@ select[multiple] { height: 120px; }
                     <div class="input-group" id="specializationGroup" style="display: none;">
                         <label for="registerSpecialization">Ваша основная специализация:</label> <select id="registerSpecialization"></select>
                     </div>
-                    <button type="submit" class="btn-primary">Зарегистрироваться</button>
+                    <div class="legal-notice">
+  <input type="checkbox" id="agree" required>
+  <label for="agree">
+    Я прочитал и принимаю 
+    <a href="/terms" target="_blank">Пользовательское соглашение</a>
+    и 
+    <a href="/privacy" target="_blank">Политику конфиденциальности</a>.
+  </label>
+</div>
+<button type="submit">Зарегистрироваться</button>
                     <button type="button" class="btn-link" onclick="showPage('loginPage'); return false;">Уже есть аккаунт? Войти</button>
                 </form>
             </div>
@@ -709,21 +717,64 @@ async function populateSpecializationForm() {
 }
 
 async function subscribeToPremium() {
+    // ID продукта, который вы создали в RuStore Console
+    const RUSTORE_PRODUCT_ID = 'premium_30_days'; // *** ОБЯЗАТЕЛЬНО ИЗМЕНИТЬ НА СВОЙ ID ТОВАРА ***
+    
+    // В Capacitor (используя нативный мост), вызов должен выглядеть так:
+    // Мы предполагаем, что вы создадите плагин Capacitor с методом 'purchase'.
     try {
-        const res = await fetch(`${API_URL}/subscribe/`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Не удалось начать процесс оплаты');
+        displayMessage('premiumStatus', 'Запуск оплаты RuStore...', true);
 
-        if (data.checkout_url) { // Ветка Stripe
-            window.location.href = data.checkout_url;
-        } else if (data.activated) { // DEV-ветка
-            alert('Премиум-подписка успешно активирована (DEV-режим)!');
-            fetchProfile();
+        // 1. ВЫЗОВ НАТИВНОГО RUSTORE SDK ЧЕРЕЗ CAPACITOR
+        const result = await Capacitor.Plugins.RuStoreBilling.purchase({ 
+            productId: RUSTORE_PRODUCT_ID 
+        });
+
+        // Ожидаемый результат от нативного плагина: { invoiceId: "..." }
+        const invoiceId = result.invoiceId;
+
+        if (!invoiceId) {
+            // Это может произойти, если пользователь отменил платеж
+            displayMessage('premiumStatus', 'Платеж отменен пользователем или не завершен.', false);
+            return;
         }
-    } catch (error) { alert(`Ошибка: ${error.message}`); console.error('Subscription error:', error); }
+
+        // 2. ОТПРАВКА CHECК'А НА НАШ БЭКЕНД ДЛЯ ВАЛИДАЦИИ
+        displayMessage('premiumStatus', 'Проверка платежа на сервере...', true);
+
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(`${API_URL}/api/verify/rustore`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ invoiceId: invoiceId }) // Отправляем ID счета
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Ошибка проверки платежа.');
+        }
+
+        // 3. УСПЕХ: Платеж подтвержден, обновляем UI
+        displayMessage('premiumStatus', 'Премиум успешно активирован!', true);
+        await fetchProfile(); // Обновляем профиль
+        setTimeout(() => {
+            showPage('profilePage'); // Показываем обновленный профиль
+        }, 1500);
+
+    } catch (error) {
+        let errorMessage = error.message || 'Произошла неизвестная ошибка при оплате.';
+        
+        // Добавьте специальную обработку ошибок, связанных с нативным кодом
+        if (error.message.includes('NOT_IMPLEMENTED')) {
+             errorMessage = 'Ошибка: Нативный плагин RuStore не найден. Убедитесь, что приложение собрано через Capacitor.';
+        }
+        
+        displayMessage('premiumStatus', `Ошибка: ${errorMessage}`, false);
+        console.error('Ошибка подписки RuStore:', error);
+    }
 }
         
         // Добавим вызов этой функции на странице "Мои выполненные заявки"
