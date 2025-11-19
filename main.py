@@ -3,6 +3,8 @@ import json
 import uvicorn
 import databases
 import asyncpg
+import time
+from jose import jws, jwe  # python-jose
 import httpx
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, date
@@ -34,6 +36,113 @@ static_path = base_path / "static"
 
 RUSTORE_COMPANY_ID = os.environ.get("RUSTORE_COMPANY_ID")
 RUSTORE_SERVICE_KEY = os.environ.get("RUSTORE_SERVICE_KEY")
+
+class RuStorePaymentValidation(BaseModel):
+    invoice_id: str  # <-- ВАЖНО: Pay SDK отправляет invoice_id
+
+# Функция генерации токена для RuStore API
+def generate_rustore_auth_token():
+    """
+    Генерирует JWE токен для доступа к API RuStore.
+    """
+    current_time = int(time.time())
+    # Время жизни токена (например, 5 минут)
+    exp_time = current_time + 300 
+    
+    payload = {
+        "iss": RUSTORE_KEY_ID,
+        "exp": exp_time,
+        "iat": current_time,
+        "jti": os.urandom(16).hex() # Уникальный ID токена
+    }
+    
+    # Подпись и шифрование (согласно документации RuStore)
+    # Внимание: Это упрощенный пример. В зависимости от того, как вы храните ключ,
+    # может потребоваться другая обработка (например, если ключ в base64).
+    # Обычно используется библиотека python-jose.
+    
+    # Если у вас возникают сложности с генерацией JWE вручную, 
+    # RuStore рекомендует использовать их официальные библиотеки или curl.
+    # Для Python самый простой способ - просто передать Service Key в заголовок,
+    # если используется Public API (но для v2 платежей часто нужен именно JWE).
+    
+    # !!! УПРОЩЕННЫЙ ВАРИАНТ ДЛЯ СТАРТА (Если RuStore принимает просто Service Key) !!!
+    # Если строгая JWE подпись не проходит, проверьте документацию по "Серверной валидации".
+    # Часто достаточно Public-Token.
+    
+    return "Bearer " + RUSTORE_PRIVATE_KEY # Временная заглушка, см. ниже про JWE
+
+# ПРАВИЛЬНАЯ РЕАЛИЗАЦИЯ JWE ОЧЕНЬ ОБЪЕМНАЯ.
+# Для простоты интеграции, используйте этот метод валидации:
+async def get_payment_info(invoice_id: str):
+    url = f"https://public-api.rustore.ru/public/v2/payments/{invoice_id}"
+    
+    # Для v2 API нужен токен. 
+    # В заголовке 'Public-Token' передаем сервисный ключ (если разрешено)
+    # Или генерируем JWE.
+    headers = {
+        "Public-Token": RUSTORE_SERVICE_KEY, # Попробуйте сначала так
+        "Content-Type": "application/json"
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        return response
+
+@app.post("/api/validate-rustore-payment")
+async def validate_payment(
+    payment_data: RuStorePaymentValidation,
+    current_user: dict = Depends(get_current_user) # Требуем авторизацию пользователя
+):
+    """
+    Валидация платежа от RuStore Pay SDK (v2)
+    """
+    invoice_id = payment_data.invoice_id
+    print(f"Validating invoice: {invoice_id} for user {current_user['id']}")
+
+    try:
+        # 1. Делаем запрос в RuStore API v2
+        url = f"https://public-api.rustore.ru/public/v2/payments/{invoice_id}"
+        
+        # ВАЖНО: Для доступа к этому API нужен валидный токен или Service Key.
+        # Проверьте в консоли RuStore права вашего Service Key.
+        headers = {
+            "Public-Token": RUSTORE_SERVICE_KEY
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            
+        if response.status_code != 200:
+            print(f"RuStore API Error: {response.text}")
+            raise HTTPException(status_code=400, detail="Не удалось проверить платеж в RuStore")
+
+        data = response.json()
+        # Пример ответа: {'invoice_id': '...', 'invoice_status': 'CONFIRMED', ...}
+        
+        status = data.get("invoice_status") # Или просто 'status', проверьте JSON ответа
+
+        # 2. Проверяем статус
+        if status == "CONFIRMED" or status == "PAID":
+            # 3. Платеж успешен! Начисляем услуги пользователю.
+            
+            # Пример: Активация премиума
+            query = users.update().where(users.c.id == current_user["id"]).values(
+                is_premium=True,
+                # premium_expires_at=... (добавьте логику даты)
+            )
+            await database.execute(query)
+            
+            return {"status": "success", "message": "Оплата подтверждена, услуги начислены."}
+        
+        elif status == "CREATED" or status == "PROCESSING":
+            return {"status": "pending", "message": "Платеж в обработке."}
+        else:
+            return {"status": "error", "message": f"Статус платежа: {status}"}
+
+    except Exception as e:
+        print(f"Validation Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ошибка сервера при валидации")
 
 # V-- ДОБАВЬТЕ ЭТИ 3 СТРОКИ --V
 SECRET_KEY = os.environ.get("SECRET_KEY", "c723f5b8a5aff5f8f596f265f833503d25e36f3c178a48b32c6913c3e601c0d4")
@@ -560,12 +669,13 @@ async def verify_rustore_purchase(
 
     # 2. Формируем URL для API RuStore
     # (Вам нужно уточнить URL в документации RuStore API для проверки чека)
-    # Это *предполагаемый* URL на основе API v1
-    RUSTORE_VERIFY_URL = f"https://api.rustore.ru/public/v1/payment/company/{RUSTORE_COMPANY_ID}/invoice/{data.invoiceId}"
+# Используем v2 API, который соответствует Pay SDK
+RUSTORE_VERIFY_URL = f"https://public-api.rustore.ru/public/v2/payments/{data.invoiceId}"
     
-    headers = {
-        "Authorization": f"Bearer {RUSTORE_SERVICE_KEY}"
-    }
+headers = {
+    "Public-Token": RUSTORE_SERVICE_KEY 
+    # "Authorization" здесь не нужен для этого конкретного метода v2, если используете сервисный ключ как Public-Token
+}
 
     try:
         # 3. Делаем асинхронный запрос к RuStore
